@@ -1,0 +1,25 @@
+services:
+  mariadb:
+    build: ./mariadb
+    image: mariadb:v1.0
+    container_name: mariadb
+    env_file:
+      - .env
+    volumes:
+      - mariadb_database:/var/lib/mysql
+    networks:
+      - _network
+    init: true
+    restart: always
+  
+volumes:
+  mariadb_database:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/rcruz-an/data/mariadb_database
+
+
+networks:
+  _network:
