@@ -1,0 +1,14 @@
+services:
+  sqlite-init:
+    build:
+      context: ./SQLite
+    container_name: sqlite-init
+    volumes:
+      - /home/rcruz-an/data:/data
+    env_file:
+      - .env
+    restart: "no"
+
+
+networks:
+  _network:
