@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Create database schema
-sqlite3 /data/database.db < /init/init.sql
+sqlite3 /data/database.db < /SQLite/init.sql
 
 # Insert user from env
 if [ -n "$DB_USER" ] && [ -n "$DB_PASSWORD" ]; then

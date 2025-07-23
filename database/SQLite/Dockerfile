@@ -4,10 +4,10 @@ RUN apk update && apk add --no-cache sqlite
 
 WORKDIR /data
 
-COPY init.sql /init/init.sql
+COPY init.sql /SQLite/init.sql
 
-COPY entrypoint.sh /init/entrypoint.sh
+COPY entrypoint.sh /SQLite/entrypoint.sh
 
-ENTRYPOINT [ "/init/entrypoint.sh" ]
+ENTRYPOINT [ "/SQLite/entrypoint.sh" ]
 
-CMD ["sh", "-c", "sqlite3 /data/database.db < /init/init.sql && echo '✅ Database created.' && sleep 1"]
+CMD ["sh", "-c", "sqlite3 /data/database.db < /SQLite/init.sql && echo '✅ Database created.' && sleep 1"]
