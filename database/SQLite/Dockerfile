@@ -10,4 +10,4 @@ COPY entrypoint.sh /SQLite/entrypoint.sh
 
 ENTRYPOINT [ "/SQLite/entrypoint.sh" ]
 
-CMD ["sh", "-c", "sqlite3 /data/database.db < /SQLite/init.sql && echo '✅ Database created.' && sleep 1"]
+#CMD ["sh", "-c", "sqlite3 /data/database.db < /SQLite/init.sql && echo '✅ Database created.' && sleep 1"]

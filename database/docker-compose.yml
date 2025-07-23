@@ -4,7 +4,7 @@ services:
       context: ./SQLite
     container_name: sqlite-init
     volumes:
-      - /home/rcruz-an/data:/data
+      - /home/rcruz-an/data:/data #for laptop
     env_file:
       - .env
     restart: "no"
