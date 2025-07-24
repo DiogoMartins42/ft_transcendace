@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
 
   database:
@@ -59,15 +57,20 @@ services:
     restart: unless-stopped
 
   waf:
-      build: waf
-      container_name: transcendence_waf
-      ports:
-        - "80:80"
-      networks:
-        - transcendence
+    build: ./waf
+    container_name: transcendence_waf
+    ports:
+      - "80:80"
+    volumes:
+      - ./waf/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./waf/modsecurity.conf:/etc/modsecurity/modsecurity.conf:ro
+      - ./waf/crs-setup.conf:/etc/modsecurity/crs-setup.conf:ro
+    networks:
+      - transcendence
+    restart: unless-stopped
 
   vault:
-    image: vault:latest
+    image: vault:1.13.3
     container_name: transcendence_vault
     restart: on-failure:10
     ports:
