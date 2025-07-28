@@ -3,7 +3,7 @@ import envSchema from "env-schema";
 
 const schema = {
   type: "object",
-  required: ["PORT", "LOG_LEVEL", "NODE_ENV", "DB_FILE"],
+  required: ["PORT", "LOG_LEVEL", "NODE_ENV", "DB_FILE", "JWT_SECRET"],
   properties: {
     PORT: {
       type: "number",
@@ -22,13 +22,16 @@ const schema = {
       type: "string",
       default: "./blog.db",
     },
+    JWT_SECRET: { 
+      type: "string" 
+    },
   },
 };
 
 const config = envSchema({
   schema: schema,
   dotenv: {
-    path: path.join(import.meta.dirname, "../../.env"),
+    path: path.resolve(process.cwd(), ".env")
   },
 });
 
@@ -37,6 +40,7 @@ const envConfig = {
   logLevel: config.LOG_LEVEL,
   nodeEnv: config.NODE_ENV,
   dbFile: config.DB_FILE,
+  JWT_SECRET: config.JWT_SECRET,
 };
 
 export default envConfig;
