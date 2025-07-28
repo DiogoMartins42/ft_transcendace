@@ -1,10 +1,23 @@
 
-const fastify = require('fastify')({ logger: true });
+import Fastify from "fastify";
+import env from "./config/env.js"
+import logger from "./config/logger.js";
+import path from "path";
+import FastifyStatic from "@fastify/static";
 
+
+const fastify = Fastify({logger: true });
 // Declare a route
-fastify.get('/', async (request, reply) => {
-  return { hello: 'world' };
+
+fastify.register(FastifyStatic, { 
+  root: path.join(process.cwd(), "public"),
+  prefix: "/",
+})
+
+fastify.get('/', (request, reply) => {
+  reply.redirect('/index.html');
 });
+
 
 // Run the server!
 const start = async () => {
