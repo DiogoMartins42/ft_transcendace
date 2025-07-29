@@ -1,29 +1,40 @@
-
 import Fastify from "fastify";
-import env from "./config/env.js"
-import logger from "./config/logger.js";
-import path from "path";
 import FastifyStatic from "@fastify/static";
+import env from "./config/env.js";
+import { options as loggerOptions } from "./config/logger.js";
+import path from "path";
 
+import fastifyJWT from "@fastify/jwt";
+import fastifyWebsocket from "@fastify/websocket";
+import authRoutes from "./routes/auth.js";
+import lobbyRoutes from "./routes/lobby.js";
 
-const fastify = Fastify({logger: true });
-// Declare a route
+const fastify = Fastify({ logger: loggerOptions });
 
+fastify.register(fastifyJWT, { secret: env.JWT_SECRET });
+fastify.decorate("authenticate", async function (request, reply) {
+  try {
+    await request.jwtVerify();
+  } catch (err) {
+    reply.send(err);
+  }
+});
+
+fastify.register(fastifyWebsocket);
 fastify.register(FastifyStatic, { 
   root: path.join(process.cwd(), "public"),
   prefix: "/",
-})
-
-fastify.get('/', (request, reply) => {
-  reply.redirect('/index.html');
 });
 
+fastify.get("/", (req, reply) => reply.redirect("/index.html"));
 
-// Run the server!
+fastify.register(authRoutes, { prefix: "/auth" });
+fastify.register(lobbyRoutes, { prefix: "/lobby" });
+
 const start = async () => {
   try {
     await fastify.listen({ port: 3000 });
-    console.log('Server running at http://localhost:3000');
+    console.log("Server running on http://localhost:3000");
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
