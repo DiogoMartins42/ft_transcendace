@@ -11,6 +11,16 @@ import lobbyRoutes from "./routes/lobby.js";
 
 const fastify = Fastify({ logger: loggerOptions });
 
+//SQLite
+import Database from "better-sqlite3";
+const db = new Database(env.dbFile);
+
+fastify.decorate("db", db);
+fastify.register(authRoutes, { prefix: "/auth" });
+fastify.register(lobbyRoutes, { prefix: "/lobby" });
+
+//JWT Auth
+
 fastify.register(fastifyJWT, { secret: env.JWT_SECRET });
 fastify.decorate("authenticate", async function (request, reply) {
   try {
@@ -27,9 +37,6 @@ fastify.register(FastifyStatic, {
 });
 
 fastify.get("/", (req, reply) => reply.redirect("/index.html"));
-
-fastify.register(authRoutes, { prefix: "/auth" });
-fastify.register(lobbyRoutes, { prefix: "/lobby" });
 
 const start = async () => {
   try {

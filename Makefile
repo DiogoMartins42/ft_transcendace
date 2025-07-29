@@ -4,7 +4,7 @@ NAME=transcendence
 all: build up
 
 build:
-	sudo docker-compose -f $(COMPOSE_SRSC) -p $(NAME) build --no-cache
+	sudo docker compose -f $(COMPOSE_SRSC) -p $(NAME) build --no-cache
 up: 
 	sudo docker compose -f $(COMPOSE_SRSC) -p $(NAME) up -d
 down: 
