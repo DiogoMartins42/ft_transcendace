@@ -20,6 +20,7 @@ prune_docker:
 delete_volumes:
 	sudo docker compose -f ./docker-compose.yml down --volumes
 fclean:
+	sudo docker compose down --volumes --remove-orphans
 	@docker stop $$(docker ps -aq) 2>/dev/null || true
 	@docker rm -f $$(docker ps -aq) 2>/dev/null || true
 	@docker rmi -f $$(docker images -aq) 2>/dev/null || true
