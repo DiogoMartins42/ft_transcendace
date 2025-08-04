@@ -4,7 +4,7 @@ NAME=transcendence
 all: build up
 
 build:
-	sudo docker-compose -f $(COMPOSE_SRSC) -p $(NAME) build --no-cache
+	sudo docker compose -f $(COMPOSE_SRSC) -p $(NAME) build --no-cache
 up: 
 	sudo docker compose -f $(COMPOSE_SRSC) -p $(NAME) up -d
 down: 
@@ -20,6 +20,7 @@ prune_docker:
 delete_volumes:
 	sudo docker compose -f ./docker-compose.yml down --volumes
 fclean:
+	sudo docker compose down --volumes --remove-orphans
 	@docker stop $$(docker ps -aq) 2>/dev/null || true
 	@docker rm -f $$(docker ps -aq) 2>/dev/null || true
 	@docker rmi -f $$(docker images -aq) 2>/dev/null || true
