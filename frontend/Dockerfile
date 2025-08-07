@@ -10,9 +10,7 @@ RUN npm install
 
 RUN npm install tailwindcss @tailwindcss/vite
 
-COPY ./conf .
-COPY ./front-end/assets .
-COPY ./front-end/src ./src
+COPY ./for_copy .
 
 EXPOSE 5173
 

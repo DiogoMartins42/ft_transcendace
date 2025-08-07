@@ -1,0 +1,17 @@
+<div id="user-toggle" class="flex items-center gap-2 cursor-pointer select-none">
+    <span class="font-bold text-[#f5cb5c]">{{username}}</span>
+    <img src="{{avatarUrl}}" alt="Avatar" class=" mr-4 h-10 w-10 rounded-full object-cover">
+    </div>
+
+    <!-- Dropdown menu (initially hidden) -->
+    <div id="user-menu" class="absolute right-0 mt-15 mr-2 w-48 bg-[#4092A0] rounded shadow-md border border-gray-200 hidden z-50">
+    	<ul class="py-2 text-sm text-[#f5cb5c]">
+        	<li><a href="#userSettings" class="block px-4 py-2 hover:bg-[#242423]">User Settings</a></li>
+        	<li><a href="#chat" class="block px-4 py-2 hover:bg-[#242423]">Chat</a></li>
+        	<li><a href="#stats" class="block px-4 py-2 hover:bg-[#242423]">Statistics</a></li>
+          
+        	<hr class="my-2 border-t border-[#242423] mx-2">
+          
+        	<li><button id="logout-btn" class="text-[#F02D3A] font-bold cursor-pointer w-full text-left px-4 py-2 hover:bg-[#242423]">Log out</button></li>
+        </ul>
+</div>
