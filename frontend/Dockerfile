@@ -12,6 +12,8 @@ RUN npm install tailwindcss @tailwindcss/vite
 
 COPY ./for_copy .
 
+RUN npm run build
+
 EXPOSE 5173
 
 CMD ["npm", "run", "dev"]

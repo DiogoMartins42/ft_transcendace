@@ -8,7 +8,10 @@ import fastifyJWT from "@fastify/jwt";
 import fastifyWebsocket from "@fastify/websocket";
 import authRoutes from "./routes/auth.js";
 import lobbyRoutes from "./routes/lobby.js";
+import { fileURLToPath } from "url";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const fastify = Fastify({ logger: loggerOptions });
 
 //SQLite
@@ -31,12 +34,25 @@ fastify.decorate("authenticate", async function (request, reply) {
 });
 
 fastify.register(fastifyWebsocket);
+
+const frontendPath = "/app/frontend";
 fastify.register(FastifyStatic, { 
-  root: path.join(process.cwd(), "public"),
+  root: frontendPath,
   prefix: "/",
 });
 
-fastify.get("/", (req, reply) => reply.redirect("/index.html"));
+fastify.get("/", (req, reply) => {
+  reply.sendFile("index.html");
+});
+
+fastify.setNotFoundHandler((req, reply) => {
+  if (req.raw.url.startsWith("/api") || req.raw.url.startsWith("/auth")) {
+    reply.code(404).send({ error: "Not Found" });
+  } else {
+    reply.sendFile("index.html");
+  }
+});
+
 
 const start = async () => {
   try {

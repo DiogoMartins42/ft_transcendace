@@ -12,6 +12,7 @@ services:
     volumes:
       - ./backend/src:/app/src
       - backend_data:/app/data
+      - frontend_dist:/app/frontend
       - sqlite_database:/database/data #self reminder rcruz
     networks:
       - transcendence
@@ -30,6 +31,7 @@ services:
     volumes:
       - ./frontend/conf:/app/front-end/conf
       - ./frontend/src:/app/front-end/src
+      - frontend_dist:/app/front-end/dist
     networks:
       - transcendence
     restart: unless-stopped
@@ -72,6 +74,7 @@ volumes:
   sqlite_database:
   backend_data:
   vault-volume:
+  frontend_dist:
 
 networks:
   transcendence:
