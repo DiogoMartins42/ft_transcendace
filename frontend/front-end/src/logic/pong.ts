@@ -1,8 +1,5 @@
 import {gameSettings} from './controlPanel'
 
-const bg_color: string = '#1C39BB'
-const items_color: string = '#F5CB5C'
-
 interface Player {
 	x: number;
 	y: number;
@@ -65,7 +62,7 @@ export function setPong()
 		y: canvas.height/2 - 100/2,
 		width: 10,
 		height: 100,
-		color: items_color,
+		color: gameSettings.itemsColor,
 		score: 0,
 	}
 
@@ -74,7 +71,7 @@ export function setPong()
 		y: canvas.height/2 - 100/2,
 		width: 10,
 		height: 100,
-		color: items_color,
+		color: gameSettings.itemsColor,
 		score: 0,
 	}
 
@@ -85,7 +82,7 @@ export function setPong()
 		speed: gameSettings.ballSpeed,
 		velocityX: 0,
 		velocityY: 0,
-		color: items_color,
+		color: gameSettings.itemsColor,
 	}
 
 	const net: Net = {
@@ -93,7 +90,7 @@ export function setPong()
 		y: 0,
 		width: 2,
 		height: 10,
-		color: items_color
+		color: gameSettings.itemsColor
 	}
 
 	launchBall(ball)
@@ -202,10 +199,10 @@ function drawNet(cvs: HTMLCanvasElement, ctx: CanvasRenderingContext2D, net: Net
 
 function render(cvs: HTMLCanvasElement, ctx: CanvasRenderingContext2D, player1: Player, player2: Player, ball: Ball, net: Net)
 {
-	drawRect(ctx, 0, 0, cvs.width, cvs.height, bg_color)
+	drawRect(ctx, 0, 0, cvs.width, cvs.height, gameSettings.bgColor)
 	drawNet(cvs, ctx, net)
-	drawText(ctx, player1.score, cvs.width/4, cvs.height/5, items_color)
-	drawText(ctx, player2.score, 3*cvs.width/4, cvs.height/5, items_color)
+	drawText(ctx, player1.score, cvs.width/4, cvs.height/5, gameSettings.itemsColor)
+	drawText(ctx, player2.score, 3*cvs.width/4, cvs.height/5, gameSettings.itemsColor)
 
 	drawRect(ctx, player1.x, player1.y, player1.width, player1.height, player1.color)
 	drawRect(ctx, player2.x, player2.y, player2.width, player2.height, player2.color)
@@ -307,5 +304,10 @@ function update(cvs: HTMLCanvasElement, player1: Player, player2: Player, ball: 
 	{
 		player1.score++
 		resetBall(cvs, ball)
+	}
+	if (player1.score == gameSettings.scoreLimit || player2.score == gameSettings.scoreLimit)
+	{
+		player1.score = 0
+		player2.score = 0
 	}
 }
