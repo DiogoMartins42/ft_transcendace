@@ -1,48 +1,48 @@
-import {gameSettings} from './controlPanel'
+import { gameSettings } from './controlPanel';
 
+// ---- Game state (no enum) ----
+const GameState = { START: "start", PLAYING: "playing", PAUSED: "paused", GAME_OVER: "gameOver" } as const;
+type GameStateType = typeof GameState[keyof typeof GameState];
+let gameState: GameStateType = GameState.START;
+
+// ---- Types ----
 interface Player {
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-	color: string;
-	score: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: string;
+  score: number;
 }
-
 interface Ball {
-	x: number;
-	y: number;
-	radius: number;
-	speed: number;
-	velocityX: number;
-	velocityY: number;
-	color: string;
+  x: number;
+  y: number;
+  radius: number;
+  speed: number;
+  velocityX: number;
+  velocityY: number;
+  color: string;
 }
-
 interface Net {
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-	color: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: string;
 }
 
-// Keyboard settings
-
+// ---- Keyboard settings ----
 let wPressed = false;
 let sPressed = false;
 let upPressed = false;
 let downPressed = false;
 
-// Listen for key presses
 window.addEventListener("keydown", (e) => {
   if (e.key === "w" || e.key === "W") wPressed = true;
   if (e.key === "s" || e.key === "S") sPressed = true;
   if (e.key === "ArrowUp") upPressed = true;
   if (e.key === "ArrowDown") downPressed = true;
 });
-
-// Listen for key releases
 window.addEventListener("keyup", (e) => {
   if (e.key === "w" || e.key === "W") wPressed = false;
   if (e.key === "s" || e.key === "S") sPressed = false;
@@ -50,264 +50,289 @@ window.addEventListener("keyup", (e) => {
   if (e.key === "ArrowDown") downPressed = false;
 });
 
-//Function
+// ---- Overlay helpers ----
+function showOverlay(message: string, buttons: { text: string; onClick: () => void }[]) {
+  const overlay = document.getElementById("game-overlay") as HTMLDivElement | null;
+  const msgEl = document.getElementById("game-message") as HTMLParagraphElement | null;
+  const btns = document.getElementById("overlay-buttons") as HTMLDivElement | null;
+  if (!overlay || !msgEl || !btns) return;
 
-export function setPong()
-{
-	const { canvas, context } = getCanvasAndContext();
-	if (!canvas || !context) return
+  msgEl.textContent = message;
+  btns.innerHTML = "";
+  buttons.forEach(b => {
+    const btn = document.createElement("button");
+    btn.textContent = b.text;
+    btn.className = "bg-white text-black px-4 py-2 rounded shadow hover:bg-gray-200";
+    btn.onclick = b.onClick;
+    btns.appendChild(btn);
+  });
+  overlay.classList.remove("hidden");
+}
+function hideOverlay() {
+  const overlay = document.getElementById("game-overlay");
+  if (overlay) overlay.classList.add("hidden");
+}
 
-	const player1: Player = {
-		x: 30,
-		y: canvas.height/2 - 100/2,
-		width: 10,
-		height: 100,
-		color: gameSettings.itemsColor,
-		score: 0,
-	}
+// ---- Main entry ----
+export function setPong() {
+  const { canvas, context } = getCanvasAndContext();
+  if (!canvas || !context) return;
 
-	const player2: Player = {
-		x: canvas.width - 40,
-		y: canvas.height/2 - 100/2,
-		width: 10,
-		height: 100,
-		color: gameSettings.itemsColor,
-		score: 0,
-	}
+  const player1: Player = {
+    x: 30,
+    y: canvas.height / 2 - 100 / 2,
+    width: 10,
+    height: 100,
+    color: gameSettings.itemsColor,
+    score: 0,
+  };
+  const player2: Player = {
+    x: canvas.width - 40,
+    y: canvas.height / 2 - 100 / 2,
+    width: 10,
+    height: 100,
+    color: gameSettings.itemsColor,
+    score: 0,
+  };
+  const ball: Ball = {
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    radius: 10,
+    speed: gameSettings.ballSpeed,
+    velocityX: 0,
+    velocityY: 0,
+    color: gameSettings.itemsColor,
+  };
+  const net: Net = {
+    x: canvas.width / 2 - 1,
+    y: 0,
+    width: 2,
+    height: 10,
+    color: gameSettings.itemsColor,
+  };
 
-	const ball: Ball = {
-		x: canvas.width/2,
-		y: canvas.height/2,
-		radius: 10,
-		speed: gameSettings.ballSpeed,
-		velocityX: 0,
-		velocityY: 0,
-		color: gameSettings.itemsColor,
-	}
+  // Keep paddles/ball centered for START
+  player1.y = canvas.height / 2 - player1.height / 2;
+  player2.y = canvas.height / 2 - player2.height / 2;
+  ball.x = canvas.width / 2;
+  ball.y = canvas.height / 2;
+  ball.velocityX = 0;
+  ball.velocityY = 0;
 
-	const net: Net = {
-		x: canvas.width/2 - 1,
-		y: 0,
-		width: 2,
-		height: 10,
-		color: gameSettings.itemsColor
-	}
+  const pauseBtn = document.getElementById("pause-btn") as HTMLButtonElement | null;
 
-	launchBall(ball)
+  // Mouse control for single-player if enabled
+  if (gameSettings.mouse && !gameSettings.multiplayer) {
+    canvas.addEventListener("mousemove", function movePaddle(evt: MouseEvent) {
+      const rect = canvas.getBoundingClientRect();
+      let newY = evt.clientY - rect.top - player1.height / 2;
+      if (newY < 0) newY = 0;
+      if (newY + player1.height > canvas.height) newY = canvas.height - player1.height;
+      player1.y = newY;
+    });
+  }
 
-	if (gameSettings.mouse && !gameSettings.multiplayer) {
-		canvas.addEventListener("mousemove", movePaddle)
-		function movePaddle(evt: any)
-		{
-			let rect = canvas!.getBoundingClientRect()
-	
-			let newY = evt.clientY - rect.top - player1.height / 2;
-			  if (newY < 0) newY = 0;
-			  if (newY + player1.height > canvas!.height) {
-				newY = canvas!.height - player1.height;
-			  }
-	
-			  player1.y = newY;
-		}
-	}
-	
-	function game() {
-		if (gameSettings.multiplayer) movePaddlesWithKeyboard(canvas!, player1, player2)
-		if (!gameSettings.multiplayer && !gameSettings.mouse) movePaddlePlayer1(canvas!, player1)
-		update(canvas!, player1, player2, ball) 
-		render(canvas!, context!, player1, player2, ball, net)
-	}
-	function gameLoop() {
-	  game();
-	  requestAnimationFrame(gameLoop);
-	}
-	requestAnimationFrame(gameLoop);
+  // START overlay
+  showOverlay("Click Start to play", [
+    { text: "Start", onClick: () => { gameState = GameState.PLAYING; hideOverlay(); launchBall(ball); } },
+  ]);
+
+  // Pause button
+  if (pauseBtn) {
+    pauseBtn.addEventListener("click", () => {
+      if (gameState === GameState.PLAYING) {
+        gameState = GameState.PAUSED;
+        showOverlay("", [
+          { text: "Resume", onClick: () => { gameState = GameState.PLAYING; hideOverlay(); } },
+          { text: "Restart", onClick: () => { restartGame(canvas, player1, player2, ball); } },
+        ]);
+      }
+    });
+  }
+
+  // Space to pause/resume
+  window.addEventListener("keydown", (e) => {
+    if (e.code === "Space") {
+      if (gameState === GameState.PLAYING) {
+        gameState = GameState.PAUSED;
+        showOverlay("", [
+          { text: "Resume", onClick: () => { gameState = GameState.PLAYING; hideOverlay(); } },
+          { text: "Restart", onClick: () => { restartGame(canvas, player1, player2, ball); } },
+        ]);
+      } else if (gameState === GameState.PAUSED) {
+        gameState = GameState.PLAYING;
+        hideOverlay();
+      }
+    }
+  });
+
+  function game() {
+    // Always render so canvas is visible under overlay
+    if (gameState === GameState.START || gameState === GameState.PAUSED || gameState === GameState.GAME_OVER) {
+      render(canvas!, context!, player1, player2, ball, net);
+      return;
+    }
+
+    if (gameSettings.multiplayer) movePaddlesWithKeyboard(canvas!, player1, player2);
+    if (!gameSettings.multiplayer && !gameSettings.mouse) movePaddlePlayer1(canvas!, player1);
+
+    update(canvas!, player1, player2, ball);
+    render(canvas!, context!, player1, player2, ball, net);
+  }
+
+  function gameLoop() {
+    game();
+    requestAnimationFrame(gameLoop);
+  }
+  requestAnimationFrame(gameLoop);
+}
+
+// ---- Helpers ----
+function restartGame(cvs: HTMLCanvasElement, p1: Player, p2: Player, b: Ball) {
+  p1.score = 0;
+  p2.score = 0;
+  p1.y = cvs.height / 2 - p1.height / 2;
+  p2.y = cvs.height / 2 - p2.height / 2;
+  b.x = cvs.width / 2;
+  b.y = cvs.height / 2;
+  b.velocityX = 0;
+  b.velocityY = 0;
+  b.speed = gameSettings.ballSpeed;
+
+  gameState = GameState.PLAYING;
+  hideOverlay();
+  launchBall(b);
 }
 
 function launchBall(ball: Ball) {
-    // Random angle between -45° and 45° (in radians)
-    const angle = Math.random() * Math.PI / 2 - Math.PI / 4;
-    // Random left (-1) or right (+1) horizontal direction
-    const direction = Math.random() < 0.5 ? 1 : -1;
-
-    ball.velocityX = direction * ball.speed * Math.cos(angle);
-    ball.velocityY = ball.speed * Math.sin(angle);
+  const angle = Math.random() * Math.PI / 2 - Math.PI / 4;
+  const direction = Math.random() < 0.5 ? 1 : -1;
+  ball.velocityX = direction * ball.speed * Math.cos(angle);
+  ball.velocityY = ball.speed * Math.sin(angle);
 }
 
-function movePaddlesWithKeyboard(cvs: HTMLCanvasElement, player1: Player, player2: Player)
-{
-	// Player 1 movement (W/S)
-	if (wPressed) player1.y -= gameSettings.paddleSpeed;
-	if (sPressed) player1.y += gameSettings.paddleSpeed;	
-	// Player 2 movement (Arrow keys)
-	if (upPressed) player2.y -= gameSettings.paddleSpeed;
-	if (downPressed) player2.y += gameSettings.paddleSpeed;	
-	// Clamp positions to canvas
-	player1.y = Math.max(0, Math.min(player1.y, cvs.height - player1.height));
-	player2.y = Math.max(0, Math.min(player2.y, cvs.height - player2.height));
+function movePaddlesWithKeyboard(cvs: HTMLCanvasElement, player1: Player, player2: Player) {
+  if (wPressed) player1.y -= gameSettings.paddleSpeed;
+  if (sPressed) player1.y += gameSettings.paddleSpeed;
+  if (upPressed) player2.y -= gameSettings.paddleSpeed;
+  if (downPressed) player2.y += gameSettings.paddleSpeed;
+  player1.y = Math.max(0, Math.min(player1.y, cvs.height - player1.height));
+  player2.y = Math.max(0, Math.min(player2.y, cvs.height - player2.height));
 }
 
-function movePaddlePlayer1(cvs: HTMLCanvasElement, player1: Player)
-{
-	if (wPressed) {
-	  player1.y -= gameSettings.paddleSpeed;
-	}
-	if (sPressed) {
-	  player1.y += gameSettings.paddleSpeed;
-	}	
-	// Clamp to canvas boundaries
-	player1.y = Math.max(0, Math.min(player1.y, cvs!.height - player1.height));
+function movePaddlePlayer1(cvs: HTMLCanvasElement, player1: Player) {
+  if (wPressed) player1.y -= gameSettings.paddleSpeed;
+  if (sPressed) player1.y += gameSettings.paddleSpeed;
+  player1.y = Math.max(0, Math.min(player1.y, cvs.height - player1.height));
 }
 
 function getCanvasAndContext() {
   const canvas = document.getElementById("pong") as HTMLCanvasElement | null;
   if (!canvas) return { canvas: null, context: null };
-
-  return {
-    canvas,
-    context: canvas.getContext("2d")
-  };
+  return { canvas, context: canvas.getContext("2d") };
 }
 
-function drawRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string)
-{
-	ctx.fillStyle = color
-	ctx.fillRect(x, y, w, h)
+function drawRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w, h);
 }
-
-function drawCircle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string)
-{
-	ctx.fillStyle = color
-	ctx.beginPath()
-	ctx.arc(x, y, r, 0, Math.PI*2, false)
-	ctx.closePath()
-	ctx.fill()
+function drawCircle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2, false);
+  ctx.closePath();
+  ctx.fill();
 }
-
-function drawText(ctx: CanvasRenderingContext2D, text: number, x: number, y: number, color: string)
-{
-	ctx.fillStyle = color
-	ctx.font = "45px fantasy"
-	ctx.fillText(text.toString(), x, y)
+function drawText(ctx: CanvasRenderingContext2D, text: number, x: number, y: number, color: string) {
+  ctx.fillStyle = color;
+  ctx.font = "45px fantasy";
+  ctx.fillText(text.toString(), x, y);
 }
-
-function drawNet(cvs: HTMLCanvasElement, ctx: CanvasRenderingContext2D, net: Net)
-{
-	for (let i = 0; i <= cvs.height; i += 15)
-		drawRect(ctx, net.x, net.y + i, net.width, net.height, net.color)
+function drawNet(cvs: HTMLCanvasElement, ctx: CanvasRenderingContext2D, net: Net) {
+  // Your semi-circle at top
+//   drawCircle(ctx, net.x, 0, 30, gameSettings.itemsColor);
+  for (let i = 0; i <= cvs.height; i += 15) {
+    drawRect(ctx, net.x, net.y + i, net.width, net.height, net.color);
+  }
 }
-
-function render(cvs: HTMLCanvasElement, ctx: CanvasRenderingContext2D, player1: Player, player2: Player, ball: Ball, net: Net)
-{
-	drawRect(ctx, 0, 0, cvs.width, cvs.height, gameSettings.bgColor)
-	drawNet(cvs, ctx, net)
-	drawText(ctx, player1.score, cvs.width/4, cvs.height/5, gameSettings.itemsColor)
-	drawText(ctx, player2.score, 3*cvs.width/4, cvs.height/5, gameSettings.itemsColor)
-
-	drawRect(ctx, player1.x, player1.y, player1.width, player1.height, player1.color)
-	drawRect(ctx, player2.x, player2.y, player2.width, player2.height, player2.color)
-
-	drawCircle(ctx, ball.x, ball.y, ball.radius, ball.color)
+function render(cvs: HTMLCanvasElement, ctx: CanvasRenderingContext2D, player1: Player, player2: Player, ball: Ball, net: Net) {
+  drawRect(ctx, 0, 0, cvs.width, cvs.height, gameSettings.bgColor);
+  drawNet(cvs, ctx, net);
+  drawText(ctx, player1.score, cvs.width / 4, cvs.height / 5, gameSettings.itemsColor);
+  drawText(ctx, player2.score, (3 * cvs.width) / 4, cvs.height / 5, gameSettings.itemsColor);
+  drawRect(ctx, player1.x, player1.y, player1.width, player1.height, player1.color);
+  drawRect(ctx, player2.x, player2.y, player2.width, player2.height, player2.color);
+  drawCircle(ctx, ball.x, ball.y, ball.radius, ball.color);
 }
-
-function collision(b: any, p: any)
-{
-	b.top = b.y - b.radius
-	b.bottom = b.y + b.radius
-	b.left = b.x - b.radius
-	b.right = b.x + b.radius
-
-	p.top = p.y
-	p.bottom = p.y + p.height
-	p.left = p.x
-	p.right = p.x + p.width
-
-	return b.right > p.left && b.bottom > p.top && b.left < p.right && b.top < p.bottom
+function collision(b: any, p: any) {
+  b.top = b.y - b.radius;
+  b.bottom = b.y + b.radius;
+  b.left = b.x - b.radius;
+  b.right = b.x + b.radius;
+  p.top = p.y;
+  p.bottom = p.y + p.height;
+  p.left = p.x;
+  p.right = p.x + p.width;
+  return b.right > p.left && b.bottom > p.top && b.left < p.right && b.top < p.bottom;
 }
-
-function resetBall(cvs: HTMLCanvasElement, ball: Ball)
-{
-	ball.x = cvs.width/2
-	ball.y = cvs.height/2
-
-	if (gameSettings.resetSpeed){
-		ball.speed = gameSettings.ballSpeed
-	}
-	launchBall(ball)
+function resetBall(cvs: HTMLCanvasElement, ball: Ball) {
+  ball.x = cvs.width / 2;
+  ball.y = cvs.height / 2;
+  if (gameSettings.resetSpeed) ball.speed = gameSettings.ballSpeed;
+  launchBall(ball);
 }
-
 function moveCom(cvs: HTMLCanvasElement, player2: Player, ball: Ball) {
-  // Find the center of player2's paddle
   const paddleCenter = player2.y + player2.height / 2;
-
-  // Move toward the ball by a fraction (difficulty factor)
   player2.y += (ball.y - paddleCenter) * gameSettings.difficulty;
-
-  // Clamp so it never goes out of bounds
   player2.y = Math.max(0, Math.min(player2.y, cvs.height - player2.height));
 }
+function update(cvs: HTMLCanvasElement, player1: Player, player2: Player, ball: Ball) {
+  ball.x += ball.velocityX;
+  ball.y += ball.velocityY;
 
-function update(cvs: HTMLCanvasElement, player1: Player, player2: Player, ball: Ball)
-{
-	ball.x += ball.velocityX
-	ball.y += ball.velocityY
+  if (!gameSettings.multiplayer) moveCom(cvs, player2, ball);
 
-	if (!gameSettings.multiplayer) moveCom(cvs, player2, ball)
-	
-	if (ball.y + ball.radius > cvs.height) {
-    ball.y = cvs.height - ball.radius; // push back inside
+  if (ball.y + ball.radius > cvs.height) {
+    ball.y = cvs.height - ball.radius;
     ball.velocityY = -ball.velocityY;
-	} else if (ball.y - ball.radius < 0) {
-    ball.y = ball.radius; // push back inside
+  } else if (ball.y - ball.radius < 0) {
+    ball.y = ball.radius;
     ball.velocityY = -ball.velocityY;
-	}
+  }
 
-	let player = (ball.x < cvs.width/2) ? player1 : player2
+  const player = (ball.x < cvs.width / 2) ? player1 : player2;
 
-	if (collision(ball, player)) {
-	    // where the ball hits the player
-	    let collidePoint = ball.y - (player.y + player.height / 2);
+  if (collision(ball, player)) {
+    let collidePoint = ball.y - (player.y + player.height / 2);
+    collidePoint = collidePoint / (player.height / 2);
+    const angleRad = collidePoint * Math.PI / 4;
+    const direction = (ball.x < cvs.width / 2) ? 1 : -1;
+    ball.velocityX = direction * ball.speed * Math.cos(angleRad);
+    ball.velocityY = ball.speed * Math.sin(angleRad);
+    ball.speed += 0.1;
+    if (direction === 1) ball.x = player.x + player.width + ball.radius;
+    else ball.x = player.x - ball.radius;
+  }
 
-	    // normalization
-	    collidePoint = collidePoint / (player.height / 2);
+  // Scoring
+  if (ball.x - ball.radius < 0) {
+    player2.score++;
+    resetBall(cvs, ball);
+  } else if (ball.x + ball.radius > cvs.width) {
+    player1.score++;
+    resetBall(cvs, ball);
+  }
 
-	    // calculate angle in radians
-	    let angleRad = collidePoint * Math.PI / 4;
-
-	    // X direction change when hit
-	    let direction = (ball.x < cvs.width / 2) ? 1 : -1;
-
-	    // change vel x/y
-	    ball.velocityX = direction * ball.speed * Math.cos(angleRad);
-	    ball.velocityY = ball.speed * Math.sin(angleRad);
-
-	    // every time the ball hits a paddle, we increase its speed
-	    ball.speed += 0.1;
-
-	    // **Push ball outside paddle to avoid stuck collisions**
-	    if (direction === 1) {
-	        // Ball is on the left paddle
-	        ball.x = player.x + player.width + ball.radius;
-	    } else {
-	        // Ball is on the right paddle
-	        ball.x = player.x - ball.radius;
-	    }
-	}
-
-	// update the score
-	if(ball.x - ball.radius < 0)
-	{
-		player2.score++
-		resetBall(cvs, ball)
-	}
-	else if (ball.x + ball.radius > cvs.width)
-	{
-		player1.score++
-		resetBall(cvs, ball)
-	}
-	if (player1.score == gameSettings.scoreLimit || player2.score == gameSettings.scoreLimit)
-	{
-		player1.score = 0
-		player2.score = 0
-	}
+  // Game over logic (show overlay + restart)
+  if (player1.score === gameSettings.scoreLimit || player2.score === gameSettings.scoreLimit) {
+    gameState = GameState.GAME_OVER;
+    let message = "";
+    if (player1.score === gameSettings.scoreLimit) message = "PLAYER 1 WINS!!!";
+    else if (gameSettings.multiplayer) message = "PLAYER 2 WINS!!!";
+    else message = "PLAYER 1 LOSES!!!";
+    showOverlay(message, [
+      { text: "Restart", onClick: () => { restartGame(cvs, player1, player2, ball); } },
+    ]);
+  }
 }
+

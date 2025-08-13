@@ -1,8 +1,31 @@
 <main id="page-content" class="pt-16 flex-1">
   <div class="fixed top-16 left-0 right-0 bottom-0 bg-[#242423] flex justify-center items-center">
-    <canvas id="pong" width="800" height="600"></canvas>
+    <div id="canvas-wrap" class="relative w-[800px] h-[600px]">
+      <canvas id="pong" width="800" height="600"></canvas>
+
+      <!-- Pause button on the semi-circle (top-center) -->
+      <button
+        id="pause-btn"
+        class="absolute left-1/2 -translate-x-1/2 top-1 z-20 h-9 w-9 rounded-full bg-[#F5CB5C] text-black text-sm font-semibold shadow hover:bg-[#F5CB5C]"
+        aria-label="Pause"
+        title="Pause (Space)">
+        II
+      </button>
+
+      <!-- Overlay that dims ONLY the canvas; hidden during gameplay -->
+      <div id="game-overlay" class="absolute inset-0 z-10 hidden bg-black/60 flex items-center justify-center">
+        <div class="text-center space-y-4">
+          <p id="game-message" class="text-white text-2xl font-semibold"></p>
+          <div id="overlay-buttons" class="flex gap-3 justify-center"></div>
+        </div>
+      </div>
+    </div>
   </div>
 </main>
+
+
+
+
 
 
  

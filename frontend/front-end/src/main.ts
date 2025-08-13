@@ -40,7 +40,7 @@ async function renderPage(pageHtml: string) {
   setupModalEvents()
   setupSidebarEvents()
   setupUserSection()
-  setPong()
+  setPong();
 }
 
 function handleRoute() {
