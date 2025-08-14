@@ -9,6 +9,7 @@ import userSettingsHtml from './pages/userSettings.html?raw'
 import loginModalHtml from './components/login-modal.html?raw'
 import signupModalHtml from './components/signup-modal.html?raw'
 import sidebarHtml from './components/sidebar.html?raw'
+import controlPanelHtml from './components/controlPanel-modal.html?raw'
 
 import { setupModalEvents } from './logic/simulatedModals'
 import { setupUserSection } from './logic/simulatedUserSection'
@@ -16,7 +17,9 @@ import { setupUserSection } from './logic/simulatedUserSection'
 // import { setupUserSection } from './logic/userSection'
 
 import { setupSidebarEvents } from './logic/sidebar'
+
 import { setPong } from './logic/pong'
+import { setupControlPanel } from './logic/controlPanel'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -37,12 +40,15 @@ async function renderPage(pageHtml: string)
 		${loginModalHtml}
 		${signupModalHtml}
 		${sidebarHtml}
+		${controlPanelHtml}
 	`
 
 	setupModalEvents();
 	setupSidebarEvents();
 	setupUserSection();
+
 	setPong();
+	setupControlPanel();
 }
 
 function handleRoute()

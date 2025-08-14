@@ -1,5 +1,8 @@
 import { gameSettings } from './controlPanel';
 
+let verifyStart: boolean = false;
+let verifyFirstCollision: boolean = false;
+
 // ---- Game state  ----
 const GameState = { START: "start", PLAYING: "playing", PAUSED: "paused", GAME_OVER: "gameOver" } as const;
 type GameStateType = typeof GameState[keyof typeof GameState];
@@ -11,24 +14,21 @@ interface Player {
 	y: number;
 	width: number;
 	height: number;
-	color: string;
 	score: number;
 }
 interface Ball {
 	x: number;
 	y: number;
 	radius: number;
-	speed: number;
 	velocityX: number;
 	velocityY: number;
-	color: string;
+	speed: number
 }
 interface Net {
 	x: number;
 	y: number;
 	width: number;
 	height: number;
-	color: string;
 }
 
 // ---- Keyboard settings ----
@@ -86,7 +86,6 @@ export function setPong()
 		y: canvas.height / 2 - 100 / 2,
 		width: 10,
 		height: 100,
-		color: gameSettings.itemsColor,
 		score: 0,
 	};
 	const player2: Player = {
@@ -94,24 +93,21 @@ export function setPong()
 		y: canvas.height / 2 - 100 / 2,
 		width: 10,
 		height: 100,
-		color: gameSettings.itemsColor,
 		score: 0,
 	};
 	const ball: Ball = {
 		x: canvas.width / 2,
 		y: canvas.height / 2,
 		radius: 10,
-		speed: gameSettings.ballSpeed,
 		velocityX: 0,
 		velocityY: 0,
-		color: gameSettings.itemsColor,
+		speed: gameSettings.ballSpeed,
   	};
 	const net: Net = {
 		x: canvas.width / 2 - 1,
 		y: 0,
 		width: 2,
 		height: 10,
-		color: gameSettings.itemsColor,
 	};
 
 	// Keep paddles/ball centered for START
@@ -123,17 +119,13 @@ export function setPong()
 	ball.velocityY = 0;
 
 	const pauseBtn = document.getElementById("pause-btn") as HTMLButtonElement | null;
-
+	const settingsBtn = document.getElementById("openSettings") as HTMLButtonElement | null;
+	
 	// Mouse control for single-player if enabled
-	if (gameSettings.mouse && !gameSettings.multiplayer) {
-		canvas.addEventListener("mousemove", function movePaddle(evt: MouseEvent) {
-			const rect = canvas.getBoundingClientRect();
-			let newY = evt.clientY - rect.top - player1.height / 2;
-			if (newY < 0) newY = 0;
-			if (newY + player1.height > canvas.height) newY = canvas.height - player1.height;
-			player1.y = newY;
-		});
+	const movePaddleListener = (evt: any) => {
+		movePaddleMouse(evt, canvas, player1)
 	}
+	if (gameSettings.mouse && !gameSettings.multiplayer) canvas.addEventListener("mousemove", movePaddleListener);
 
 	// START overlay
 	showOverlay("Click Start to play", [
@@ -153,7 +145,19 @@ export function setPong()
 		});
 	}
 
-  // Space to pause/resume
+	if (settingsBtn) {
+		settingsBtn.addEventListener("click", () => {
+			if (gameState === GameState.PLAYING) {
+				gameState = GameState.PAUSED;
+				showOverlay("", [
+					{ text: "Resume", onClick: () => { gameState = GameState.PLAYING; hideOverlay(); } },
+					{ text: "Restart", onClick: () => { restartGame(canvas, player1, player2, ball); } },
+				]);
+			}
+		});
+	}
+
+  // Space to pause/resume & start
 	window.addEventListener("keydown", (e) => {
 		if (e.code === "Space") {
 			if (gameState === GameState.PLAYING) {
@@ -165,6 +169,10 @@ export function setPong()
 			} else if (gameState === GameState.PAUSED) {
 				gameState = GameState.PLAYING;
 				hideOverlay();
+			} else if (gameState === GameState.START) {
+				gameState = GameState.PLAYING;
+				hideOverlay();
+				launchBall(ball);
 			}
 		}
 	});
@@ -182,6 +190,8 @@ export function setPong()
 	}
 
 	function gameLoop() {
+		//disable mouse
+		if (!gameSettings.mouse || gameSettings.multiplayer) canvas!.removeEventListener("mousemove", movePaddleListener);
 		game();
 		requestAnimationFrame(gameLoop);
 	}
@@ -189,6 +199,15 @@ export function setPong()
 }
 
 // ---- Helpers ----
+
+function movePaddleMouse(evt: MouseEvent, canvas: HTMLCanvasElement, player1: Player) {
+	const rect = canvas!.getBoundingClientRect();
+	let newY = evt.clientY - rect.top - player1.height / 2;
+	if (newY < 0) newY = 0;
+	if (newY + player1.height > canvas!.height) newY = canvas!.height - player1.height;
+	player1.y = newY;
+}
+
 function restartGame(cvs: HTMLCanvasElement, p1: Player, p2: Player, b: Ball)
 {
 	p1.score = 0;
@@ -199,7 +218,6 @@ function restartGame(cvs: HTMLCanvasElement, p1: Player, p2: Player, b: Ball)
 	b.y = cvs.height / 2;
 	b.velocityX = 0;
 	b.velocityY = 0;
-	b.speed = gameSettings.ballSpeed;
 
 	gameState = GameState.PLAYING;
 	hideOverlay();
@@ -208,10 +226,15 @@ function restartGame(cvs: HTMLCanvasElement, p1: Player, p2: Player, b: Ball)
 
 function launchBall(ball: Ball)
 {
+	let ballSpeed = ball.speed;
+	if (verifyStart === false) {
+		ballSpeed = gameSettings.ballSpeed;
+		verifyStart = true;
+	}
 	const angle = Math.random() * Math.PI / 2 - Math.PI / 4;
 	const direction = Math.random() < 0.5 ? 1 : -1;
-	ball.velocityX = direction * ball.speed * Math.cos(angle);
-	ball.velocityY = ball.speed * Math.sin(angle);
+	ball.velocityX = direction * ballSpeed * Math.cos(angle);
+	ball.velocityY = ballSpeed * Math.sin(angle);
 }
 
 function movePaddlesWithKeyboard(cvs: HTMLCanvasElement, player1: Player, player2: Player)
@@ -264,7 +287,7 @@ function drawNet(cvs: HTMLCanvasElement, ctx: CanvasRenderingContext2D, net: Net
 {
 	// drawCircle(ctx, net.x, 0, 30, gameSettings.itemsColor);
 	for (let i = 0; i <= cvs.height; i += 15) {
-		drawRect(ctx, net.x, net.y + i, net.width, net.height, net.color);
+		drawRect(ctx, net.x, net.y + i, net.width, net.height, gameSettings.itemsColor);
 	}
 }
 
@@ -274,9 +297,9 @@ function render(cvs: HTMLCanvasElement, ctx: CanvasRenderingContext2D, player1: 
 	drawNet(cvs, ctx, net);
 	drawText(ctx, player1.score, cvs.width / 4, cvs.height / 5, gameSettings.itemsColor);
 	drawText(ctx, player2.score, (3 * cvs.width) / 4, cvs.height / 5, gameSettings.itemsColor);
-	drawRect(ctx, player1.x, player1.y, player1.width, player1.height, player1.color);
-	drawRect(ctx, player2.x, player2.y, player2.width, player2.height, player2.color);
-	drawCircle(ctx, ball.x, ball.y, ball.radius, ball.color);
+	drawRect(ctx, player1.x, player1.y, player1.width, player1.height, gameSettings.itemsColor);
+	drawRect(ctx, player2.x, player2.y, player2.width, player2.height, gameSettings.itemsColor);
+	drawCircle(ctx, ball.x, ball.y, ball.radius, gameSettings.itemsColor);
 }
 
 function collision(b: any, p: any)
@@ -325,6 +348,13 @@ function update(cvs: HTMLCanvasElement, player1: Player, player2: Player, ball: 
 	const player = (ball.x < cvs.width / 2) ? player1 : player2;
 
 	if (collision(ball, player)) {
+
+		// let ballSpeed = ball.speed;
+		if (verifyFirstCollision === false) {
+			ball.speed = gameSettings.ballSpeed;
+			verifyFirstCollision = true;
+		} 
+
 		let collidePoint = ball.y - (player.y + player.height / 2);
 		collidePoint = collidePoint / (player.height / 2);
 		const angleRad = collidePoint * Math.PI / 4;

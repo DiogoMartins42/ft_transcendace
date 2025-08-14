@@ -1,0 +1,84 @@
+<div id="controlPanel" class="hidden fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
+                               bg-white p-6 rounded-lg shadow-lg mt-8"
+     style="width: 800px; height: 600px; aspect-ratio: 4 / 3;">
+  <!-- Close Button -->
+  <button id="closeSettings" class="absolute top-2 right-2 text-xl font-bold">&times;</button>
+
+  <h2 class="text-2xl font-semibold mb-4 text-center">Game Settings</h2>
+
+  <!-- Flex layout for horizontal arrangement -->
+  <div class="flex h-full gap-8">
+    <!-- Column 1 -->
+    <div class="flex-1 space-y-4 overflow-y-auto pr-4">
+      <!-- Difficulty -->
+      <div>
+        <label class="block font-medium mb-1">Difficulty:</label>
+        <label><input type="radio" name="difficulty" value="0.05"> Easy</label><br>
+        <label><input type="radio" name="difficulty" value="0.1"> Normal</label><br>
+        <label><input type="radio" name="difficulty" value="0.3"> Hard</label>
+      </div>
+
+      <!-- Control method -->
+      <div>
+        <label class="block font-medium mb-1">Control Method (Single Player):</label>
+        <label><input type="radio" name="mouse" value="true"> Mouse</label><br>
+        <label><input type="radio" name="mouse" value="false"> Keyboard</label>
+      </div>
+
+      <!-- Modes -->
+      <div>
+        <label class="block font-medium mb-1">Mode:</label>
+        <label><input type="radio" name="multiplayer" value="true"> Multiplayer</label><br>
+        <label><input type="radio" name="multiplayer" value="false"> Single Player</label>
+      </div>
+
+      <!-- Reset Speed -->
+      <div>
+        <label>
+          <input type="checkbox" id="resetSpeed"> Reset Ball Speed After Score
+        </label>
+      </div>
+    </div>
+
+    <!-- Column 2 -->
+    <div class="flex-1 space-y-4 overflow-y-auto pr-4">
+      <!-- Paddle Speed -->
+      <div>
+        <label class="block font-medium mb-1">Paddle Speed: <span id="paddleSpeedValue"></span></label>
+        <input type="range" id="paddleSpeed" min="1" max="10">
+      </div>
+
+      <!-- Ball Speed -->
+      <div>
+        <label class="block font-medium mb-1">Ball Speed: <span id="ballSpeedValue"></span></label>
+        <input type="range" id="ballSpeed" min="1" max="10">
+      </div>
+
+      <!-- Score Limit -->
+      <div>
+        <label class="block font-medium mb-1">Score Limit:</label>
+        <input type="number" id="scoreLimit" min="1" class="border rounded p-1 w-full">
+      </div>
+
+      <!-- Background Color -->
+      <div>
+        <label class="block font-medium mb-1">Background Color:</label>
+        <input type="color" id="bgColor">
+      </div>
+
+      <!-- Items Color -->
+      <div>
+        <label class="block font-medium mb-1">Items Color:</label>
+        <input type="color" id="itemsColor">
+      </div>
+
+      <!-- Reset to Default -->
+      <div class="text-center pt-4">
+        <button id="resetDefaults" class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded">
+          Reset to Default
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
