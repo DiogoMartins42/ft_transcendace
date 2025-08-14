@@ -26,47 +26,50 @@ export const sharedState: {isLoggedIn: boolean, sidebarOpen: boolean} =
 	sidebarOpen: false,
 };
 
-async function renderPage(pageHtml: string) {
-  app.innerHTML = `
-    ${navbarHtml}
-    <main id="page-content" class="transition-all duration-300 pt-16 p-4">
-      ${pageHtml}
-    </main>
-    ${loginModalHtml}
-    ${signupModalHtml}
-    ${sidebarHtml}
-  `
+async function renderPage(pageHtml: string)
+{
+	app.innerHTML =
+	`
+		${navbarHtml}
+		<main id="page-content" class="transition-all duration-300 pt-16 p-4">
+			${pageHtml}
+		</main>
+		${loginModalHtml}
+		${signupModalHtml}
+		${sidebarHtml}
+	`
 
-  setupModalEvents()
-  setupSidebarEvents()
-  setupUserSection()
-  setPong();
+	setupModalEvents();
+	setupSidebarEvents();
+	setupUserSection();
+	setPong();
 }
 
-function handleRoute() {
-  const route = window.location.hash.slice(1) || 'home'
+function handleRoute()
+{
+	const route = window.location.hash.slice(1) || 'home';
 
-  switch (route) {
-    case 'about':
-      renderPage(aboutHtml)
-      break
-    case 'chat':
-      renderPage(chatHtml)
-      break
-    case 'contact':
-      renderPage(contactHtml)
-      break
-    case 'stats':
-      renderPage(statsHtml)
-      break
-    case 'userSettings':
-      renderPage(userSettingsHtml)
-      break
-    default:
-      renderPage(homeHtml)
-  }
-  sharedState.sidebarOpen = false
+	switch (route) {
+		case 'about':
+			renderPage(aboutHtml)
+			break
+		case 'chat':
+			renderPage(chatHtml)
+			break
+		case 'contact':
+			renderPage(contactHtml)
+			break
+		case 'stats':
+			renderPage(statsHtml)
+			break
+		case 'userSettings':
+			renderPage(userSettingsHtml)
+			break
+		default:
+			renderPage(homeHtml)
+	}
+	sharedState.sidebarOpen = false;
 }
 
-window.addEventListener('DOMContentLoaded', handleRoute)
-window.addEventListener('hashchange', handleRoute)
+window.addEventListener('DOMContentLoaded', handleRoute);
+window.addEventListener('hashchange', handleRoute);
