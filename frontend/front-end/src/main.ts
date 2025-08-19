@@ -11,10 +11,12 @@ import signupModalHtml from './components/signup-modal.html?raw'
 import sidebarHtml from './components/sidebar.html?raw'
 import controlPanelHtml from './components/controlPanel-modal.html?raw'
 
-import { setupModalEvents } from './logic/simulatedModals'
-import { setupUserSection } from './logic/simulatedUserSection'
-// import { setupModalEvents } from './logic/modals'
-// import { setupUserSection } from './logic/userSection'
+import { initWebSocket, sendMessage } from './logic/ws'
+import { setupChat } from './logic/chat'
+//import { setupModalEvents } from './logic/simulatedModals'
+//import { setupUserSection } from './logic/simulatedUserSection'
+import { setupModalEvents } from './logic/modals'
+import { setupUserSection } from './logic/userSection'
 
 import { setupSidebarEvents } from './logic/sidebar'
 
@@ -46,9 +48,11 @@ async function renderPage(pageHtml: string)
 	setupModalEvents();
 	setupSidebarEvents();
 	setupUserSection();
-
-	setPong();
-	setupControlPanel();
+  setupModalEvents()
+  setupSidebarEvents()
+  setupUserSection()
+  setPong()
+  setupChat()
 }
 
 function handleRoute()
@@ -77,5 +81,24 @@ function handleRoute()
 	sharedState.sidebarOpen = false;
 }
 
-window.addEventListener('DOMContentLoaded', handleRoute);
-window.addEventListener('hashchange', handleRoute);
+//window.addEventListener('DOMContentLoaded', handleRoute)
+window.addEventListener('DOMContentLoaded', () => {
+  handleRoute();
+
+  // Start WebSocket
+  initWebSocket((msg) => {
+    console.log("Frontend received WS:", msg);
+
+    // Example: if we’re on chat page, show message
+    if (window.location.hash.slice(1) === "chat") {
+      const chatBox = document.querySelector("#chat-messages");
+      if (chatBox) {
+        const div = document.createElement("div");
+        div.textContent = JSON.stringify(msg);
+        chatBox.appendChild(div);
+      }
+    }
+  });
+});
+
+window.addEventListener('hashchange', handleRoute)

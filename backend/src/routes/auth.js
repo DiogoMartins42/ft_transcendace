@@ -54,7 +54,7 @@ export default async function routes(fastify, opts) {
             return reply.status(401).send({error : "Invalid email or password!"})
         }
 
-        const token = fastify.jwt.sign({userd: user.id});
+        const token = fastify.jwt.sign({userId: user.id});
 
         return reply.send({ token });
     });

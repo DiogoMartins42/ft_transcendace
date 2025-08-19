@@ -34,6 +34,24 @@ fastify.decorate("authenticate", async function (request, reply) {
 });
 
 fastify.register(fastifyWebsocket);
+fastify.register(async function (fastify) {
+  fastify.get("/ws", { websocket: true }, (connection, req) => {
+    console.log("Client connected!");
+
+    connection.send(JSON.stringify({ message: "Welcome to WS server!" }));
+
+    connection.on("message", (message) => {
+      console.log("Received:", message.toString());
+      connection.send(JSON.stringify({ echo: message.toString() }));
+    });
+
+    connection.on("close", () => {
+      console.log("Client disconnected");
+    });
+  });
+});
+
+
 
 const frontendPath = "/app/frontend";
 fastify.register(FastifyStatic, { 
