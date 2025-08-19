@@ -1,33 +1,76 @@
 // To set up the database 
 // run 'npm install sqlite3'
 // run ''
+// run 'npm install bcrypt'
 
+// Import SQLite3
 const sqlite3 = require('sqlite3').verbose();
-const crypto = require('crypto'); // For hashing passwords
 
-// Hashing function using SHA-256
-function hashPassword(password) {
-  return crypto.createHash('sha256').update(password).digest('hex');
+// Import bcrypt for password hashing
+// Use bcryptjs if bcrypt install fails
+const bcrypt = require('bcrypt'); // or: require('bcryptjs');
+
+// Number of salt rounds for bcrypt hashing
+const saltRounds = 10;
+
+// Function to hash passwords
+async function hashPassword(password) {
+  try {
+    // Generate a salt and hash the password
+    const hashed = await bcrypt.hash(password, saltRounds);
+    return hashed;
+  } catch (err) {
+    console.error("Error hashing password:", err);
+    throw err;
+  }
 }
 
-function checkPassword(plainPassword, hashedPassword) {
-  return hashPassword(plainPassword) === hashedPassword;
+// Verifies if the password is correct
+async function checkPassword(plainPassword, hashedPassword) {
+  return await bcrypt.compare(plainPassword, hashedPassword);
 }
 
-function initDB() {
-  // Connect to (or create) the database
+// Get the hashed password from the database
+function getHashedPassword(username) {
+  return new Promise((resolve, reject) => {
+    const db = new sqlite3.Database('sqlite.db');
+    db.get(
+      'SELECT password FROM users WHERE username = ?', [username],
+      (err, row) => {
+        db.close();
+        if (err)
+          return reject(err);
+        if (!row)
+          return reject(new Error('User not found'));
+        resolve(row.password);
+      }
+    );
+  });
+}
+
+// Check if the password is valid
+async function verifyUserPassword(username, inputPassword) {
+  try {
+    const hashedPassword = await getHashedPassword(username);
+    const isCorrect = await checkPassword(inputPassword, hashedPassword);
+    console.log(`Password for ${username} is ${isCorrect ? 'correct' : 'incorrect'}`);
+  } catch (err) {
+    console.error('Error:', err.message);
+  }
+}
+
+// Init the Database
+async function initDB() {
   const db = new sqlite3.Database('sqlite.db');
 
-  // Create the table
-  db.serialize(() => {
-    // Create the table only if it doesn't exist
+  db.serialize(async () => {
     db.run(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE,       -- avoid duplicates
+        username TEXT UNIQUE,
         password TEXT,
         email TEXT,
-        UNIQUE(username, password) -- avoid duplicates only if both are duplicates
+        UNIQUE(username, password)
       )
     `);
 
@@ -36,50 +79,37 @@ function initDB() {
       ["rcruz-an", "rcruz_password", "my_email@gmail.com"]
     ];
 
-    // Insert data -- Use INSERT OR IGNORE to avoid inserting duplicates
-    const stmt = db.prepare("INSERT OR IGNORE INTO users (username, password, email) VALUES (?, ?, ?)");      //IGNORES if already exists
+    const stmt = db.prepare("INSERT OR IGNORE INTO users (username, password, email) VALUES (?, ?, ?)");
 
-    //const stmt = db.prepare("INSERT OR REPLACE INTO users (username, password, email) VALUES (?, ?, ?)");  //REPLACES if already exists
-                                                                                                            //The IDs will change, it will delete and insert, not update
-
-    releaseList.forEach(([username, password, email]) => {
-      const hashedPassword = hashPassword(password); // Hash the password before inserting
+    for (const [username, password, email] of releaseList){
+      const hashedPassword = await hashPassword(password);
       stmt.run(username, hashedPassword, email);
-    });
 
-    stmt.finalize();
+      // Checking if the password is correct
+      //const isCorrect = await checkPassword("test_password", hashedPassword);
+      //console.log(`Password check for user '${username}': ${isCorrect ? 'Successful' : 'Unsuccessful'}`);
+    }
 
-    //Testing the database
-    db.each("SELECT * FROM users", (err, row) => {
-      if (err) throw err;
-      console.log(row);
-
-      if (row.username === 'test') {
-        const inputPassword = 'test_password';
-        const isCorrect = checkPassword(inputPassword, row.password);
-        console.log(`Password check for user '${row.username}': ${isCorrect ? 'Successful' : 'Unsuccessful'}`);
-      }
-      if (row.username === 'rcruz-an') {
-        const inputPassword = 'a_wrong_password';
-        const isCorrect = checkPassword(inputPassword, row.password);
-        console.log(`Password check for user '${row.username}': ${isCorrect ? 'Successful' : 'Unsuccessful'}`);
-      }
+    stmt.finalize(() => {
+      // Debug: print all users after insertions
+      db.each("SELECT * FROM users", (err, row) => {
+        if (err) throw err;
+        console.log(row);
+      }, () => {
+        // Close DB only after all queries finish
+        db.close();
+      });
     });
   });
-
-  db.close();
 }
 
-// Function to add a single user to the DB
-function addUser(username, password, email) {
+
+// Function to add a single user
+async function addUser(username, password, email) {
   const db = new sqlite3.Database('sqlite.db');
+  const hashedPassword = await hashPassword(password);
 
-  const hashedPassword = hashPassword(password); // Hash the password before inserting
-
-  const stmt = db.prepare(
-    "INSERT OR REPLACE INTO users (username, password, email) VALUES (?, ?, ?)"
-  ); // REPLACES if already exists — IDs will change
-
+  const stmt = db.prepare("INSERT OR REPLACE INTO users (username, password, email) VALUES (?, ?, ?)");
   stmt.run(username, hashedPassword, email, function (err) {
     if (err) {
       console.error("Error inserting user:", err.message);
@@ -88,21 +118,14 @@ function addUser(username, password, email) {
     }
   });
 
-  //This will print the everything on the "user" table 
-  /* db.each("SELECT * FROM users", (err, row) => {
-      if (err) throw err;
-      console.log(row);
-  }); */
-  
   stmt.finalize();
   db.close();
 }
 
-module.exports = {
-  initDB,
-  addUser,
-  checkPassword,
-  hashPassword
-};
+// Run initialization when script is executed directly
+if (require.main === module) {
+  initDB();
+}
 
-//initDB(); For testing only
+// Export functions for use in other files
+module.exports = {addUser, hashPassword, initDB, verifyUserPassword};
