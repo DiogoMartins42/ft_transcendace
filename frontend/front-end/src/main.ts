@@ -11,7 +11,7 @@ import signupModalHtml from './components/signup-modal.html?raw'
 import sidebarHtml from './components/sidebar.html?raw'
 import controlPanelHtml from './components/controlPanel-modal.html?raw'
 
-import { initWebSocket, sendMessage } from './logic/ws'
+import { initWebSocket } from './logic/ws'
 import { setupChat } from './logic/chat'
 //import { setupModalEvents } from './logic/simulatedModals'
 //import { setupUserSection } from './logic/simulatedUserSection'
@@ -21,7 +21,7 @@ import { setupUserSection } from './logic/userSection'
 import { setupSidebarEvents } from './logic/sidebar'
 
 import { setPong } from './logic/pong'
-import { setupControlPanel } from './logic/controlPanel'
+//import { setupControlPanel } from './logic/controlPanel'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -52,34 +52,35 @@ async function renderPage(pageHtml: string)
   setupSidebarEvents()
   setupUserSection()
   setPong()
-  setupChat()
 }
 
-function handleRoute()
-{
-	const route = window.location.hash.slice(1) || 'home';
+function handleRoute() {
+  const route = window.location.hash.slice(1) || "home";
 
-	switch (route) {
-		case 'about':
-			renderPage(aboutHtml)
-			break
-		case 'chat':
-			renderPage(chatHtml)
-			break
-		case 'contact':
-			renderPage(contactHtml)
-			break
-		case 'stats':
-			renderPage(statsHtml)
-			break
-		case 'userSettings':
-			renderPage(userSettingsHtml)
-			break
-		default:
-			renderPage(homeHtml)
-	}
-	sharedState.sidebarOpen = false;
+  switch (route) {
+    case "about":
+      renderPage(aboutHtml);
+      break;
+    case "chat":
+      renderPage(chatHtml);
+      setupChat(); // only run here
+      break;
+    case "contact":
+      renderPage(contactHtml);
+      break;
+    case "stats":
+      renderPage(statsHtml);
+      break;
+    case "userSettings":
+      renderPage(userSettingsHtml);
+      break;
+    default:
+      renderPage(homeHtml);
+  }
+
+  sharedState.sidebarOpen = false;
 }
+
 
 //window.addEventListener('DOMContentLoaded', handleRoute)
 window.addEventListener('DOMContentLoaded', () => {
