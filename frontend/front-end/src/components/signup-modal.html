@@ -1,12 +1,27 @@
-<div id="signup-modal" class="fixed inset-0 bg-black/75 bg-opacity-50 flex items-center justify-center z-50 hidden">
-    <form id="signup-form" class="space-y-3 text-white bg-[#242423] rounded-lg shadow-lg w-full max-w-sm p-6">
-      <h2 class="text-xl font-bold mb-4 text-white">Sign Up</h2>
-      <input id="signup-usernama" type="text" placeholder="Username" class="w-full p-2 border rounded border-amber-400" />
-      <input id="signup-email" type="email" placeholder="Email" class="w-full p-2 border rounded border-amber-400" />
-      <input id="signup-password" type="password" placeholder="Password" class="w-full p-2 border rounded border-amber-400" />
-      <div class="flex justify-center-safe gap-2">
-        <button type="button" id="cancel-signup" class="px-4 py-2 border rounded border-amber-400 hover:bg-amber-400">Cancel</button>
-        <button type="submit" class="px-4 py-2 bg-amber-400 text-black rounded hover:bg-amber-500">Register</button>
-      </div>
+<!-- From Uiverse.io by themrsami --> 
+<div id="signup-modal" class="fixed inset-0 flex flex-col items-end justify-start mt-18 h-screen hidden">
+  <div class="w-full max-w-md bg-white rounded-lg shadow-md p-6">
+    <h2 class="text-2xl font-bold text-gray-900 mb-4">Sign Up</h2>
+    <form id="signup-form" class="flex flex-col">
+      <input id="signup-username" placeholder="Username" class="bg-gray-100 text-gray-900 border-0 rounded-md p-2 mb-4 focus:bg-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 transition ease-in-out duration-150" type="text">
+      <!-- <input placeholder="Last Name" class="bg-gray-100 text-gray-900 border-0 rounded-md p-2 mb-4 focus:bg-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 transition ease-in-out duration-150" type="text"> -->
+      <input id="signup-email" placeholder="Email" class="bg-gray-100 text-gray-900 border-0 rounded-md p-2 focus:bg-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 transition ease-in-out duration-150" type="email">
+      <input id="signup-comfirmEmail" placeholder="Confirm Email" class="bg-gray-100 text-gray-900 border-0 rounded-md p-2 mt-4 focus:bg-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 transition ease-in-out duration-150" type="email">
+      <input id="signup-password" placeholder="Password" class="bg-gray-100 text-gray-900 border-0 rounded-md p-2 mt-4 focus:bg-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 transition ease-in-out duration-150" type="password">
+      <input id="signup-confirmPassword" placeholder="Confirm Password" class="bg-gray-100 text-gray-900 border-0 rounded-md p-2 mt-4 focus:bg-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 transition ease-in-out duration-150" type="password">
+      <label class="text-sm mb-2 mt-4 text-gray-900 cursor-pointer" for="gender">
+        Gender
+      </label>
+      <select class="bg-gray-100 text-gray-900 border-0 rounded-md p-2 mb-4 focus:bg-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 transition ease-in-out duration-150" id="gender">
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+        <option value="other">Other</option>
+      </select>
+      <label class="text-sm mb-2 text-gray-900 cursor-pointer" for="age">
+        Age
+      </label>
+      <input class="bg-gray-100 text-gray-900 border-0 rounded-md p-2" id="age" type="date">
+      <button class="bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-bold py-2 px-4 rounded-md mt-4 hover:bg-indigo-600 hover:to-blue-600 transition ease-in-out duration-150 disabled:opacity-50 disabled:cursor-not-allowed" type="submit">Sign Up</button>
     </form>
+  </div>
 </div>

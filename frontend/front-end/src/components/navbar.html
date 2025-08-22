@@ -1,19 +1,20 @@
-<nav class="bg-[#5EB1BF] text-[#242423] font-bold w-screen
-			flex items-center justify-between fixed top-0 left-0 right-0 h-18 z-50">
+<nav class="bg-[#0E172B] text-[#242423] font-bold w-screen
+			flex items-center justify-between fixed top-0 left-0 right-0 h-18 z-50" >
 	<div class="flex gap-4 ml-4">
-		<button id="menu-toggle" class="group cursor-pointer">
-			<img 
-				src="../assets/menu-icon-default.png"
-				alt="Menu icon"
-				id="menu-icon"
-				class="select-none h-10 w-10 object-contain trnasition duration-200 group-hover:brightness-50"
-			/>
-		</button>
+		<!-- <button id="menu-toggle" class="group cursor-pointer"> -->
+			<label>
+  				<div class="w-9 h-10 cursor-pointer flex flex-col items-center justify-center">
+    				<input id="menu-toggle" class="hidden peer" type="checkbox" />
+    				<div class="w-[70%] h-[2px] bg-[#F5CB5C] rounded-sm transition-all duration-300 origin-left translate-y-[0.63rem] peer-checked:rotate-[-45deg]"></div>
+    				<div class="w-[70%] h-[2px] bg-[#F5CB5C] rounded-md transition-all duration-300 origin-center peer-checked:hidden"></div>
+    				<div class="w-[70%] h-[2px] bg-[#F5CB5C] rounded-md transition-all duration-300 origin-left -translate-y-[0.63rem] peer-checked:rotate-[45deg]"></div>
+  				</div>
+			</label>
+		<!-- </button> -->
 	</div>
 	<a href="#home"  class="flex items-center gap-2 ml-2 absolute left-1/2 transform -translate-x-1/2">
-		<button class="flex items-center gap-2 p-2 cursor-pointer">
-			<img src="../assets/PONG-ICON-3.png" alt="Pong-icon"
-		 			class="select-none h-16 w-16 object-contain">
+		<button class="flex items-center gap-2 p-2 cursor-pointer text-[#F5CB5C] text-5xl font-lucky">
+			PONG
 		</button>
 	</a>
 	<div id="user-section" class="flex gap-4 mr-4">
