@@ -285,7 +285,7 @@ function drawText(ctx: CanvasRenderingContext2D, text: number, x: number, y: num
 
 function drawNet(cvs: HTMLCanvasElement, ctx: CanvasRenderingContext2D, net: Net)
 {
-	// drawCircle(ctx, net.x, 0, 30, gameSettings.itemsColor);
+	drawCircle(ctx, net.x, 0, 30, gameSettings.itemsColor);
 	for (let i = 0; i <= cvs.height; i += 15) {
 		drawRect(ctx, net.x, net.y + i, net.width, net.height, gameSettings.itemsColor);
 	}

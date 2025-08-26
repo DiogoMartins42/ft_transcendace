@@ -52,12 +52,11 @@ export function setupLoginForm()
 	passwordInput.addEventListener('input', validateInputs);
 
 	// Show message helper
-	function showMessage(msg: string, isError = true) {
+	function showMessage(msg: string) {
 		if (!loginMessage) return;
 		loginMessage.textContent = msg;
 		loginMessage.classList.remove('hidden');
-		loginMessage.classList.toggle('text-red-500', isError);
-		loginMessage.classList.toggle('text-green-500', !isError);
+		loginMessage.classList.toggle('text-red-500');
 	}
 
 	// Reset message
@@ -96,7 +95,7 @@ export function setupLoginForm()
 
 			if (!response.ok) {
 				// Login failed
-				showMessage("Invalid email or password", true);
+				showMessage("Invalid email or password");
 				passwordInput.value = "";
 				validateInputs();
 				loginSubmit.innerHTML = originalText;
@@ -104,10 +103,14 @@ export function setupLoginForm()
 				return;
 			}
 
+			// Parse JSON from backend
+    		const data = await response.json();
+
 			// Success
 			sharedState.isLoggedIn = true;
+			sharedState.username = data.username;
+			sharedState.avatarUrl = data.avatarUrl;
 			loginModal.classList.add('hidden');
-			showMessage("Login successful!", false);
 			emailInput.value = "";
 			passwordInput.value = "";
 			loginSubmit.innerHTML = originalText;
@@ -116,14 +119,26 @@ export function setupLoginForm()
 		} catch (err) {
 			if (controller.signal.aborted) {
 				// Timeout
-				showMessage("Login request timed out. Please try again.", true);
+				showMessage("Login request timed out. Please try again.");
 				emailInput.value = "";
 				passwordInput.value = "";
 			} else {
-				showMessage("An error occurred. Please try again.", true);
+				showMessage("An error occurred. Please try again.");
 			}
 			loginSubmit.innerHTML = originalText;
 			loginSubmit.disabled = true;
 		}
 	});
+
+
+	// ******** TEST ONLY ******** //
+
+	const TEST_ONLY = document.getElementById('forgotPass') as HTMLElement | null;
+	TEST_ONLY!.addEventListener('click', () => {
+			sharedState.isLoggedIn = true;
+			loginModal.classList.add('hidden');
+		});
+	
+
+	// ******** TEST ONLY ******** //
 }

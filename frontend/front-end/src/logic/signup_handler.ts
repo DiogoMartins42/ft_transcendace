@@ -160,6 +160,8 @@ export function setupSignupForm() {
         const data = await response.json();
         if (data.success) {
           sharedState.isLoggedIn = true;
+          sharedState.username = data.username;
+          sharedState.avatarUrl = data.avatarUrl;
           signupModal.classList.add("hidden");
           console.log("Signup successful!");
         } else {

@@ -1,7 +1,8 @@
 <main id="page-content" class="pt-16 flex-1">
-  <div class="fixed top-16 left-0 right-0 bottom-0 bg-[#242423] flex justify-center items-center">
-    <div id="canvas-wrap" class="relative w-[800px] h-[600px]">
-      <canvas id="pong" width="800" height="600"></canvas>
+  <div class="fixed top-16 left-0 right-0 bottom-0 bg-[#000000] bg-[radial-gradient(#8390FA77_1px,#00091d_1px)] bg-[size:20px_20px] flex justify-center items-center">
+  <!-- <div class="fixed top-16 left-0 right-0 bottom-0 bg-[#0E172B] flex justify-center items-center"> -->
+    <div id="canvas-wrap" class="relative w-[1000px] h-[600px]">
+      <canvas id="pong" width="1000" height="600"></canvas>
 
       <!-- Settings button -->
       <div class="group mt-4 w-14 overflow-hidden rounded-lg border-l border-transparent  transition-all duration-500 hover:w-64 hover:border-[#F5CB5C] hover:shadow-lg has-[:focus]:w-64 has-[:focus]:shadow-lg">
@@ -34,7 +35,7 @@
       <!-- Pause button on the semi-circle (top-center) -->
       <button
         id="pause-btn"
-        class="absolute left-1/2 -translate-x-1/2 top-1 z-20 h-9 w-9 rounded-full bg-[#F5CB5C] text-black text-sm font-semibold shadow hover:bg-[#F5CB5C]"
+        class="absolute left-1/2 -translate-x-1/2 top-0 z-20 h-7 w-7 rounded-full bg-transparent text-black text-sm font-semibold shadow hover:bg-transparent"
         aria-label="Pause"
         title="Pause (Space)">
         II

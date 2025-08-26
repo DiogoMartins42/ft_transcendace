@@ -1,1 +1,19 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bitcount+Prop+Double:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bitcount+Single:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bitcount:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bitcount+Grid+Double:wght@100..900&display=swap');
+
 @import "tailwindcss";
+
+@theme {
+	--font-inter: Inter, "sans-serif";
+	--font-lucky: Luckiest Guy, "sans-serif";
+	--font-bitpropdouble: Bitcount Prop Double, "sans-serif";
+	--font-bitsingle: Bitcount Single, "sans-serif";
+	--font-bitcount: Bitcount, "sans-serif";
+	--font-pressStart: Press Start 2P, "sans-serif";
+	--font-bitgriddouble: Bitcount Grid Double, "sans-serif";
+}

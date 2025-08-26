@@ -11,25 +11,44 @@ import signupModalHtml from './components/signup-modal.html?raw'
 import sidebarHtml from './components/sidebar.html?raw'
 import controlPanelHtml from './components/controlPanel-modal.html?raw'
 
-import { initWebSocket } from './logic/ws'
-import { setupChat } from './logic/chat'
-//import { setupModalEvents } from './logic/simulatedModals'
-//import { setupUserSection } from './logic/simulatedUserSection'
-import { setupModalEvents } from './logic/modals'
+// import { setupModalEvents } from './logic/simulatedModals'
+// import { setupUserSection } from './logic/simulatedUserSection'
+// import { setupModalEvents } from './logic/modals'
 import { setupUserSection } from './logic/userSection'
+
+// import { setupLoginForm } from './logic/login_handler'
 
 import { setupSidebarEvents } from './logic/sidebar'
 
 import { setPong } from './logic/pong'
-//import { setupControlPanel } from './logic/controlPanel'
+import { setupControlPanel } from './logic/controlPanel'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
-export const sharedState: {isLoggedIn: boolean, sidebarOpen: boolean} = 
-{
-	isLoggedIn: false,
-	sidebarOpen: false,
-};
+export const sidebarState: {sidebarOpen: boolean} = { sidebarOpen: false }
+
+class SharedState {
+  private _isLoggedIn = false;
+  private listeners: (() => void)[] = [];
+
+  username?: string;
+  avatarUrl?: string;
+
+  get isLoggedIn() {
+    return this._isLoggedIn;
+  }
+
+  set isLoggedIn(val: boolean) {
+    this._isLoggedIn = val;
+    this.listeners.forEach(fn => fn()); // trigger re-render
+  }
+
+  subscribe(fn: () => void) {
+    this.listeners.push(fn);
+  }
+}
+
+export const sharedState = new SharedState();
 
 async function renderPage(pageHtml: string)
 {
@@ -45,61 +64,40 @@ async function renderPage(pageHtml: string)
 		${controlPanelHtml}
 	`
 
-	setupModalEvents();
-	setupSidebarEvents();
+	// setupLoginForm()
+	// setupModalEvents();
 	setupUserSection();
-  setupModalEvents()
-  setupSidebarEvents()
-  setupUserSection()
-  setPong()
+	setupSidebarEvents();
+
+	setPong();
+	setupControlPanel();
 }
 
-function handleRoute() {
-  const route = window.location.hash.slice(1) || "home";
+function handleRoute()
+{
+	const route = window.location.hash.slice(1) || 'home';
 
-  switch (route) {
-    case "about":
-      renderPage(aboutHtml);
-      break;
-    case "chat":
-      renderPage(chatHtml);
-      setupChat(); // only run here
-      break;
-    case "contact":
-      renderPage(contactHtml);
-      break;
-    case "stats":
-      renderPage(statsHtml);
-      break;
-    case "userSettings":
-      renderPage(userSettingsHtml);
-      break;
-    default:
-      renderPage(homeHtml);
-  }
-
-  sharedState.sidebarOpen = false;
+	switch (route) {
+		case 'about':
+			renderPage(aboutHtml)
+			break
+		case 'chat':
+			renderPage(chatHtml)
+			break
+		case 'contact':
+			renderPage(contactHtml)
+			break
+		case 'stats':
+			renderPage(statsHtml)
+			break
+		case 'userSettings':
+			renderPage(userSettingsHtml)
+			break
+		default:
+			renderPage(homeHtml)
+	}
+	sidebarState.sidebarOpen = false;
 }
 
-
-//window.addEventListener('DOMContentLoaded', handleRoute)
-window.addEventListener('DOMContentLoaded', () => {
-  handleRoute();
-
-  // Start WebSocket
-  initWebSocket((msg) => {
-    console.log("Frontend received WS:", msg);
-
-    // Example: if we’re on chat page, show message
-    if (window.location.hash.slice(1) === "chat") {
-      const chatBox = document.querySelector("#chat-messages");
-      if (chatBox) {
-        const div = document.createElement("div");
-        div.textContent = JSON.stringify(msg);
-        chatBox.appendChild(div);
-      }
-    }
-  });
-});
-
-window.addEventListener('hashchange', handleRoute)
+window.addEventListener('DOMContentLoaded', handleRoute);
+window.addEventListener('hashchange', handleRoute);
