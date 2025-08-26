@@ -9,63 +9,95 @@ import userSettingsHtml from './pages/userSettings.html?raw'
 import loginModalHtml from './components/login-modal.html?raw'
 import signupModalHtml from './components/signup-modal.html?raw'
 import sidebarHtml from './components/sidebar.html?raw'
-// import navLoggedinHtml from './components/navLoggedin.html?raw'
-// import navLoggedoutHtml from './components/navLoggedout.html?raw'
+import controlPanelHtml from './components/controlPanel-modal.html?raw'
 
-import { setupModalEvents } from './logic/simulatedModals'
-import { setupUserSection } from './logic/simulatedUserSection'
+// import { setupModalEvents } from './logic/simulatedModals'
+// import { setupUserSection } from './logic/simulatedUserSection'
 // import { setupModalEvents } from './logic/modals'
-// import { setupUserSection } from './logic/userSection'
+import { setupUserSection } from './logic/userSection'
+
+// import { setupLoginForm } from './logic/login_handler'
+
 import { setupSidebarEvents } from './logic/sidebar'
+
+import { setPong } from './logic/pong'
+import { setupControlPanel } from './logic/controlPanel'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
-export const sharedState = 
-{
-	isLoggedIn: false,
-	sidebarOpen: false,
-};
+export const sidebarState: {sidebarOpen: boolean} = { sidebarOpen: false }
 
-async function renderPage(pageHtml: string) {
-  app.innerHTML = `
-    ${navbarHtml}
-    <main id="page-content" class="transition-all duration-300 pt-16 p-4">
-      ${pageHtml}
-    </main>
-    ${loginModalHtml}
-    ${signupModalHtml}
-    ${sidebarHtml}
-  `
+class SharedState {
+  private _isLoggedIn = false;
+  private listeners: (() => void)[] = [];
 
-  setupModalEvents()
-  setupSidebarEvents()
-  setupUserSection()
-}
+  username?: string;
+  avatarUrl?: string;
 
-function handleRoute() {
-  const route = window.location.hash.slice(1) || 'home'
-
-  switch (route) {
-    case 'about':
-      renderPage(aboutHtml)
-      break
-    case 'chat':
-      renderPage(chatHtml)
-      break
-    case 'contact':
-      renderPage(contactHtml)
-      break
-    case 'stats':
-      renderPage(statsHtml)
-      break
-    case 'userSettings':
-      renderPage(userSettingsHtml)
-      break
-    default:
-      renderPage(homeHtml)
+  get isLoggedIn() {
+    return this._isLoggedIn;
   }
-  sharedState.sidebarOpen = false
+
+  set isLoggedIn(val: boolean) {
+    this._isLoggedIn = val;
+    this.listeners.forEach(fn => fn()); // trigger re-render
+  }
+
+  subscribe(fn: () => void) {
+    this.listeners.push(fn);
+  }
 }
 
-window.addEventListener('DOMContentLoaded', handleRoute)
-window.addEventListener('hashchange', handleRoute)
+export const sharedState = new SharedState();
+
+async function renderPage(pageHtml: string)
+{
+	app.innerHTML =
+	`
+		${navbarHtml}
+		<main id="page-content" class="transition-all duration-300 pt-16 p-4">
+			${pageHtml}
+		</main>
+		${loginModalHtml}
+		${signupModalHtml}
+		${sidebarHtml}
+		${controlPanelHtml}
+	`
+
+	// setupLoginForm()
+	// setupModalEvents();
+	setupUserSection();
+	setupSidebarEvents();
+
+	setPong();
+	setupControlPanel();
+}
+
+function handleRoute()
+{
+	const route = window.location.hash.slice(1) || 'home';
+
+	switch (route) {
+		case 'about':
+			renderPage(aboutHtml)
+			break
+		case 'chat':
+			renderPage(chatHtml)
+			break
+		case 'contact':
+			renderPage(contactHtml)
+			break
+		case 'stats':
+			renderPage(statsHtml)
+			break
+		case 'userSettings':
+			renderPage(userSettingsHtml)
+			break
+		default:
+			renderPage(homeHtml)
+	}
+	sidebarState.sidebarOpen = false;
+}
+
+window.addEventListener('DOMContentLoaded', handleRoute);
+window.addEventListener('hashchange', handleRoute);

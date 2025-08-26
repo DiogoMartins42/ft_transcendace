@@ -18,74 +18,9 @@ export function setupModalEvents()
 	const signupPasswordInput = document.getElementById('signup-password') as HTMLInputElement;
 	const signupEmailInput = document.getElementById('signup-email') as HTMLInputElement;
 
-	const API_BASE = 'http://localhost:3000';
-	const VALIDATE_LOGIN_EMAIL = '/auth/validate-login-email';
-	const VALIDATE_LOGIN_PASSWORD = '/auth/validate-login-password';
-	const VALIDATE_SIGNUP_USERNAME = '/auth/validate-username';
-	const VALIDATE_SIGNUP_EMAIL = '/auth/validate-email';
-	const VALIDATE_SIGNUP_PASSWORD = '/auth/validate-password';
+	const API_BASE = 'http://localhost:3000'; // change if you deploy elsewhere
 
-	// --- helper for backend validation ---
-	async function validateField(endpoint: string, payload: Record<string, unknown>): Promise<{ valid: boolean; message?: string }> {
-		try {
-			const response = await fetch(`${API_BASE}${endpoint}`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
-			});
-			return await response.json();
-		} catch {
-			return { valid: false, message: 'Validation failed. Please try again.' };
-		}
-	}
-
-	// --- universal input validator (local rule + optional backend) --- 
-	async function validateInputField(
-		input: HTMLInputElement,
-		endpoint?: string | null,
-		localCheck?: (value: string) => { valid: boolean; message?: string },
-		payloadKey?: string
-	): Promise<boolean> {
-		const value = input.value.trim();
-
-		// Local (frontend) rule first
-		if (localCheck) {
-			const res = localCheck(value);
-			if (!res.valid) {
-				alert(res.message || 'Invalid value.');
-				input.focus();
-				return false;
-			}
-		}
-
-		// Backend check
-		if (endpoint) {
-			const key = payloadKey || input.name || 'value';
-			const res = await validateField(endpoint, { [key]: value });
-			if (!res.valid) {
-				alert(res.message || 'Invalid value.');
-				input.focus();
-				return false;
-			}
-		}
-		return true;
-	}
-
-	// --- frontend password rules for SIGNUP --- 
-	function passwordRules(value: string): { valid: boolean; message?: string } {
-		if (value.length < 8) {
-			return { valid: false, message: 'Password must be at least 8 characters long.' };
-		}
-		if (!/[A-Z]/.test(value)) {
-			return { valid: false, message: 'Password must contain at least one uppercase letter.' };
-		}
-		if (!/[0-9]/.test(value)) {
-			return { valid: false, message: 'Password must contain at least one number.' };
-		}
-		return { valid: true };
-	}
-	// -------------------------------------------------------------------
-
+	
 	// -------- LOGIN --------
 	if (loginForm && !loginForm.dataset.listenerAttached) {
 		loginForm.addEventListener('submit', async (e) => {
@@ -94,46 +29,30 @@ export function setupModalEvents()
 			const email = emailInput.value.trim();
 			const password = passwordInput.value.trim();
 
-			if (!email || !password) {
-				alert('Please fill in both email and password.');
-				return;
-			}
+		if (!email || !password) {
+			alert('Please fill in both email and password.');
+			return;
+		}
 
-			// --- backend validation before login ---
-			const emailCheck = await validateField(VALIDATE_LOGIN_EMAIL, { email });
-			if (!emailCheck.valid) {
-				alert(emailCheck.message || 'Invalid email.');
-				return;
-			}
+		try {
+			const response = await fetch(`${API_BASE}/login`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email, password })
+			})
 
-			// --- password validation against backend (uses email+password) ---  //
-			const passwordCheck = await validateField(VALIDATE_LOGIN_PASSWORD, { email, password });
-			if (!passwordCheck.valid) {
-				alert(passwordCheck.message || 'Invalid email or password.');
-				return;
-			}
+			const data = await response.json();
 
-			try {
-				const response = await fetch(`${API_BASE}/login`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ email, password })
-				})
+        	if (!response.ok) {
+        		alert(data.error || 'Invalid login credentials.');
+        		return;
+        	}
 
-				const data = await response.json();
-
-				if (!response.ok) {
-					alert(data.error || 'Invalid login credentials.');
-					return;
-				}
-
-				alert('Login successful! 🎉');
-
-				localStorage.setItem('token', data.token);
-				sharedState.isLoggedIn = true;
-				loginModal?.classList.add('hidden');
-				loginForm.reset();
-				await setupUserSection({ username: data.username, avatarUrl: data.avatarUrl || '' });
+			localStorage.setItem('token', data.token);
+			sharedState.isLoggedIn = true;
+			loginModal?.classList.add('hidden');
+			loginForm.reset();
+			await setupUserSection({ username: data.username, avatarUrl: data.avatarUrl || '' });
 			} catch (err) {
 				console.error(err);
 				alert('Failed to connect to the server.');
@@ -147,61 +66,32 @@ export function setupModalEvents()
 		signupForm.addEventListener('submit', async (e) => {
 			e.preventDefault();
 
-			const username = signupUsernameInput.value.trim();
-			const email = signupEmailInput.value.trim();
-			const password = signupPasswordInput.value.trim();
+		const username = signupUsernameInput.value.trim();
+		const email = signupEmailInput.value.trim();
+		const password = signupPasswordInput.value.trim();
 
-			if (!username || !email || !password) {
-				alert('Please fill in all fields.');
-				return;
-			}
+		if (!username || !email || !password) {
+			alert('Please fill in all fields.');
+			return;
+		}
 
-			// --- backend validation before signup ---
-			const usernameCheck = await validateField(VALIDATE_SIGNUP_USERNAME, { username });
-			if (!usernameCheck.valid) {
-				alert(usernameCheck.message || 'Invalid username.');
-				return;
-			}
-			const emailCheck = await validateField(VALIDATE_SIGNUP_EMAIL, { email });
-			if (!emailCheck.valid) {
-				alert(emailCheck.message || 'Invalid email.');
-				return;
-			}
+		try {
+			const response = await fetch(`${API_BASE}/register`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ username, email, password })
+			})
 
-			// --- FRONTEND password rules, then BACKEND password validation ---- 
-			const passedLocal = await validateInputField(
-				signupPasswordInput,
-				null,                 // no endpoint here; this call is ONLY local rules
-				passwordRules,
-				'password'
-			);
-			if (!passedLocal) return;
+			const data = await response.json();
 
-			const passwordCheck = await validateField(VALIDATE_SIGNUP_PASSWORD, { password });
-			if (!passwordCheck.valid) {
-				alert(passwordCheck.message || 'Invalid password.');
-				return;
-			}
-			// --------------------------------------------------------------------
+    		if (!response.ok) {
+    			alert(data.error || 'Signup failed.');
+    			return;
+    		}
 
-			try {
-				const response = await fetch(`${API_BASE}/register`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ username, email, password })
-				})
-
-				const data = await response.json();
-
-				if (!response.ok) {
-					alert(data.error || 'Signup failed.');
-					return;
-				}
-
-				alert('Signup successful! 🎉');
-
-				signupModal?.classList.add('hidden');
-				signupForm.reset();
+			alert('Signup successful! You can now log in.');
+			signupModal?.classList.add('hidden');
+			signupForm.reset();
 			} catch (err) {
 				console.error(err);
 				alert('Failed to connect to the server.');
