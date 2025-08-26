@@ -27,25 +27,26 @@ const app = document.querySelector<HTMLDivElement>('#app')!
 
 export const sidebarState: {sidebarOpen: boolean} = { sidebarOpen: false }
 
-class SharedState {
-  private _isLoggedIn = false;
-  private listeners: (() => void)[] = [];
+class SharedState 
+{
+	private _isLoggedIn = false;
+	private listeners: (() => void)[] = [];
 
-  username?: string;
-  avatarUrl?: string;
+	username?: string;
+	avatarUrl?: string;
 
-  get isLoggedIn() {
-    return this._isLoggedIn;
-  }
+	get isLoggedIn() {
+		return this._isLoggedIn;
+	}
 
-  set isLoggedIn(val: boolean) {
-    this._isLoggedIn = val;
-    this.listeners.forEach(fn => fn()); // trigger re-render
-  }
+	set isLoggedIn(val: boolean) {
+		this._isLoggedIn = val;
+		this.listeners.forEach(fn => fn()); // trigger re-render
+	}
 
-  subscribe(fn: () => void) {
-    this.listeners.push(fn);
-  }
+	subscribe(fn: () => void) {
+		this.listeners.push(fn);
+	}
 }
 
 export const sharedState = new SharedState();

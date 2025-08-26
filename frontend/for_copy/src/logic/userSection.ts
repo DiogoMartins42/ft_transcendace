@@ -1,45 +1,3 @@
-// import navLoggedoutHtml from '../components/navLoggedout.html?raw'
-// import { setupLoginForm } from './login_handler'
-
-// import navLoggedinHtml from '../components/navLoggedin.html?raw'
-// import { setupModalEvents } from './modals'
-// import { sharedState } from '../main'
-
-// export async function setupUserSection(user?: { username: string, avatarUrl: string }) {
-// 	const userSection = document.getElementById('user-section') as HTMLDivElement;
-
-// 	const username = user?.username || 'User';
-// 	const avatarUrl = user?.avatarUrl || '../assets/avatar-default-icon.png';
-
-// 	if (sharedState.isLoggedIn) {
-// 		userSection.innerHTML = navLoggedinHtml.replace('{{username}}', username).replace('{{avatarUrl}}', avatarUrl);
-
-// 		const toggle = document.getElementById('user-toggle')!
-// 		const menu = document.getElementById('user-menu')!
-
-// 		toggle.addEventListener('click', () => {
-// 			menu.classList.toggle('hidden');
-// 		})
-
-// 		document.addEventListener('click', (e) => {
-// 			if (!userSection.contains(e.target as Node)) {
-// 				menu.classList.add('hidden');
-// 			}
-// 		})
-
-// 		const logoutBtn = document.getElementById('logout-btn')!
-// 		logoutBtn.addEventListener('click', async () => {
-// 			// userSection.innerHTML = navLoggedoutHtml
-// 			sharedState.isLoggedIn = false;
-// 			await setupUserSection();
-// 		})
-// 	} else {
-// 		// const navLoggedoutHtml = await loadHtml('./components/navLoggedout.html')
-// 		userSection.innerHTML = navLoggedoutHtml;
-// 		setupModalEvents();
-// 	}
-// }
-
 import navLoggedoutHtml from '../components/navLoggedout.html?raw'
 import navLoggedinHtml from '../components/navLoggedin.html?raw'
 import { setupLoginForm } from './login_handler'
@@ -47,67 +5,67 @@ import { setupSignupForm } from './signup_handler'
 import { sharedState } from '../main'
 
 export async function setupUserSection() {
-  const userSection = document.getElementById('user-section') as HTMLDivElement | null;
-  if (!userSection) {
-    console.warn("⚠️ user-section not found in DOM");
-    return;
-  }
+	const userSection = document.getElementById('user-section') as HTMLDivElement | null;
+	if (!userSection) {
+		console.warn("⚠️ user-section not found in DOM");
+		return;
+	}
 
-  function render() {
-    if (sharedState.isLoggedIn) {
-      userSection!.innerHTML = navLoggedinHtml;
+	function render()
+	{
+		if (sharedState.isLoggedIn) {
+			userSection!.innerHTML = navLoggedinHtml;
 
-      // Populate username
-      const greeting = document.getElementById("user-greeting");
-      if (greeting) {
-        greeting.textContent = sharedState.username ? ` ${sharedState.username}` : " User";
-      }
+			// Populate username
+			const greeting = document.getElementById("user-greeting");
+			if (greeting) {
+				greeting.textContent = sharedState.username ? ` ${sharedState.username}` : " User";
+			}
 
-      // Sync avatar images (navbar & modal)
-      const avatar = document.getElementById("user-avatar") as HTMLImageElement | null;
-      const defaultAvatar = document.getElementById("default-avatar") as SVGElement | null;
-      const avatarModal = document.getElementById("user-avatar-modal") as HTMLImageElement | null;
-      const defaultAvatarModal = document.getElementById("default-avatar-modal") as SVGElement | null;
+			// Sync avatar images (navbar & modal)
+			const avatar = document.getElementById("user-avatar") as HTMLImageElement | null;
+			const defaultAvatar = document.getElementById("default-avatar") as SVGElement | null;
+			const avatarModal = document.getElementById("user-avatar-modal") as HTMLImageElement | null;
+			const defaultAvatarModal = document.getElementById("default-avatar-modal") as SVGElement | null;
 
-      if (sharedState.avatarUrl) {
-        if (avatar) { avatar.src = sharedState.avatarUrl; avatar.classList.remove("hidden"); }
-        if (defaultAvatar) defaultAvatar.classList.add("hidden");
-        if (avatarModal) { avatarModal.src = sharedState.avatarUrl; avatarModal.classList.remove("hidden"); }
-        if (defaultAvatarModal) defaultAvatarModal.classList.add("hidden");
-      } else {
-        if (avatar) avatar.classList.add("hidden");
-        if (defaultAvatar) defaultAvatar.classList.remove("hidden");
-        if (avatarModal) avatarModal.classList.add("hidden");
-        if (defaultAvatarModal) defaultAvatarModal.classList.remove("hidden");
-      }
+			if (sharedState.avatarUrl) {
+				if (avatar) { avatar.src = sharedState.avatarUrl; avatar.classList.remove("hidden"); }
+				if (defaultAvatar) defaultAvatar.classList.add("hidden");
+				if (avatarModal) { avatarModal.src = sharedState.avatarUrl; avatarModal.classList.remove("hidden"); }
+				if (defaultAvatarModal) defaultAvatarModal.classList.add("hidden");
+			} else {
+				if (avatar) avatar.classList.add("hidden");
+				if (defaultAvatar) defaultAvatar.classList.remove("hidden");
+				if (avatarModal) avatarModal.classList.add("hidden");
+				if (defaultAvatarModal) defaultAvatarModal.classList.remove("hidden");
+			}
 
-      // Setup logout click
-      const logoutBtn = document.getElementById("logout-btn") as HTMLButtonElement | null;
-      if (logoutBtn) {
-        logoutBtn.addEventListener("click", () => {
-          // reset state
-          sharedState.isLoggedIn = false;
-          sharedState.username = undefined;
-          sharedState.avatarUrl = undefined;
-        });
-      }
+			// Setup logout click
+			const logoutBtn = document.getElementById("logout-btn") as HTMLButtonElement | null;
+			if (logoutBtn) {
+				logoutBtn.addEventListener("click", () => {
+					// reset state
+					sharedState.isLoggedIn = false;
+					sharedState.username = undefined;
+					sharedState.avatarUrl = undefined;
+				});
+			}
+		} else {
+			userSection!.innerHTML = navLoggedoutHtml;
+			// after injecting logged-out HTML we need to init login/signup handlers
+			setupLoginForm();
+			setupSignupForm();
+		}
+	}
 
-    } else {
-      userSection!.innerHTML = navLoggedoutHtml;
-      // after injecting logged-out HTML we need to init login/signup handlers
-      setupLoginForm();
-      setupSignupForm();
-    }
-  }
+	// initial render
+	render();
 
-  // initial render
-  render();
-
-  // re-render when sharedState changes (assuming sharedState has subscribe or you call render externally)
-  if ((sharedState as any).subscribe) {
-    (sharedState as any).subscribe(render);
-  } else {
-    // Fallback: if you don't have subscribe, you should call setupUserSection() again after login
-  }
+	// re-render when sharedState changes (assuming sharedState has subscribe or you call render externally)
+	if ((sharedState as any).subscribe) {
+		(sharedState as any).subscribe(render);
+	} else {
+		// Fallback: if you don't have subscribe, you should call setupUserSection() again after login
+	}
 }
 
