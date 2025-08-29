@@ -51,22 +51,36 @@ window.addEventListener("keyup", (e) => {
 });
 
 // ---- Overlay helpers ----
-function showOverlay(message: string, buttons: { text: string; onClick: () => void }[])
+function showOverlay(btn_type: number, buttons: { text: string; onClick: () => void }[])
 {
 	const overlay = document.getElementById("game-overlay") as HTMLDivElement | null;
 	const msgEl = document.getElementById("game-message") as HTMLParagraphElement | null;
 	const btns = document.getElementById("overlay-buttons") as HTMLDivElement | null;
 	if (!overlay || !msgEl || !btns) return;
 
-	msgEl.textContent = message;
 	btns.innerHTML = "";
-	buttons.forEach(b => {
-		const btn = document.createElement("button");
-		btn.textContent = b.text;
-		btn.className = "bg-white text-black px-4 py-2 rounded shadow hover:bg-gray-200";
-		btn.onclick = b.onClick;
-		btns.appendChild(btn);
-	});
+	if (btn_type === 1) {
+		buttons.forEach(b => {
+			const btn = document.createElement("button");
+			btn.textContent = b.text;
+			btn.className =	"px-8 py-2 text-white font-lucky text-lg rounded-full shadow-lg transition-transform \
+							transform bg-[#00091D] border-2 border-white hover:scale-105 hover:border-green-600 \
+							hover:shadow-green-500/50 hover:shadow-2xl focus:outline-none hover:text-green-600";
+			btn.onclick = b.onClick;
+			btns.appendChild(btn);
+		});
+	}
+	if (btn_type === 2) {
+		buttons.forEach(b => {
+			const btn = document.createElement("button");
+			btn.textContent = b.text;
+			btn.className =	"w-35 px-8 py-2 text-white font-lucky text-lg rounded-lg shadow-lg transition-transform \
+							transform bg-[#00091D] border-2 border-white hover:scale-105 hover:border-blue-600 \
+							hover:shadow-blue-500/50 hover:shadow-2xl focus:outline-none hover:text-blue-600";
+			btn.onclick = b.onClick;
+			btns.appendChild(btn);
+		});
+	}
 		overlay.classList.remove("hidden");
 }
 function hideOverlay()
@@ -128,7 +142,7 @@ export function setPong()
 	if (gameSettings.mouse && !gameSettings.multiplayer) canvas.addEventListener("mousemove", movePaddleListener);
 
 	// START overlay
-	showOverlay("Click Start to play", [
+	showOverlay(1, [
 		{ text: "Start", onClick: () => { gameState = GameState.PLAYING; hideOverlay(); launchBall(ball); } },
 	]);
 
@@ -137,7 +151,7 @@ export function setPong()
 		pauseBtn.addEventListener("click", () => {
 			if (gameState === GameState.PLAYING) {
 				gameState = GameState.PAUSED;
-				showOverlay("", [
+				showOverlay(2, [
 					{ text: "Resume", onClick: () => { gameState = GameState.PLAYING; hideOverlay(); } },
 					{ text: "Restart", onClick: () => { restartGame(canvas, player1, player2, ball); } },
 				]);
@@ -149,7 +163,7 @@ export function setPong()
 		settingsBtn.addEventListener("click", () => {
 			if (gameState === GameState.PLAYING) {
 				gameState = GameState.PAUSED;
-				showOverlay("", [
+				showOverlay(2, [
 					{ text: "Resume", onClick: () => { gameState = GameState.PLAYING; hideOverlay(); } },
 					{ text: "Restart", onClick: () => { restartGame(canvas, player1, player2, ball); } },
 				]);
@@ -162,7 +176,7 @@ export function setPong()
 		if (e.code === "Space") {
 			if (gameState === GameState.PLAYING) {
 				gameState = GameState.PAUSED;
-				showOverlay("", [
+				showOverlay(2, [
 					{ text: "Resume", onClick: () => { gameState = GameState.PLAYING; hideOverlay(); } },
 					{ text: "Restart", onClick: () => { restartGame(canvas, player1, player2, ball); } },
 				]);
@@ -261,10 +275,14 @@ function getCanvasAndContext()
 	return { canvas, context: canvas.getContext("2d") };
 }
 
-function drawRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string)
+function drawRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string, border: boolean = false, bdr_color: string = "none")
 {
 	ctx.fillStyle = color;
 	ctx.fillRect(x, y, w, h);
+	if (border) {
+		ctx.strokeStyle = bdr_color;
+		ctx.lineWidth = 2; ctx.strokeRect(0, 0, w, h);
+	}
 }
 
 function drawCircle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string)
@@ -293,7 +311,7 @@ function drawNet(cvs: HTMLCanvasElement, ctx: CanvasRenderingContext2D, net: Net
 
 function render(cvs: HTMLCanvasElement, ctx: CanvasRenderingContext2D, player1: Player, player2: Player, ball: Ball, net: Net)
 {
-	drawRect(ctx, 0, 0, cvs.width, cvs.height, gameSettings.bgColor);
+	drawRect(ctx, 0, 0, cvs.width, cvs.height, gameSettings.bgColor, true, gameSettings.itemsColor);
 	drawNet(cvs, ctx, net);
 	drawText(ctx, player1.score, cvs.width / 4, cvs.height / 5, gameSettings.itemsColor);
 	drawText(ctx, player2.score, (3 * cvs.width) / 4, cvs.height / 5, gameSettings.itemsColor);
@@ -382,7 +400,7 @@ function update(cvs: HTMLCanvasElement, player1: Player, player2: Player, ball: 
 		if (player1.score === gameSettings.scoreLimit) message = "PLAYER 1 WINS!!!";
 		else if (gameSettings.multiplayer) message = "PLAYER 2 WINS!!!";
 		else message = "PLAYER 1 LOSES!!!";
-		showOverlay(message, [
+		showOverlay(1, [
 			{ text: "Restart", onClick: () => { restartGame(cvs, player1, player2, ball); } },
 		]);
 	}

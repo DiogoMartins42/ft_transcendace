@@ -150,18 +150,18 @@ export function setupControlPanel() {
 
     openBtnSettings?.addEventListener('click', () => {
         loadSettingsIntoForm();
-        controlPanel?.classList.remove('hidden');
+        controlPanel?.classList.toggle('hidden');
     });
-
+    
     closeBtnSettings?.addEventListener('click', () => {
         controlPanel?.classList.add('hidden');
     });
 
-    controlPanel?.addEventListener('click', (e) => {
-        if (e.target === controlPanel) {
-            controlPanel.classList.add('hidden');
-        }
-    });
+    // controlPanel?.addEventListener('click', (e) => {
+    //     if (e.target === controlPanel) {
+    //         controlPanel.classList.add('hidden');
+    //     }
+    // });
 
     attachChangeListeners();
 }
