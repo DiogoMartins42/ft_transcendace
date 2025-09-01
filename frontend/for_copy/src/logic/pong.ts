@@ -50,13 +50,22 @@ window.addEventListener("keyup", (e) => {
 	if (e.key === "ArrowDown") downPressed = false;
 });
 
+function showOverlay_message(message: string)
+{
+	const overlay = document.getElementById("game-overlay") as HTMLDivElement | null;
+	const msgEl = document.getElementById("game-message") as HTMLParagraphElement | null;
+	if (!overlay || !msgEl) return;
+
+	msgEl.textContent = message;
+	overlay.classList.remove("hidden");
+}
+
 // ---- Overlay helpers ----
 function showOverlay(btn_type: number, buttons: { text: string; onClick: () => void }[])
 {
 	const overlay = document.getElementById("game-overlay") as HTMLDivElement | null;
-	const msgEl = document.getElementById("game-message") as HTMLParagraphElement | null;
 	const btns = document.getElementById("overlay-buttons") as HTMLDivElement | null;
-	if (!overlay || !msgEl || !btns) return;
+	if (!overlay || !btns) return;
 
 	btns.innerHTML = "";
 	if (btn_type === 1) {
@@ -396,12 +405,13 @@ function update(cvs: HTMLCanvasElement, player1: Player, player2: Player, ball: 
 	// Game over logic (show overlay + restart)
 	if (player1.score === gameSettings.scoreLimit || player2.score === gameSettings.scoreLimit) {
 		gameState = GameState.GAME_OVER;
-		let message = "";
+		let message: string;
 		if (player1.score === gameSettings.scoreLimit) message = "PLAYER 1 WINS!!!";
 		else if (gameSettings.multiplayer) message = "PLAYER 2 WINS!!!";
 		else message = "PLAYER 1 LOSES!!!";
 		showOverlay(1, [
 			{ text: "Restart", onClick: () => { restartGame(cvs, player1, player2, ball); } },
 		]);
+		showOverlay_message(message);
 	}
 }
