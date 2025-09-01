@@ -1,7 +1,7 @@
 import { sharedState } from '../main'
 import  loading  from '../components/loading.html?raw'
 
-const BACKEND_LOGIN_URL = "/api/login"; // placeholder backend URL
+const BACKEND_LOGIN_URL = "http://localhost:3000/login"; // placeholder backend URL
 
 export function setupLoginForm()
 {
