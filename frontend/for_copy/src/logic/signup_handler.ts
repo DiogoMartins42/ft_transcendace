@@ -3,7 +3,7 @@ import loading from '../components/loading.html?raw'
 
 const BACKEND_SIGNUP_URL = "http://localhost:3000/register"; // placeholder backend URL
 
-const username = document.querySelector<HTMLInputElement>("#username")?.value;
+/*const username = document.querySelector<HTMLInputElement>("#username")?.value;
 const email = document.querySelector<HTMLInputElement>("#email")?.value;
 const password = document.querySelector<HTMLInputElement>("#password")?.value;
 
@@ -11,7 +11,7 @@ await fetch(BACKEND_SIGNUP_URL, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ username, email, password }),
-});
+});*/
 
 export function setupSignupForm() {
 	const signupModal = document.getElementById('signup-modal') as HTMLElement | null;
