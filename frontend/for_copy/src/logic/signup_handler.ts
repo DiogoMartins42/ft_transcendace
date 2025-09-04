@@ -1,17 +1,7 @@
 import { sharedState } from '../main'
 import loading from '../components/loading.html?raw'
 
-const BACKEND_SIGNUP_URL = "http://localhost:3000/register"; // placeholder backend URL
-
-/*const username = document.querySelector<HTMLInputElement>("#username")?.value;
-const email = document.querySelector<HTMLInputElement>("#email")?.value;
-const password = document.querySelector<HTMLInputElement>("#password")?.value;
-
-await fetch(BACKEND_SIGNUP_URL, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ username, email, password }),
-});*/
+const BACKEND_SIGNUP_URL = "http://localhost:3000/auth/register"; // placeholder backend URL
 
 export function setupSignupForm() {
 	const signupModal = document.getElementById('signup-modal') as HTMLElement | null;
@@ -156,36 +146,33 @@ export function setupSignupForm() {
 		signupSubmit!.disabled = true;
 
 		try {
-		  const controller = new AbortController();
-		  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+		  	const controller = new AbortController();
+		  	const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
-		const response = await fetch(BACKEND_SIGNUP_URL, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ username, email, password }),
-			signal: controller.signal
-		});
+			const response = await fetch(BACKEND_SIGNUP_URL, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ username, email, password }),
+				signal: controller.signal
+			});
 
-		clearTimeout(timeoutId);
+			clearTimeout(timeoutId);
 
-		if (response.ok) {
-			const data = await response.json();
-			if (data.success) {
+			if (response.ok) {
+				const data = await response.json();
+				console.log("Signup response:", data);
+
 				sharedState.isLoggedIn = true;
-				sharedState.username = data.username;
-				sharedState.avatarUrl = data.avatarUrl;
+				sharedState.username = username; // use the submitted value
+				sharedState.avatarUrl = "/default-avatar.png"; // placeholder until user sets one
+
 				signupModal.classList.add("hidden");
 				console.log("Signup successful!");
 			} else {
-				alert(data.message || "Signup failed. Please try again.");
+				alert("Signup failed. Please try again.");
 				passwordInput!.value = "";
 				confirmPasswordInput!.value = "";
 			}
-		} else {
-			alert("Signup request failed. Please try again.");
-			passwordInput!.value = "";
-			confirmPasswordInput!.value = "";
-		}
 		} catch (err) {
 			console.error("Signup error:", err);
 			alert("Network error or request timeout.");
