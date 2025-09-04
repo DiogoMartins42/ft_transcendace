@@ -1,7 +1,7 @@
 COMPOSE_SRSC=./docker-compose.yml
 NAME=transcendence
 
-all: 	build up
+all: build up
 
 build:
 	sudo docker compose -f $(COMPOSE_SRSC) -p $(NAME) build --no-cache
