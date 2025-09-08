@@ -24,6 +24,8 @@ db.prepare(`
     username TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
+    wins INTEGER DEFAULT 0,
+    losses INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `).run();
@@ -31,6 +33,31 @@ db.prepare(`
 fastify.decorate("db", db);
 fastify.register(authRoutes, { prefix: "/auth" });
 fastify.register(lobbyRoutes, { prefix: "/lobby" });
+
+fastify.get("/api/user-stats", async (request, reply) => {
+  const username = request.query.username || "test";
+
+  try {
+    const row = fastify.db.prepare(
+      "SELECT username, email, wins, losses FROM users WHERE username = ?"
+    ).get(username);
+
+    if (!row) {
+      return reply.code(404).send({ error: "User not found" });
+    }
+
+    return {
+      username: row.username,
+      email: row.email,
+      wins: row.wins || 0,
+      losses: row.losses || 0,
+    };
+  } catch (err) {
+    request.log.error(err);
+    return reply.code(500).send({ error: "Database error" });
+  }
+});
+
 
 //JWT Auth
 

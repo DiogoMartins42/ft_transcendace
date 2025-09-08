@@ -59,6 +59,28 @@ async function verifyUserPassword(username, inputPassword) {
   }
 }
 
+// Fetch user info (excluding password)
+function getUserInfo(username) {
+  return new Promise((resolve, reject) => {
+    const db = new sqlite3.Database("sqlite.db");
+
+    db.get(
+      "SELECT username, email, wins, losses FROM users WHERE username = ?",
+      [username],
+      (err, row) => {
+        db.close();
+        if (err) {
+          return reject(err);
+        }
+        if (!row) {
+          return reject(new Error("User not found"));
+        }
+        resolve(row);
+      }
+    );
+  });
+}
+
 // Init the Database
 async function initDB() {
   const db = new sqlite3.Database('sqlite.db');
@@ -70,6 +92,8 @@ async function initDB() {
         username TEXT UNIQUE,
         password TEXT,
         email TEXT,
+        wins INTEGER DEFAULT 0,
+        losses INTEGER DEFAULT 0,
         UNIQUE(username, password)
       )
     `);
@@ -128,4 +152,4 @@ if (require.main === module) {
 }
 
 // Export functions for use in other files
-module.exports = {addUser, hashPassword, initDB, verifyUserPassword};
+module.exports = {addUser, hashPassword, initDB, verifyUserPassword, getUserInfo};

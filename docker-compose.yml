@@ -8,12 +8,12 @@ services:
       - ./backend/.env
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=/database/data/database.db #self reminder rcruz
+      - DATABASE_URL=/database/data/database.db
     volumes:
       - ./backend/src:/app/src
       - backend_data:/app/data
       - frontend_dist:/app/frontend
-      - sqlite_database:/database/data #self reminder rcruz
+      - sqlite_database:/database/data
     networks:
       - transcendence
     restart: unless-stopped
@@ -51,7 +51,7 @@ services:
             args:
                 VAULT_API_PORT: "${VAULT_API_PORT:-8200}"
         container_name: vault
-        restart: no
+        restart: "no"
         ports:
             - "${VAULT_ROOT_TOKEN_EXCHANGE_PORT:-4141}:${VAULT_ROOT_TOKEN_EXCHANGE_PORT:-4141}"
         networks:
