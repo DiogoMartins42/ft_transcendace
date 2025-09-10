@@ -62,28 +62,25 @@ fastify.register(async function (fastify) {
         }
         
         socket.on("message", (message) => {
-        console.log("Received:", message.toString());
-        
-        let messageData;
-        try {
-            messageData = JSON.parse(message.toString());
-        } catch (e) {
-            // If it's not JSON, treat it as plain text
-            messageData = { type: "chat", text: message.toString() };
-        }
-        
-        // Don't broadcast connection messages, only chat messages
-        if (messageData.type === "chat") {
-            // Broadcast to every connected client
-            for (const client of clients) {
-                if (client.readyState === 1) {
-                    client.send(JSON.stringify(messageData));
-                }
+            console.log("Received:", message.toString());
+
+            let messageData;
+            try {
+                messageData = JSON.parse(message.toString());
+            } catch (e) {
+                messageData = { type: "chat", text: message.toString() };
             }
-        } else if (messageData.type === "connection") {
-            console.log("Client connected with message:", messageData.text);
-            // Don't broadcast connection messages
-        }
+
+            if (messageData.type === "chat") {
+                // Broadcast to every connected client except the sender
+                for (const client of clients) {
+                    if (client !== socket && client.readyState === 1) {
+                        client.send(JSON.stringify(messageData));
+                    }
+                }
+            } else if (messageData.type === "connection") {
+                console.log("Client connected with message:", messageData.text);
+            }
         });
         
         socket.on("close", () => {
