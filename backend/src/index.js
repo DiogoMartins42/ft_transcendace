@@ -44,21 +44,58 @@ fastify.decorate("authenticate", async function (request, reply) {
 });
 
 fastify.register(fastifyWebsocket);
+const clients = new Set();
+
 fastify.register(async function (fastify) {
-  fastify.get("/ws", { websocket: true }, (connection, req) => {
-    console.log("Client connected!");
-
-    connection.send(JSON.stringify({ message: "Welcome to WS server!" }));
-
-    connection.on("message", (message) => {
-      console.log("Received:", message.toString());
-      connection.send(JSON.stringify({ echo: message.toString() }));
+    fastify.get("/ws", { websocket: true }, (connection, req) => {
+        console.log("Client connected!");
+        
+        const socket = connection.socket || connection;
+        clients.add(socket);
+        
+        // Send welcome message
+        if (socket.readyState === 1) {
+            socket.send(JSON.stringify({ 
+                type: "welcome", 
+                message: "Connected to server!" 
+            }));
+        }
+        
+        socket.on("message", (message) => {
+        console.log("Received:", message.toString());
+        
+        let messageData;
+        try {
+            messageData = JSON.parse(message.toString());
+        } catch (e) {
+            // If it's not JSON, treat it as plain text
+            messageData = { type: "chat", text: message.toString() };
+        }
+        
+        // Don't broadcast connection messages, only chat messages
+        if (messageData.type === "chat") {
+            // Broadcast to every connected client
+            for (const client of clients) {
+                if (client.readyState === 1) {
+                    client.send(JSON.stringify(messageData));
+                }
+            }
+        } else if (messageData.type === "connection") {
+            console.log("Client connected with message:", messageData.text);
+            // Don't broadcast connection messages
+        }
+        });
+        
+        socket.on("close", () => {
+            console.log("Client disconnected");
+            clients.delete(socket);
+        });
+        
+        socket.on("error", (error) => {
+            console.error("WebSocket error:", error);
+            clients.delete(socket);
+        });
     });
-
-    connection.on("close", () => {
-      console.log("Client disconnected");
-    });
-  });
 });
 
 
