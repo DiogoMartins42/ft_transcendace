@@ -20,6 +20,9 @@ import { setupUserSection } from './logic/userSection'
 
 import { setupSidebarEvents } from './logic/sidebar'
 
+import { initWebSocket } from './logic/ws';
+import { setupChat } from './logic/chat';
+
 import { setPong } from './logic/pong'
 import { setupControlPanel } from './logic/controlPanel'
 
@@ -70,6 +73,22 @@ async function renderPage(pageHtml: string)
 	setupUserSection();
 	setupSidebarEvents();
 
+	initWebSocket((msg) => {
+  // msg will look like {chat: "..."} or {message: "..."}
+	const chatMessages = document.getElementById('chat-messages');
+	if (!chatMessages) return;
+
+	const div = document.createElement('div');
+	// show either the welcome message or the chat content
+	div.textContent = msg.chat || msg.message || JSON.stringify(msg);
+	chatMessages.appendChild(div);
+	chatMessages.scrollTop = chatMessages.scrollHeight;
+	});
+
+
+	setupChat();
+
+
 	setPong();
 	setupControlPanel();
 }
@@ -101,4 +120,5 @@ function handleRoute()
 }
 
 window.addEventListener('DOMContentLoaded', handleRoute);
+
 window.addEventListener('hashchange', handleRoute);
