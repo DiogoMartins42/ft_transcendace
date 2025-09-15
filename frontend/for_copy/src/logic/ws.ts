@@ -3,46 +3,37 @@ let ws: WebSocket | null = null;
 export function initWebSocket( 
     onMessage?: (msg: unknown) => void
 ): WebSocket {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        // Only add the new handler
-        ws.onmessage = (event: MessageEvent) => {
-            if (onMessage) {
-                try {
-                    const parsedMessage = JSON.parse(event.data);
-                    onMessage(parsedMessage);
-                } catch {
-                    // ignore
-                }
-            }
+    const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:3000/ws";
+
+    if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            console.log("Connected to WebSocket:", wsUrl);
+            // Don't send an automatic message - let users send their own messages
         };
-        return ws;
+
+        ws.onclose = () => {
+            console.log("Disconnected from server!");
+            ws = null;
+        };
+
+        ws.onerror = (err) => {
+            console.log("WebSocket error!", err);
+            ws = null;
+        };
     }
 
-    const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:3000/ws";
-    ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-        // Send a proper JSON message instead of plain text
-        sendMessage({ type: "connection", text: "Hello from frontend!" });
-    };
-
+    // Always replace the onmessage handler
     ws.onmessage = (event: MessageEvent) => {
         if (onMessage) {
             try {
                 const parsedMessage = JSON.parse(event.data);
                 onMessage(parsedMessage);
             } catch {
-                // ignore
+                console.warn("Received non-JSON message:", event.data);
             }
         }
-    };
-
-    ws.onclose = () => {
-        ws = null;
-    };
-
-    ws.onerror = () => {
-        ws = null;
     };
 
     return ws;

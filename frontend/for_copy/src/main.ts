@@ -60,13 +60,7 @@ async function renderPage(pageHtml: string)
 	`
 		${navbarHtml}
 		<main id="page-content" class="transition-all duration-300 pt-16 p-4">
-			${pageHtml}export function sendMessage(message: unknown): void {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(message));
-    } else {
-        console.warn("WebSocket not connected!");
-    }
-}
+			${pageHtml}
 		</main>
 		${loginModalHtml}
 		${signupModalHtml}
