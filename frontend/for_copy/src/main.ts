@@ -60,7 +60,13 @@ async function renderPage(pageHtml: string)
 	`
 		${navbarHtml}
 		<main id="page-content" class="transition-all duration-300 pt-16 p-4">
-			${pageHtml}
+			${pageHtml}export function sendMessage(message: unknown): void {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(message));
+    } else {
+        console.warn("WebSocket not connected!");
+    }
+}
 		</main>
 		${loginModalHtml}
 		${signupModalHtml}
@@ -72,19 +78,6 @@ async function renderPage(pageHtml: string)
 	// setupModalEvents();
 	setupUserSection();
 	setupSidebarEvents();
-
-	initWebSocket((msg) => {
-  // msg will look like {chat: "..."} or {message: "..."}
-	const chatMessages = document.getElementById('chat-messages');
-	if (!chatMessages) return;
-
-	const div = document.createElement('div');
-	// show either the welcome message or the chat content
-	div.textContent = msg.chat || msg.message || JSON.stringify(msg);
-	chatMessages.appendChild(div);
-	chatMessages.scrollTop = chatMessages.scrollHeight;
-	});
-
 
 	setupChat();
 

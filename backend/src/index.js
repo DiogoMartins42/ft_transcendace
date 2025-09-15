@@ -52,18 +52,19 @@ fastify.register(async function (fastify) {
         
         const socket = connection.socket || connection;
         clients.add(socket);
-        
+
+        // Assign a username for this socket (replace with real auth if available)
+        socket.username = "Anonymous"; // Or get from JWT, etc.
+
         // Send welcome message
         if (socket.readyState === 1) {
             socket.send(JSON.stringify({ 
                 type: "welcome", 
-                message: "Connected to server!" 
+                message: "Connected to this server!" 
             }));
         }
         
         socket.on("message", (message) => {
-            console.log("Received:", message.toString());
-
             let messageData;
             try {
                 messageData = JSON.parse(message.toString());
@@ -72,9 +73,12 @@ fastify.register(async function (fastify) {
             }
 
             if (messageData.type === "chat") {
-                // Broadcast to every connected client except the sender
+                // Attach sender's username
+                messageData.username = socket.username;
+
+                // Send to all clients, including sender
                 for (const client of clients) {
-                    if (client !== socket && client.readyState === 1) {
+                    if (client.readyState === 1) {
                         client.send(JSON.stringify(messageData));
                     }
                 }
