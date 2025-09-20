@@ -3,7 +3,7 @@ const path = require('path');
 const dbPath = path.join(__dirname, 'sqlite.db');
 
 
-function addMatchResult(username_winner, username_loser) {
+function addMatchResult(username_winner, username_loser, winner_points, loser_points) {
   const db = new Database(dbPath);
   try {
     // Look up winner ID and loser ID
@@ -30,13 +30,9 @@ function addMatchResult(username_winner, username_loser) {
 
     // Insert into match_history
     db.prepare(`
-      INSERT INTO match_history (id_winner, id_loser)
-      VALUES (?, ?)
-    `).run(winner.id, loser.id);
-
-    // Also update stats //THIS PART WILL CHANGE
-    db.prepare("UPDATE users SET wins = wins + 1 WHERE id = ?").run(winner.id);
-    db.prepare("UPDATE users SET losses = losses + 1 WHERE id = ?").run(loser.id);
+      INSERT INTO match_history (id_winner, id_loser, winner_points, loser_points)
+      VALUES (?, ?, ?, ?)
+    `).run(winner.id, loser.id, winner_points, loser_points);
 
     return { message: "Match saved successfully" };
   }

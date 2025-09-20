@@ -26,7 +26,8 @@ async function hashPassword(password) {
 function getUserInfo(username) {
   const db = new Database(dbPath);
   try {
-    const stmt = db.prepare('SELECT username, email, wins, losses FROM users WHERE username = ?');
+    //const stmt = db.prepare('SELECT username, email, wins, losses FROM users WHERE username = ?');
+    const stmt = db.prepare('SELECT username, email FROM users WHERE username = ?');
     const row = stmt.get(username);
     if (!row) throw new Error('User not found');
     return row;
@@ -92,16 +93,6 @@ async function updateUserInfo(username, updates) {
       values.push(hashedPassword);
     }
 
-    if (typeof updates.wins === "number") {
-      fields.push("wins = ?");
-      values.push(updates.wins);
-    }
-
-    if (typeof updates.losses === "number") {
-      fields.push("losses = ?");
-      values.push(updates.losses);
-    }
-
     if (updates.newUsername) {
       fields.push("username = ?");
       values.push(updates.newUsername);
@@ -128,7 +119,7 @@ async function updateUserInfo(username, updates) {
 // Init the Database
 async function initDB() {
   const db = new Database(dbPath);
-  
+
   try {
     // Create table
     db.prepare(`
@@ -137,8 +128,6 @@ async function initDB() {
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         email TEXT NOT NULL,
-        wins INTEGER DEFAULT 0,
-        losses INTEGER DEFAULT 0,
         UNIQUE(username, email)
       )
     `).run();
@@ -148,6 +137,8 @@ async function initDB() {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         id_winner INTEGER NOT NULL,
         id_loser INTEGER NOT NULL,
+        winner_points INTEGER DEFAULT 0,
+        loser_points INTEGER DEFAULT 0,
         FOREIGN KEY (id_winner) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (id_loser) REFERENCES users(id) ON DELETE CASCADE
       )

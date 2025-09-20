@@ -15,7 +15,7 @@ fastify.register(require('@fastify/static'), {
 // Also serve stats.html at the root
 fastify.register(require('@fastify/static'), {
   root: path.join(__dirname, '../frontend/for_copy/src/pages'),
-  prefix: '/stats',
+  prefix: '/stats2',
   decorateReply: false
 });
 
@@ -54,7 +54,9 @@ fastify.get("/api/matches/:username", async (request, reply) => {
       SELECT 
         match_history.id,
         users_winner.username AS winner,
-        users_loser.username AS loser
+        users_loser.username AS loser,
+        match_history.winner_points,
+        match_history.loser_points
       FROM match_history
       INNER JOIN users AS users_winner ON match_history.id_winner = users_winner.id
       INNER JOIN users AS users_loser ON match_history.id_loser = users_loser.id
@@ -72,7 +74,7 @@ fastify.get("/api/matches/:username", async (request, reply) => {
   }
 });
 
-
+//Create a new user
 fastify.post('/api/create-user', async (request, reply) => {
   try {
     const userData = request.body;
@@ -87,37 +89,13 @@ fastify.post('/api/create-user', async (request, reply) => {
   }
 });
 
-// Increment wins by 1
-fastify.post('/api/user/:username/win', async (request, reply) => {
-  const { username } = request.params;
-  try {
-    incrementWins(username);
-    return { message: `Win added for ${username}` };
-  }
-  catch (err) {
-    reply.code(404).send({ error: err.message });
-  }
-});
-
-// Increment losses by 1
-fastify.post('/api/user/:username/loss', async (request, reply) => {
-  const { username } = request.params;
-  try {
-    incrementLosses(username);
-    return { message: `Loss added for ${username}` };
-  }
-  catch (err) {
-    reply.code(404).send({ error: err.message });
-  }
-});
-
-// expects match results, {winner: "username_winner", loser: "username_loser"}
+// expects match results, ("username_winner", "username_loser", "How many points for the winner", "How many points for the loser")
 fastify.post("/api/match", async (request, reply) => {
-  const { winner, loser } = request.body; 
+  const { winner, loser, winner_points, loser_points} = request.body; 
 
   try {
-    const result = addMatchResult(winner, loser);
-    return result; // { message: "Match saved successfully" }
+    const result = addMatchResult(winner, loser, winner_points, loser_points);
+    return result; // {message: "Match saved successfully"}
   } catch (err) {
     reply.code(400).send({ error: err.message });
   }
