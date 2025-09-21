@@ -1,331 +1,396 @@
-<!DOCTYPE html>
+<!DOCTYPE html> <!-- Remove when merging -->
+
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Statistics Dashboard</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        body {
-            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
-            min-height: 100vh;
+        #stats-container {
             display: flex;
-            flex-direction: column;
+            justify-content: center;
             align-items: center;
+            min-height: 100vh;
             padding: 20px;
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
         }
-        
-        .container {
+
+        #stats-container .container {
             width: 100%;
-            max-width: 900px;
-            background: rgba(255, 255, 255, 0.9);
+            max-width: 1200px;
+            background: rgba(255, 255, 255, 0.95);
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             overflow: hidden;
-            margin-bottom: 30px;
+            margin: 20px;
         }
         
-        header {
+        #stats-container header {
             background: #2c3e50;
             color: white;
-            padding: 20px;
+            padding: 25px;
             text-align: center;
         }
         
-        h1 {
-            font-size: 2.2rem;
+        #stats-container h1 {
+            font-size: 2.5rem;
             margin-bottom: 10px;
         }
         
-        .subtitle {
-            font-size: 1rem;
-            opacity: 0.8;
+        #stats-container .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
         }
         
-        .content {
-            padding: 30px;
+        #stats-container .content {
+            padding: 35px;
         }
         
-        .user-form {
+        #stats-container .user-form {
             display: flex;
-            margin-bottom: 25px;
-            gap: 10px;
+            margin-bottom: 30px;
+            gap: 15px;
+            flex-wrap: wrap;
         }
         
-        input {
+        #stats-container input {
             flex: 1;
-            padding: 12px 15px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 16px;
+            min-width: 250px;
+            padding: 15px 20px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 18px;
+            transition: border-color 0.3s;
         }
         
-        button {
+        #stats-container input:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+        
+        #stats-container button {
             background: #3498db;
             color: white;
             border: none;
-            padding: 12px 20px;
-            border-radius: 5px;
+            padding: 15px 25px;
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 16px;
-            transition: background 0.3s;
+            font-size: 18px;
+            font-weight: 600;
+            transition: background 0.3s, transform 0.2s;
+            min-width: 150px;
         }
         
-        button:hover {
+        #stats-container button:hover {
             background: #2980b9;
+            transform: translateY(-2px);
         }
         
-        .stats-grid {
+        #stats-container button:active {
+            transform: translateY(0);
+        }
+        
+        #stats-container .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
         }
         
-        .stat-card {
+        #stats-container .stat-card {
             background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
             text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
         }
         
-        .stat-value {
-            font-size: 2.5rem;
-            font-weight: bold;
+        #stats-container .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        #stats-container .stat-card h3 {
+            font-size: 1.4rem;
             color: #2c3e50;
-            margin: 10px 0;
+            margin-bottom: 15px;
         }
         
-        .wins {
+        #stats-container .stat-value {
+            font-size: 3rem;
+            font-weight: bold;
+            margin: 15px 0;
+        }
+        
+        #stats-container .wins {
             color: #27ae60;
         }
         
-        .losses {
+        #stats-container .losses {
             color: #e74c3c;
         }
         
-        .ratio {
+        #stats-container .ratio {
             color: #3498db;
         }
         
-        .user-info {
+        #stats-container .user-info {
             background: #f8f9fa;
-            padding: 20px;
-            border-radius: 10px;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border-left: 5px solid #3498db;
+        }
+        
+        #stats-container .user-info h2 {
+            color: #2c3e50;
             margin-bottom: 20px;
+            font-size: 1.8rem;
         }
         
-        .info-grid {
+        #stats-container .info-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
         }
         
-        .info-item {
-            margin-bottom: 10px;
+        #stats-container .info-item {
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
         
-        .info-label {
+        #stats-container .info-label {
             font-weight: bold;
             color: #7f8c8d;
+            display: block;
+            margin-bottom: 5px;
+            font-size: 1.1rem;
         }
         
-        .chart-container {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        #stats-container .info-value {
+            font-size: 1.3rem;
+            color: #2c3e50;
+            font-weight: 500;
         }
         
-        .chart {
-            height: 200px;
+        #stats-container .chart {
+            height: 250px;
             display: flex;
             align-items: flex-end;
             justify-content: center;
-            gap: 30px;
-            padding: 20px;
+            gap: 40px;
+            padding: 25px;
         }
         
-        .bar {
-            width: 60px;
+        #stats-container .bar {
+            width: 70px;
             position: relative;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
         
-        .bar-value {
-            background: #3498db;
+        #stats-container .bar-value {
             width: 100%;
-            border-radius: 5px 5px 0 0;
+            border-radius: 8px 8px 0 0;
             transition: height 1s ease-in-out;
+            min-height: 10px;
         }
         
-        .wins-bar {
+        #stats-container .wins-bar {
             background: #27ae60;
         }
         
-        .losses-bar {
+        #stats-container .losses-bar {
             background: #e74c3c;
         }
         
-        .bar-label {
-            margin-top: 10px;
+        #stats-container .bar-label {
+            margin-top: 15px;
             font-weight: bold;
+            font-size: 1.1rem;
+            color: #2c3e50;
         }
         
-        .error {
+        #stats-container .error {
             background: #ffdddd;
             color: #e74c3c;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            display: none;
-        }
-        
-        .loading {
-            text-align: center;
             padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            display: none;
+            border-left: 5px solid #e74c3c;
+            font-size: 1.1rem;
+        }
+        
+        #stats-container .loading {
+            text-align: center;
+            padding: 30px;
             display: none;
         }
         
-        .spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            border-left: 4px solid #3498db;
+        #stats-container .spinner {
+            border: 5px solid rgba(0, 0, 0, 0.1);
+            border-left: 5px solid #3498db;
             border-radius: 50%;
-            width: 30px;
-            height: 30px;
+            width: 50px;
+            height: 50px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
+            margin: 0 auto 20px;
         }
         
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        footer {
+        #stats-container footer {
             text-align: center;
-            padding: 20px;
+            padding: 25px;
+            margin-top: 25px;
             background: #ecf0f1;
             color: #7f8c8d;
             width: 100%;
+            font-size: 1.1rem;
+        }
+
+        /* Match history */
+        .match-history-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 20px;
+          margin-top: 25px;
+        }
+
+        /* If window is small, show only 1 match per row */
+        @media (max-width: 768px) {
+          .match-history-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        .match-card {
+          background: white;
+          padding: 20px;
+          border-radius: 12px;
+          box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+          text-align: center;
+          transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .match-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .match-card h3 {
+          margin-bottom: 10px;
+          font-size: 1.3rem;
+          color: #2c3e50;
+        }
+
+        .match-details div {
+          font-size: 1.4rem; /* make names bigger */
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .match-details .winner {
+          color: #27ae60;
+          font-weight: bold;
+        }
+
+        .match-details .loser {
+          color: #e74c3c;
+          font-weight: bold;
+        }
+
+        .match-points {
+          font-size: 1.2rem;
+          color: #2c3e50;
+        }
+
+        /* Center the Match History section */
+        #stats-container section {
+            text-align: center;
         }
         
-        .server-setup {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin-top: 20px;
-            max-width: 900px;
-        }
-        
-        .server-setup h2 {
-            color: #2c3e50;
-            margin-bottom: 15px;
-        }
-        
-        .code-block {
-            background: #2c3e50;
-            color: white;
-            padding: 15px;
-            border-radius: 5px;
-            overflow-x: auto;
-            margin: 15px 0;
-            font-family: monospace;
-        }
-        
-        @media (max-width: 600px) {
-            .user-form {
-                flex-direction: column;
-            }
-            
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
+        /* Ensure "No matches yet" message is centered */
+        #matchHistoryGrid p {
+            grid-column: 1 / -1; /* span full width of grid */
+            text-align: center;
+            font-size: 1.2rem;
+            color: #7f8c8d;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>User Statistics Dashboard</h1>
-            <p class="subtitle">View user wins, losses, and performance metrics</p>
-        </header>
-        
-        <div class="content">
-            <div class="error" id="errorMessage">
-                <strong>Invalid Username:</strong> Could not find the username in the database. 
-                Please insert a valid username.
-            </div>
+    <div id="stats-container">
+        <div class="container">
+            <header>
+                <h1>User Statistics Dashboard</h1>
+                <p class="subtitle">View user wins, losses, and performance metrics</p>
+            </header>
             
-            <div class="user-form">
-                <input type="text" id="usernameInput" placeholder="Enter username (e.g., test)" value="test">
-                <button id="fetchData">Load User Data</button>
-            </div>
-            
-            <div class="loading" id="loading">
-                <div class="spinner"></div>
-                <p>Fetching user data...</p>
-            </div>
-            
-            <div class="user-info" id="userInfo">
-                <h2>User Information</h2>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <span class="info-label">Username:</span>
-                        <span id="infoUsername">-</span>
+            <div class="content">
+                <div class="error" id="errorMessage">
+                    <strong>Invalid Username:</strong> Could not find the username in the database. 
+                    Please insert a valid username.
+                </div>
+                
+                <div class="user-form">
+                    <input type="text" id="usernameInput" placeholder="Enter username (e.g., test)" value="test">
+                    <button id="fetchData">Load User Data</button>
+                </div>
+                
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Fetching user data...</p>
+                </div>
+                
+                <div class="user-info" id="userInfo">
+                    <h2>User Information</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Username:</span>
+                            <span id="infoUsername" class="info-value">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Email:</span>
+                            <span id="infoEmail" class="info-value">-</span>
+                        </div>
                     </div>
-                    <div class="info-item">
-                        <span class="info-label">Email:</span>
-                        <span id="infoEmail">-</span>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Wins</h3>
+                        <div class="stat-value wins" id="winsCount">0</div>
+                        <p>Total victories</p>
                     </div>
-                </div>
-            </div>
-            
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <h3>Wins</h3>
-                    <div class="stat-value wins" id="winsCount">0</div>
-                    <p>Total victories</p>
-                </div>
-                <div class="stat-card">
-                    <h3>Losses</h3>
-                    <div class="stat-value losses" id="lossesCount">0</div>
-                    <p>Total defeats</p>
-                </div>
-                <div class="stat-card">
-                    <h3>Win Ratio</h3>
-                    <div class="stat-value ratio" id="winRatio">0%</div>
-                    <p>Wins to total games</p>
-                </div>
-            </div>
-            
-            <div class="chart-container">
-                <h3>Match history</h3>
-                <div class="chart">
-                    <div class="bar">
-                        <div class="bar-value wins-bar" id="winsBar" style="height: 0%;"></div>
-                        <div class="bar-label">Wins</div>
+                    <div class="stat-card">
+                        <h3>Losses</h3>
+                        <div class="stat-value losses" id="lossesCount">0</div>
+                        <p>Total defeats</p>
                     </div>
-                    <div class="bar">
-                        <div class="bar-value losses-bar" id="lossesBar" style="height: 0%;"></div>
-                        <div class="bar-label">Losses</div>
+                    <div class="stat-card">
+                        <h3>Win Ratio</h3>
+                        <div class="stat-value ratio" id="winRatio">0%</div>
+                        <p>Wins to total games</p>
                     </div>
                 </div>
             </div>
+            
+            <div>
+                <section>
+                  <h2 class="text-xl font-bold">Match History</h2>
+                  <div id="matchHistoryGrid" class="match-history-grid"></div>
+                </section>
+            </div>
+            
+            <footer>
+                <p>User Statistics Dashboard | Data from SQLite Database</p>
+            </footer>
         </div>
-        
-        <footer>
-            <p>User Statistics Dashboard &copy; 2023 | Data from SQLite Database</p>
-        </footer>
     </div>
 
     <script>
@@ -353,55 +418,93 @@
                 errorMessage.style.display = 'none';
                 
                 try {
-                    // Try to fetch from the backend server
-                    const response = await fetch(`http://localhost:3000/api/user-stats?username=${username}`);
+                    // Try to fetch from the database
+                    const response = await fetch(`/api/user-stats?username=${username}`);
+                    const response_match_history = await fetch(`/api/matches/${username}`);
                     
+                    // Check if the response is OK (status 200-299)
                     if (!response.ok) {
-                        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || `Server returned ${response.status}`);
+                    }
+                    if (!response_match_history.ok) {
+                        const errorData = await response_match_history.json();
+                        throw new Error(errorData.error || `Server returned ${response.status}`);
                     }
                     
                     const userData = await response.json();
+                    //console.log('API Response:', userData); // Debug log
+
+                    const user_match_history = await response_match_history.json();
+                    //console.log('API Response:', user_match_history); // Debug log
                     
                     // Update the UI with the user data
-                    updateUserData(userData);
-                } catch (error) {
+                    updateUserData(userData, user_match_history);
+                }
+                catch (error){
                     // If the API call fails, show a message with instructions
+                    errorMessage.textContent = `Error: ${error.message}`;
                     errorMessage.style.display = 'block';
                     
-                    // For demonstration purposes, let's use the hardcoded values from your database
-                    const fallbackData = {
-                        username: username,
-                        email: `${username}@gmail.com`,
-                        wins: username === "test" ? 0 : (username === "rcruz-an" ? 0 : 0),
-                        losses: username === "test" ? 0 : (username === "rcruz-an" ? 0 : 0)
-                    };
-                    
-                    updateUserData(fallbackData);
-                } finally {
+                    console.error('Fetch error:', error);
+                }
+                finally {
                     loadingElement.style.display = 'none';
                 }
             }
             
             // Update the UI with user data
-            function updateUserData(userData) {
+            function updateUserData(userData, user_match_history) {
                 infoUsername.textContent = userData.username;
                 infoEmail.textContent = userData.email;
-                winsCount.textContent = userData.wins;
-                lossesCount.textContent = userData.losses;
-                
+                let wins = 0;
+                let losses = 0;
+
+                user_match_history.matches.forEach(match => {
+                    if (match.winner === userData.username) {
+                        wins++;
+                    } else if (match.loser === userData.username){
+                        losses++;
+                    }
+                });
+                winsCount.textContent = wins;
+                lossesCount.textContent = losses;
+
                 // Calculate win ratio
-                const totalGames = userData.wins + userData.losses;
-                const ratio = totalGames > 0 ? (userData.wins / totalGames * 100).toFixed(1) : 0;
+                const totalGames = wins + losses;
+                const ratio = totalGames > 0 ? (wins / totalGames * 100).toFixed(1) : 0;
                 winRatio.textContent = `${ratio}%`;
-                
-                // Update chart bars
-                const maxValue = Math.max(userData.wins, userData.losses, 1);
-                const winsPercentage = totalGames > 0 ? (userData.wins / maxValue * 100) : 0;
-                const lossesPercentage = totalGames > 0 ? (userData.losses / maxValue * 100) : 0;
-                
-                winsBar.style.height = `${winsPercentage}%`;
-                lossesBar.style.height = `${lossesPercentage}%`;
+
+                // Render match history rows
+                renderMatchHistory(user_match_history);
             }
+
+            function renderMatchHistory(user_match_history) {
+              const grid = document.getElementById("matchHistoryGrid");
+              grid.innerHTML = ""; // clear old cards
+
+              if (!user_match_history.matches || user_match_history.matches.length === 0) {
+                grid.innerHTML = `<p class="text-center p-2">No matches yet</p>`;
+                return;
+              }
+          
+              user_match_history.matches.forEach(match => {
+                const card = document.createElement("div");
+                card.classList.add("match-card");
+            
+                card.innerHTML = `
+                  <h3>Match #${match.id}</h3>
+                  <div class="match-details">
+                    <span class="winner">${match.winner} <span class="match-points">(${match.winner_points} points)</span></span>
+                    <span class="vs">VS</span>
+                    <span class="loser">${match.loser} <span class="match-points">(${match.loser_points} points)</span></span>
+                  </div>
+                `;
+              
+                grid.appendChild(card);
+              });
+            }
+
             
             // Event listener for the fetch button
             fetchButton.addEventListener('click', function() {
