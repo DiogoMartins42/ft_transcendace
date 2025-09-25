@@ -52,46 +52,41 @@ fastify.register(async function (fastify) {
         
         const socket = connection.socket || connection;
         clients.add(socket);
-        
+
+        // Assign a username for this socket (replace with real auth if available)
+        socket.username = "AnonymousNew"; // Or get from JWT, etc.
+
         // Send welcome message
         if (socket.readyState === 1) {
             socket.send(JSON.stringify({ 
                 type: "welcome", 
-                message: "Connected to server!" 
+                message: "Connected to this server!" 
             }));
         }
         
         socket.on("message", (message) => {
-            console.log("Received:", message.toString());
+        let messageData;
+        try {
+            messageData = JSON.parse(message.toString());
+        } catch (e) {
+            messageData = { type: "chat", text: message.toString() };
+        }
 
-            let messageData;
-            try {
-                messageData = JSON.parse(message.toString());
-            } catch (e) {
-                messageData = { type: "chat", text: message.toString() };
-            }
+        if (messageData.type === "chat") {
+            // Attach sender's username
+            messageData.username = socket.username;
 
-            if (messageData.type === "chat") {
-                // Broadcast to every connected client except the sender
-                for (const client of clients) {
-                    if (client !== socket && client.readyState === 1) {
-                        client.send(JSON.stringify(messageData));
-                    }
+            // Send to all clients, including sender
+            for (const client of clients) {
+                if (client.readyState === 1) {
+                    client.send(JSON.stringify(messageData));
                 }
-            } else if (messageData.type === "connection") {
-                console.log("Client connected with message:", messageData.text);
             }
-        });
-        
-        socket.on("close", () => {
-            console.log("Client disconnected");
-            clients.delete(socket);
-        });
-        
-        socket.on("error", (error) => {
-            console.error("WebSocket error:", error);
-            clients.delete(socket);
-        });
+          } else if (messageData.type === "connection") {
+              console.log("Client connected with message:", messageData.text);
+              // Don't broadcast connection messages - this is the key fix!
+          }
+      });
     });
 });
 
