@@ -18,9 +18,13 @@ const schema = {
       default: "development",
       enum: ["development", "testing", "production", "staging"],
     },
-    DB_FILE: {
+    /* DB_FILE: {
       type: "string",
       default: "./blog.db",
+    }, */
+    DB_FILE: {
+      type: "string",
+      default: "/app/data/sqlite.db"
     },
     JWT_SECRET: { 
       type: "string" 

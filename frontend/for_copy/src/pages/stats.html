@@ -1,5 +1,9 @@
 <!DOCTYPE html> <!-- Remove when merging -->
 
+<!-- <section>
+  <h1 class="text-2xl font-bold">STATS</h1>
+</section> -->
+
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -330,7 +334,7 @@
                 <h1>User Statistics Dashboard</h1>
                 <p class="subtitle">View user wins, losses, and performance metrics</p>
             </header>
-            
+
             <div class="content">
                 <div class="error" id="errorMessage">
                     <strong>Invalid Username:</strong> Could not find the username in the database. 
@@ -338,7 +342,7 @@
                 </div>
                 
                 <div class="user-form">
-                    <input type="text" id="usernameInput" placeholder="Enter username (e.g., test)" value="test">
+                    <input type="text" id="usernameInput" placeholder="Enter username (e.g., bot)" value="bot">
                     <button id="fetchData">Load User Data</button>
                 </div>
                 
@@ -393,9 +397,11 @@
         </div>
     </div>
 
-    <script>
+    <!-- <script>
+        console.log("Stats Script loaded");
         document.addEventListener('DOMContentLoaded', function() {
             const fetchButton = document.getElementById('fetchData');
+            console.log("Fetch button element:", fetchButton);
             const usernameInput = document.getElementById('usernameInput');
             const errorMessage = document.getElementById('errorMessage');
             const loadingElement = document.getElementById('loading');
@@ -419,8 +425,8 @@
                 
                 try {
                     // Try to fetch from the database
-                    const response = await fetch(`/api/user-stats?username=${username}`);
-                    const response_match_history = await fetch(`/api/matches/${username}`);
+                    const response = await fetch(`/stats/api/user-stats?username=${username}`);
+                    const response_match_history = await fetch(`/stats/api/matches/${username}`);
                     
                     // Check if the response is OK (status 200-299)
                     if (!response.ok) {
@@ -433,10 +439,10 @@
                     }
                     
                     const userData = await response.json();
-                    //console.log('API Response:', userData); // Debug log
+                    console.log('API Response:', userData); // Debug log
 
                     const user_match_history = await response_match_history.json();
-                    //console.log('API Response:', user_match_history); // Debug log
+                    console.log('API Response:', user_match_history); // Debug log
                     
                     // Update the UI with the user data
                     updateUserData(userData, user_match_history);
@@ -511,6 +517,7 @@
                 const username = usernameInput.value.trim();
                 if (username) {
                     fetchUserData(username);
+                    console.log("Button clicked");
                 } else {
                     errorMessage.textContent = 'Please enter a username';
                     errorMessage.style.display = 'block';
@@ -518,8 +525,8 @@
             });
             
             // Load test data by default
-            fetchUserData('test');
+            //fetchUserData('bot');
         });
-    </script>
+    </script> -->
 </body>
 </html>

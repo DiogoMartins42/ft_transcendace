@@ -10,6 +10,9 @@ import authRoutes from "./routes/auth.js";
 import lobbyRoutes from "./routes/lobby.js";
 import { fileURLToPath } from "url";
 
+import statsRoutes from "./database/stats.js";
+import { initDB } from "./database/init.js"; 
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const fastify = Fastify({ logger: loggerOptions });
@@ -24,40 +27,29 @@ db.prepare(`
     username TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
-    wins INTEGER DEFAULT 0,
-    losses INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`).run();
+db.prepare(`
+  INSERT OR IGNORE INTO users (username, email, password)
+  VALUES ('bot', 'bot@example.com', 'kdakwunda#^!@#HDJDOAPDKAW_D)AW*DANWDKAD><WAODWAD?DAIDAWdwad')
+`).run();
+
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS match_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_winner INTEGER NOT NULL,
+    id_loser INTEGER NOT NULL,
+    winner_points INTEGER DEFAULT 0,
+    loser_points INTEGER DEFAULT 0,
+    FOREIGN KEY (id_winner) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (id_loser) REFERENCES users(id) ON DELETE CASCADE
   )
 `).run();
 
 fastify.decorate("db", db);
 fastify.register(authRoutes, { prefix: "/auth" });
 fastify.register(lobbyRoutes, { prefix: "/lobby" });
-
-fastify.get("/api/user-stats", async (request, reply) => {
-  const username = request.query.username || "test";
-
-  try {
-    const row = fastify.db.prepare(
-      "SELECT username, email, wins, losses FROM users WHERE username = ?"
-    ).get(username);
-
-    if (!row) {
-      return reply.code(404).send({ error: "User not found" });
-    }
-
-    return {
-      username: row.username,
-      email: row.email,
-      wins: row.wins || 0,
-      losses: row.losses || 0,
-    };
-  } catch (err) {
-    request.log.error(err);
-    return reply.code(500).send({ error: "Database error" });
-  }
-});
-
 
 //JWT Auth
 
@@ -71,21 +63,55 @@ fastify.decorate("authenticate", async function (request, reply) {
 });
 
 fastify.register(fastifyWebsocket);
+const clients = new Set();
+
 fastify.register(async function (fastify) {
-  fastify.get("/ws", { websocket: true }, (connection, req) => {
-    console.log("Client connected!");
+    fastify.get("/ws", { websocket: true }, (connection, req) => {
+        console.log("Client connected!");
+        
+        const socket = connection.socket || connection;
+        clients.add(socket);
+        
+        // Send welcome message
+        if (socket.readyState === 1) {
+            socket.send(JSON.stringify({ 
+                type: "welcome", 
+                message: "Connected to server!" 
+            }));
+        }
+        
+        socket.on("message", (message) => {
+            console.log("Received:", message.toString());
 
-    connection.send(JSON.stringify({ message: "Welcome to WS server!" }));
+            let messageData;
+            try {
+                messageData = JSON.parse(message.toString());
+            } catch (e) {
+                messageData = { type: "chat", text: message.toString() };
+            }
 
-    connection.on("message", (message) => {
-      console.log("Received:", message.toString());
-      connection.send(JSON.stringify({ echo: message.toString() }));
+            if (messageData.type === "chat") {
+                // Broadcast to every connected client except the sender
+                for (const client of clients) {
+                    if (client !== socket && client.readyState === 1) {
+                        client.send(JSON.stringify(messageData));
+                    }
+                }
+            } else if (messageData.type === "connection") {
+                console.log("Client connected with message:", messageData.text);
+            }
+        });
+        
+        socket.on("close", () => {
+            console.log("Client disconnected");
+            clients.delete(socket);
+        });
+        
+        socket.on("error", (error) => {
+            console.error("WebSocket error:", error);
+            clients.delete(socket);
+        });
     });
-
-    connection.on("close", () => {
-      console.log("Client disconnected");
-    });
-  });
 });
 
 
@@ -108,6 +134,9 @@ fastify.setNotFoundHandler((req, reply) => {
   }
 });
 
+
+//fastify.register(statsRoutes);
+fastify.register(statsRoutes, { prefix: "/stats" });
 
 const start = async () => {
   try {

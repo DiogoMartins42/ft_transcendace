@@ -1,6 +1,9 @@
 services:
   backend:
-    build: ./backend
+    build: 
+      context: ./backend
+      args:
+        NODE_ENV: development  # Pass NODE_ENV as build arg
     container_name: transcendence_backend
     ports:
       - "3000:3000"
@@ -10,13 +13,18 @@ services:
       - NODE_ENV=development
       - DATABASE_URL=/database/data/database.db
     volumes:
-      - ./backend/src:/app/src
+      - ./backend/src:/app/src                    # Hot reload for source
+      - ./backend/package.json:/app/package.json  # Track dependency changes
+      - /app/node_modules                         # Prevent local node_modules override
       - backend_data:/app/data
       - frontend_dist:/app/frontend
       - sqlite_database:/database/data
     networks:
       - transcendence
     restart: unless-stopped
+    # Add this for better development experience
+    stdin_open: true
+    tty: true
 
   frontend:
     build: ./frontend
@@ -31,10 +39,14 @@ services:
     volumes:
       - ./frontend/conf:/app/front-end/conf
       - ./frontend/src:/app/front-end/src
+      - /app/front-end/node_modules                           # Prevent local node_modules override
       - frontend_dist:/app/front-end/dist
     networks:
       - transcendence
     restart: unless-stopped
+    # Add this for better development experience
+    stdin_open: true
+    tty: true
 
   waf:
     build: ./waf
@@ -46,24 +58,22 @@ services:
     restart: unless-stopped
 
   vault:
-        build:
-            context: "./vault/"
-            args:
-                VAULT_API_PORT: "${VAULT_API_PORT:-8200}"
-        container_name: vault
-        restart: "no"
-        ports:
-            - "${VAULT_ROOT_TOKEN_EXCHANGE_PORT:-4141}:${VAULT_ROOT_TOKEN_EXCHANGE_PORT:-4141}"
-        networks:
-            - transcendence
-
-        cap_add:
-            - IPC_LOCK
-        volumes:
-            - vault-volume:/vault/file/
-            - vault-volume:/vault/secret/
-            - vault-volume:/vault/logs/
-
+    build:
+      context: "./vault/"
+      args:
+        VAULT_API_PORT: "${VAULT_API_PORT:-8200}"
+    container_name: vault
+    restart: no
+    ports:
+      - "${VAULT_ROOT_TOKEN_EXCHANGE_PORT:-4141}:${VAULT_ROOT_TOKEN_EXCHANGE_PORT:-4141}"
+    networks:
+      - transcendence
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vault-volume:/vault/file/
+      - vault-volume:/vault/secret/
+      - vault-volume:/vault/logs/
 
 volumes:
   sqlite_database:
@@ -75,4 +85,3 @@ networks:
   transcendence:
     name: transcendence
     driver: bridge
-
