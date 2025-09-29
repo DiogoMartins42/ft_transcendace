@@ -114,7 +114,12 @@ fastify.setNotFoundHandler((req, reply) => {
 const start = async () => {
   try {
     await fastify.listen({ port: 3000, host: '0.0.0.0' });
-    console.log("Server running on http://localhost:3000");
+    const address = fastify.server.address();
+    if (typeof address === 'string') {
+      console.log(`Server running on ${address}`);
+    } else {
+      console.log(`Server running on http://${address.address}:${address.port}`);
+    }
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
