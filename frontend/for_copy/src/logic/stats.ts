@@ -85,3 +85,43 @@ export function setupStatsPage() {
     }
   });
 }
+
+export async function save_match(p1_score: number, p2_score: number, multiplayer: boolean) {
+  // TO-DO: replace with actual logged-in players once you have auth
+  const winner = "nome";
+  var loser = "bot";
+
+  if(multiplayer)
+    loser = "guest_multiplayer";
+
+  const winner_points = p1_score > p2_score ? p1_score : p2_score;
+  const loser_points = p1_score > p2_score ? p2_score : p1_score;
+
+  try {
+    const res = await fetch("/stats/api/match", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        winner,
+        loser,
+        winner_points,
+        loser_points,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      console.error("Failed to save match:", err);
+      return;
+    }
+
+    const data = await res.json();
+    console.log("Match saved:", data);
+    return data;
+  }
+  catch (err){
+    console.error("Error saving match:", err);
+  }
+}

@@ -30,9 +30,12 @@ db.prepare(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `).run();
+
 db.prepare(`
   INSERT OR IGNORE INTO users (username, email, password)
-  VALUES ('bot', 'bot@example.com', 'kdakwunda#^!@#HDJDOAPDKAW_D)AW*DANWDKAD><WAODWAD?DAIDAWdwad')
+  VALUES 
+    ('bot', 'bot@gmail.com', 'kdakwunda#^!@#HDJDOAPDKAW_D)AW*DANWDKAD><WAODWAD?DAIDAWdwad'),
+    ('guest_multiplayer', 'guest_multiplayer@gmail.com', 'iuhduiawHd7&!(1u831dhwuhd*@!&!@(dwadawd')
 `).run();
 
 db.prepare(`
