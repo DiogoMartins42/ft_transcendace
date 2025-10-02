@@ -4,7 +4,11 @@ import { setupLoginForm } from './login_handler'
 import { setupSignupForm } from './signup_handler'
 import { sharedState } from '../main'
 
-export async function setupUserSection() {
+export async function setupUserSection(user?: { username?: string; avatarUrl?: string }) {
+	if (user) {
+        sharedState.username = user.username;
+        sharedState.avatarUrl = user.avatarUrl;
+    }
 	const userSection = document.getElementById('user-section') as HTMLDivElement | null;
 	if (!userSection) {
 		console.warn("⚠️ user-section not found in DOM");
