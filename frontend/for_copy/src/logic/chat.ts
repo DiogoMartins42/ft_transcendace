@@ -1,5 +1,16 @@
 import { sendMessage, initWebSocket } from "./ws";
 
+function getUsername() {
+  // Replace with your actual auth logic
+  const user = localStorage.getItem("username");
+  if (user) return user;
+  // Generate a persistent anonymous username for this session
+  if (!window.anonymousId) {
+    window.anonymousId = "Anonymous" + Math.floor(1000 + Math.random() * 9000);
+  }
+  return window.anonymousId;
+}
+
 export function setupChat() {
   const input = document.querySelector<HTMLInputElement>("#chat-input");
   const button = document.querySelector<HTMLButtonElement>("#chat-send");
@@ -42,7 +53,7 @@ export function setupChat() {
   if (input && button) {
     const handleSend = () => {
       if (input.value.trim()) {
-        sendMessage({ type: "chat", text: input.value.trim() });
+        sendMessage({ type: "chat", text: input.value.trim(), username: getUsername() });
         input.value = "";
       }
     };
@@ -55,5 +66,11 @@ export function setupChat() {
         handleSend();
       }
     });
+  }
+}
+
+declare global {
+  interface Window {
+    anonymousId?: string;
   }
 }
