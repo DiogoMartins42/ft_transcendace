@@ -88,14 +88,29 @@ export function setupStatsPage() {
 
 export async function save_match(p1_score: number, p2_score: number, multiplayer: boolean) {
   // TO-DO: replace with actual logged-in players once you have auth
-  const winner = "nome";
-  var loser = "bot";
+  var winner;
+  var loser;
 
-  if(multiplayer)
-    loser = "guest_multiplayer";
+  var winner_points;
+  var loser_points;
 
-  const winner_points = p1_score > p2_score ? p1_score : p2_score;
-  const loser_points = p1_score > p2_score ? p2_score : p1_score;
+  
+
+  if(p1_score > p2_score){
+    winner_points = p1_score;
+    loser_points = p2_score;
+  
+    winner = "nome";
+    if(multiplayer) {loser = "guest_multiplayer";}
+    else {loser = "bot";}
+  }
+  else{
+    winner_points = p2_score;
+    loser_points = p1_score;
+    loser = "nome";
+    if(multiplayer) {winner = "guest_multiplayer";}
+    else {winner = "bot";}
+  }
 
   try {
     const res = await fetch("/stats/api/match", {
@@ -118,7 +133,7 @@ export async function save_match(p1_score: number, p2_score: number, multiplayer
     }
 
     const data = await res.json();
-    console.log("Match saved:", data);
+    //console.log("Match saved:", data);
     return data;
   }
   catch (err){

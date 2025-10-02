@@ -406,11 +406,11 @@ function update(cvs: HTMLCanvasElement, player1: Player, player2: Player, ball: 
 	// Game over logic (show overlay + restart)
 	if (player1.score === gameSettings.scoreLimit || player2.score === gameSettings.scoreLimit) {
 		gameState = GameState.GAME_OVER;
+		save_match(player1.score, player2.score, gameSettings.multiplayer);
 		let message: string;
 		if (player1.score === gameSettings.scoreLimit) message = "PLAYER 1 WINS!!!";
 		else if (gameSettings.multiplayer) message = "PLAYER 2 WINS!!!";
 		else message = "PLAYER 1 LOSES!!!";
-		save_match(player1.score, player2.score, gameSettings.multiplayer);
 		showOverlay(1, [
 			{ text: "Restart", onClick: () => { restartGame(cvs, player1, player2, ball); } },
 		]);
