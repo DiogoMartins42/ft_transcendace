@@ -1,4 +1,5 @@
 import { sharedState } from '../main'
+import { setupUserSection } from "./userSection";
 import  loading  from '../components/loading.html?raw'
 
 const BACKEND_LOGIN_URL = `${import.meta.env.VITE_API_URL}/auth/login`; // placeholder backend URL
@@ -71,7 +72,6 @@ export function setupLoginForm()
 
 		// Save button original text
 		const originalText = loginSubmit.innerHTML;
-		console.log(import.meta.env.VITE_API_URL)
 
 		// Set loading spinner
 		loginSubmit.innerHTML = `${loading}`;
@@ -116,6 +116,7 @@ export function setupLoginForm()
 			passwordInput.value = "";
 			loginSubmit.innerHTML = originalText;
 			loginSubmit.disabled = true;
+			setupUserSection();
 
 		} catch (err) {
 			if (controller.signal.aborted) {
