@@ -47,47 +47,47 @@ fastify.register(fastifyWebsocket);
 const clients = new Set();
 
 fastify.register(async function (fastify) {
-    fastify.get("/ws", { websocket: true }, (connection, req) => {
-        console.log("Client connected!");
-        
-        const socket = connection.socket || connection;
-        clients.add(socket);
+  fastify.get("/ws", { websocket: true }, (connection, req) => {
+      console.log("Client connected!");
+      
+      const socket = connection.socket || connection;
+      clients.add(socket);
 
-        // Assign a username for this socket (replace with real auth if available)
-        socket.username = "AnonymousNew"; // Or get from JWT, etc.
+      // Assign username from query or message, or generate anonymous
+      socket.username = null;
 
-        // Send welcome message
-        if (socket.readyState === 1) {
-            socket.send(JSON.stringify({ 
-                type: "welcome", 
-                message: "Connected to this server!" 
-            }));
-        }
-        
-        socket.on("message", (message) => {
+      socket.on("message", (message) => {
         let messageData;
         try {
-            messageData = JSON.parse(message.toString());
+          messageData = JSON.parse(message.toString());
         } catch (e) {
-            messageData = { type: "chat", text: message.toString() };
+          messageData = { type: "chat", text: message.toString() };
+        }
+
+        // Set username if provided, otherwise generate anonymous
+        if (!socket.username) {
+          if (messageData.username) {
+            socket.username = messageData.username;
+          } else {
+            socket.username = "Anonymous" + Math.floor(1000 + Math.random() * 9000);
+          }
         }
 
         if (messageData.type === "chat") {
-            // Attach sender's username
-            messageData.username = socket.username;
+          messageData.username = socket.username;
 
-            // Send to all clients, including sender
-            for (const client of clients) {
-                if (client.readyState === 1) {
-                    client.send(JSON.stringify(messageData));
-                }
+          // Send to all clients, including sender
+          for (const client of clients) {
+            if (client.readyState === 1) {
+              client.send(JSON.stringify(messageData));
             }
-          } else if (messageData.type === "connection") {
-              console.log("Client connected with message:", messageData.text);
-              // Don't broadcast connection messages - this is the key fix!
           }
-      });
+        } else if (messageData.type === "connection") {
+            console.log("Client connected with message:", messageData.text);
+            // Don't broadcast connection messages - this is the key fix!
+        }
     });
+  });
 });
 
 
