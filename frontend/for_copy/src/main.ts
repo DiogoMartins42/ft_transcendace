@@ -11,101 +11,152 @@ import signupModalHtml from './components/signup-modal.html?raw'
 import sidebarHtml from './components/sidebar.html?raw'
 import controlPanelHtml from './components/controlPanel-modal.html?raw'
 
-// import { setupModalEvents } from './logic/simulatedModals'
-// import { setupUserSection } from './logic/simulatedUserSection'
-// import { setupModalEvents } from './logic/modals'
 import { setupUserSection } from './logic/userSection'
-
-// import { setupLoginForm } from './logic/login_handler'
-
 import { setupSidebarEvents } from './logic/sidebar'
+import { initWebSocket } from './logic/ws'
+import { setupChat } from './logic/chat'
 
-import { initWebSocket } from './logic/ws';
-import { setupChat } from './logic/chat';
-
-import { setPong } from './logic/pong'
-import { setupControlPanel } from './logic/controlPanel'
+import { setPong } from './logic/pong_client'
+import { setupControlPanel } from './logic/gameSettings'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
-export const sidebarState: {sidebarOpen: boolean} = { sidebarOpen: false }
+export const sidebarState: { sidebarOpen: boolean } = { sidebarOpen: false }
 
-class SharedState 
-{
-	private _isLoggedIn = false;
-	private listeners: (() => void)[] = [];
+type StateListener = () => void
 
-	username?: string;
-	avatarUrl?: string;
+class SharedState {
+  private _isLoggedIn = false
+  private _username?: string
+  private _avatarUrl?: string
+  private listeners: StateListener[] = []
 
-	get isLoggedIn() {
-		return this._isLoggedIn;
-	}
+  get isLoggedIn() {
+    return this._isLoggedIn
+  }
 
-	set isLoggedIn(val: boolean) {
-		this._isLoggedIn = val;
-		this.listeners.forEach(fn => fn()); // trigger re-render
-	}
+  get username() {
+    return this._username
+  }
 
-	subscribe(fn: () => void) {
-		this.listeners.push(fn);
-	}
+  get avatarUrl() {
+    return this._avatarUrl
+  }
+
+  setState(partial: Partial<{ isLoggedIn: boolean; username?: string; avatarUrl?: string }>) {
+    let changed = false
+    if (partial.isLoggedIn !== undefined && partial.isLoggedIn !== this._isLoggedIn) {
+      this._isLoggedIn = partial.isLoggedIn
+      changed = true
+    }
+    if (partial.username !== undefined && partial.username !== this._username) {
+      this._username = partial.username
+      changed = true
+    }
+    if (partial.avatarUrl !== undefined && partial.avatarUrl !== this._avatarUrl) {
+      this._avatarUrl = partial.avatarUrl
+      changed = true
+    }
+    if (changed) this.listeners.forEach(fn => fn())
+  }
+
+  subscribe(fn: StateListener) {
+    this.listeners.push(fn)
+  }
 }
 
-export const sharedState = new SharedState();
+export const sharedState = new SharedState()
 
-async function renderPage(pageHtml: string)
-{
-	app.innerHTML =
-	`
-		${navbarHtml}
-		<main id="page-content" class="transition-all duration-300 pt-16 p-4">
-			${pageHtml}
-		</main>
-		${loginModalHtml}
-		${signupModalHtml}
-		${sidebarHtml}
-		${controlPanelHtml}
-	`
-
-	// setupLoginForm()
-	// setupModalEvents();
-	setupUserSection();
-	setupSidebarEvents();
-
-	setupChat();
-
-
-	setPong();
-	setupControlPanel();
+export function setSharedState(partial: Partial<{ isLoggedIn: boolean; username?: string; avatarUrl?: string }>) {
+  sharedState.setState(partial)
 }
 
-function handleRoute()
-{
-	const route = window.location.hash.slice(1) || 'home';
+async function renderPage(pageHtml: string) {
+  app.innerHTML = `
+    ${navbarHtml}
+    <main id="page-content" class="transition-all duration-300 pt-16 p-4">
+      ${pageHtml}
+    </main>
+    ${loginModalHtml}
+    ${signupModalHtml}
+    ${sidebarHtml}
+    ${controlPanelHtml}
+  `
 
-	switch (route) {
-		case 'about':
-			renderPage(aboutHtml)
-			break
-		case 'chat':
-			renderPage(chatHtml)
-			break
-		case 'contact':
-			renderPage(contactHtml)
-			break
-		case 'stats':
-			renderPage(statsHtml)
-			break
-		case 'userSettings':
-			renderPage(userSettingsHtml)
-			break
-		default:
-			renderPage(homeHtml)
-	}
-	sidebarState.sidebarOpen = false;
+  setupUserSection()
+  setupSidebarEvents()
+
+  // --- SAFE websocket message handling (this is the changed part) ---
+  initWebSocket((msg: unknown) => {
+    const chatMessages = document.getElementById('chat-messages')
+    if (!chatMessages) return
+
+    const div = document.createElement('div')
+
+    // helper to convert unknown msg into a display string
+    const msgToText = (m: unknown): string => {
+      if (m === null || m === undefined) return ''
+
+      // string payload (maybe JSON string)
+      if (typeof m === 'string') {
+        // try to parse JSON string. If it fails, show the raw string.
+        try {
+          const parsed = JSON.parse(m) as any
+          if (parsed && typeof parsed === 'object') {
+            return String(parsed.chat ?? parsed.message ?? JSON.stringify(parsed))
+          }
+          return String(parsed)
+        } catch {
+          return m
+        }
+      }
+
+      // object payload
+      if (typeof m === 'object') {
+        const o = m as Record<string, any>
+        return String(o.chat ?? o.message ?? JSON.stringify(o))
+      }
+
+      // number/boolean/other
+      return String(m)
+    }
+
+    div.textContent = msgToText(msg)
+    chatMessages.appendChild(div)
+    chatMessages.scrollTop = chatMessages.scrollHeight
+  })
+
+  setupChat()
+
+  setPong()
+  setupControlPanel()
 }
 
-window.addEventListener('DOMContentLoaded', handleRoute);
+function handleRoute() {
+  const route = window.location.hash.slice(1) || 'home'
 
-window.addEventListener('hashchange', handleRoute);
+  switch (route) {
+    case 'about':
+      renderPage(aboutHtml)
+      break
+    case 'chat':
+      renderPage(chatHtml)
+      break
+    case 'contact':
+      renderPage(contactHtml)
+      break
+    case 'stats':
+      renderPage(statsHtml)
+      break
+    case 'userSettings':
+      renderPage(userSettingsHtml)
+      break
+    default:
+      renderPage(homeHtml)
+  }
+  sidebarState.sidebarOpen = false
+}
+
+window.addEventListener('DOMContentLoaded', handleRoute)
+window.addEventListener('hashchange', handleRoute)
+
