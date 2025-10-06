@@ -86,16 +86,17 @@ export function setupStatsPage() {
   });
 }
 
+// Save match if the user is logged in
 export async function save_match(p1_score: number, p2_score: number, multiplayer: boolean) {
   // TO-DO: replace with actual logged-in players once you have auth
   var winner;
   var loser;
-
   var winner_points;
   var loser_points;
 
-  
+  //if player isn't logged in, ignore saving the match
 
+  //Change winner = "<logged in user name>"
   if(p1_score > p2_score){
     winner_points = p1_score;
     loser_points = p2_score;
@@ -104,6 +105,7 @@ export async function save_match(p1_score: number, p2_score: number, multiplayer
     if(multiplayer) {loser = "guest_multiplayer";}
     else {loser = "bot";}
   }
+  //Change loser = "<logged in user name>"
   else{
     winner_points = p2_score;
     loser_points = p1_score;
