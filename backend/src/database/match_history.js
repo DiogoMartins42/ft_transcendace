@@ -27,6 +27,13 @@ export function addMatchResult(username_winner, username_loser, winner_points, l
       else loser = bot;
     }
 
+    if (username_winner === 'bot' && username_loser === 'bot'){
+      return { message: "Match not saved. User isn't logged in." };
+    }
+    if (winner.id === loser.id){
+      return { message: "Match not saved. User isn't logged in" };
+    }
+
     db.prepare(`
       INSERT INTO match_history (id_winner, id_loser, winner_points, loser_points)
       VALUES (?, ?, ?, ?)
