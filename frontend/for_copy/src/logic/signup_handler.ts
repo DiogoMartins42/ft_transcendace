@@ -1,129 +1,186 @@
 import { setSharedState } from '../main'
 import loading from '../components/loading.html?raw'
 
-const BACKEND_SIGNUP_URL = "/api/signup"
+const BACKEND_SIGNUP_URL = `${import.meta.env.VITE_API_URL}/auth/register`;
 
 export function setupSignupForm() {
-  const signupModal = document.getElementById('signup-modal') as HTMLElement | null
-  const loginModal = document.getElementById('login-modal') as HTMLElement | null
-  const openBtnSignup = document.getElementById('open-signup') as HTMLElement | null
-  const signupForm = document.getElementById('signup-form') as HTMLFormElement | null
-  const nameInput = document.getElementById('signup-username') as HTMLInputElement | null
-  const emailInput = document.getElementById('signup-email') as HTMLInputElement | null
-  const passwordInput = document.getElementById('signup-password') as HTMLInputElement | null
-  const confirmInput = document.getElementById('signup-confirm') as HTMLInputElement | null
-  const signupSubmit = document.getElementById('signup-submit') as HTMLButtonElement | null
-  const signupMessage = document.getElementById('signup-message') as HTMLElement | null
-  const openBtnLogin = document.getElementById('open-login') as HTMLElement | null
+	const signupModal = document.getElementById('signup-modal') as HTMLElement | null;
+	const openBtnLogin = document.getElementById('open-login') as HTMLElement | null;
+	const signupForm = document.getElementById('signup-form') as HTMLFormElement | null;
 
-  if (!signupModal || !signupForm || !nameInput || !emailInput || !passwordInput || !confirmInput || !signupSubmit) {
-    console.warn("Signup modal setup failed: missing elements.")
-    return
-  }
+	const usernameInput = document.getElementById('signup-username') as HTMLInputElement | null;
+	const emailInput = document.getElementById('signup-email') as HTMLInputElement | null;
+	const confirmEmailInput = document.getElementById('signup-comfirmEmail') as HTMLInputElement | null;
+	const passwordInput = document.getElementById('signup-password') as HTMLInputElement | null;
+	const confirmPasswordInput = document.getElementById('signup-confirmPassword') as HTMLInputElement | null;
+	const signupSubmit = signupForm?.querySelector('button[type="submit"]') as HTMLButtonElement | null;
 
-  // Open/close modal
-  if (openBtnSignup) {
-    openBtnSignup.addEventListener('click', () => {
-      signupModal.classList.toggle('hidden')
-    })
-  }
+	if (!signupModal || !signupForm || !usernameInput || !emailInput || !confirmEmailInput || !passwordInput || !confirmPasswordInput || !signupSubmit) {
+		console.warn("Signup modal setup failed: missing elements.");
+		return;
+	}
 
-  signupModal.addEventListener('click', (e) => {
-    if (e.target === signupModal) signupModal.classList.add('hidden')
-  })
+	// Create error spans dynamically
+	function createErrorSpan(input: HTMLElement): HTMLElement {
+		let span = input.nextElementSibling as HTMLElement | null;
+		if (!span || !span.classList.contains("error-msg")) {
+			span = document.createElement("span");
+			span.className = "error-msg text-red-500 text-sm block hidden";
+			input.insertAdjacentElement("afterend", span);
+		}
+		return span;
+	}
 
-  if (openBtnLogin && loginModal) {
-    openBtnLogin.addEventListener('click', () => {
-      signupModal.classList.add('hidden')
-      loginModal.classList.remove('hidden')
-    })
-  }
+	const usernameError = createErrorSpan(usernameInput);
+	const emailError = createErrorSpan(emailInput);
+	const confirmEmailError = createErrorSpan(confirmEmailInput);
+	const passwordError = createErrorSpan(passwordInput);
+	const confirmPasswordError = createErrorSpan(confirmPasswordInput);
 
-  function validateInputs() {
-    const filled = nameInput!.value.trim() && emailInput!.value.trim() && passwordInput!.value.trim() && confirmInput!.value.trim()
-    const match = passwordInput!.value === confirmInput!.value
-    signupSubmit!.disabled = !(filled && match)
-  }
+	// Initially disable button
+	signupSubmit.disabled = true;
 
-  nameInput.addEventListener('input', validateInputs)
-  emailInput.addEventListener('input', validateInputs)
-  passwordInput.addEventListener('input', validateInputs)
-  confirmInput.addEventListener('input', validateInputs)
+	// Helpers
+	function isPasswordValid(pw: string): boolean {
+		const minLength = pw.length >= 8;
+		const hasUpper = /[A-Z]/.test(pw);
+		const hasNumber = /[0-9]/.test(pw);
+		return minLength && hasUpper && hasNumber;
+	}
 
-  function showMessage(msg: string, isError = true) {
-    if (!signupMessage) return
-    signupMessage.textContent = msg
-    signupMessage.classList.remove('hidden')
-    signupMessage.classList.toggle('text-red-500', isError)
-    signupMessage.classList.toggle('text-green-500', !isError)
-  }
+	function setInputState(input: HTMLInputElement, isValid: boolean, errorMsg?: string, errorSpan?: HTMLElement) {
+		if (isValid) {
+			input.classList.remove("border-red-500", "focus:ring-red-500");
+			input.classList.add("border-green-500", "focus:ring-green-500");
+			if (errorSpan) errorSpan.classList.add("hidden");
+		} else {
+			input.classList.remove("border-green-500", "focus:ring-green-500");
+			input.classList.add("border-red-500", "focus:ring-red-500");
+			if (errorSpan && errorMsg) {
+				errorSpan.textContent = errorMsg;
+				errorSpan.classList.remove("hidden");
+			}
+		}
+	}
 
-  function clearMessage() {
-    if (signupMessage) signupMessage.classList.add('hidden')
-  }
+	// Validate inputs
+	function validateInputs() {
+		let valid = true;
 
-  signupForm.addEventListener('submit', async (e) => {
-    e.preventDefault()
-    clearMessage()
+		// Username
+		if (usernameInput!.value.trim().length === 0) {
+			setInputState(usernameInput!, false, "Username is required.", usernameError);
+			valid = false;
+		} else {
+			setInputState(usernameInput!, true, "", usernameError);
+		}
 
-    const originalText = signupSubmit.innerHTML
-    signupSubmit.innerHTML = loading
-    signupSubmit.disabled = true
+		// Email
+		if (emailInput!.value.trim().length === 0) {
+			setInputState(emailInput!, false, "Email is required.", emailError);
+			valid = false;
+		} else {
+			setInputState(emailInput!, true, "", emailError);
+		}
 
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 15000)
+		// Confirm email
+		if (confirmEmailInput!.value.trim() !== emailInput!.value.trim() || confirmEmailInput!.value.trim() === "") {
+			setInputState(confirmEmailInput!, false, "Emails do not match.", confirmEmailError);
+			valid = false;
+		} else {
+			setInputState(confirmEmailInput!, true, "", confirmEmailError);
+		}
 
-    try {
-      const response = await fetch(BACKEND_SIGNUP_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: nameInput.value,
-          email: emailInput.value,
-          password: passwordInput.value
-        }),
-        signal: controller.signal
-      })
+		// Password
+		if (!isPasswordValid(passwordInput!.value)) {
+			setInputState(passwordInput!, false, "Password must be ≥ 8 chars, 1 uppercase & 1 number.", passwordError);
+			valid = false;
+		} else {
+			setInputState(passwordInput!, true, "", passwordError);
+		}
 
-      clearTimeout(timeoutId)
+		// Confirm password
+		if (confirmPasswordInput!.value !== passwordInput!.value || confirmPasswordInput!.value === "") {
+			setInputState(confirmPasswordInput!, false, "Passwords do not match.", confirmPasswordError);
+			valid = false;
+		} else {
+			setInputState(confirmPasswordInput!, true, "", confirmPasswordError);
+		}
 
-      if (!response.ok) {
-        const errorMsg = await response.text()
-        showMessage(errorMsg || "Signup failed. Try again.")
-        signupSubmit.innerHTML = originalText
-        signupSubmit.disabled = false
-        return
-      }
+    	signupSubmit!.disabled = !valid;
+	}
 
-      const data = await response.json()
+	// Attach validation on input events
+	usernameInput.addEventListener('input', validateInputs);
+	emailInput.addEventListener('input', validateInputs);
+	confirmEmailInput.addEventListener('input', validateInputs);
+	passwordInput.addEventListener('input', validateInputs);
+	confirmPasswordInput.addEventListener('input', validateInputs);
 
-      // ✅ Reactive login right after signup
-      setSharedState({
-        isLoggedIn: true,
-        username: data.username,
-        avatarUrl: data.avatarUrl
-      })
+	// Modal open/close
+	if (openBtnLogin) {
+		openBtnLogin.addEventListener('click', () => {
+			signupModal.classList.add('hidden');
+		});
+	}
 
-      showMessage("Account created successfully!", false)
+	signupModal.addEventListener('click', (e) => {
+		if (e.target === signupModal) {
+			signupModal.classList.add('hidden');
+		}
+	});
 
-      // Reset inputs
-      nameInput.value = ""
-      emailInput.value = ""
-      passwordInput.value = ""
-      confirmInput.value = ""
-      validateInputs()
+	// --- Submit handling ---
+	signupForm.addEventListener('submit', async (e) => {
+		e.preventDefault();
 
-      signupModal.classList.add('hidden')
-      signupSubmit.innerHTML = originalText
+		const username = usernameInput!.value.trim();
+		const email = emailInput!.value.trim();
+		const password = passwordInput!.value.trim();
 
-    } catch (err) {
-      if (controller.signal.aborted) {
-        showMessage("Signup request timed out. Please try again.")
-      } else {
-        showMessage("An error occurred. Please try again.")
-      }
-      signupSubmit.innerHTML = originalText
-      signupSubmit.disabled = false
-    }
-  })
+		// Replace button text with loading animation
+		const originalButtonHTML = signupSubmit!.innerHTML;
+		signupSubmit!.innerHTML = loading;
+		signupSubmit!.disabled = true;
+
+		try {
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+			const response = await fetch(BACKEND_SIGNUP_URL, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ username, email, password }),
+				signal: controller.signal
+			});
+
+			clearTimeout(timeoutId);
+
+			if (response.ok) {
+				const data = await response.json();
+				console.log("Signup response:", data);
+
+				setSharedState({
+				  username,
+				  avatarUrl: data.avatarUrl || "/default-avatar.png",
+				  isLoggedIn: true
+				});
+
+				signupModal.classList.add("hidden");
+				console.log("Signup successful!");
+			} else {
+				alert("Signup failed. Please try again.");
+				passwordInput!.value = "";
+				confirmPasswordInput!.value = "";
+			}
+		} catch (err) {
+			console.error("Signup error:", err);
+			alert("Network error or request timeout.");
+			passwordInput!.value = "";
+			confirmPasswordInput!.value = "";
+		} finally {
+			signupSubmit!.innerHTML = originalButtonHTML;
+			signupSubmit!.disabled = false;
+		}
+	});
 }
