@@ -16,8 +16,8 @@ import { setupSidebarEvents } from './logic/sidebar'
 import { initWebSocket } from './logic/ws'
 import { setupChat } from './logic/chat'
 
-import { setPong } from './logic/pong_client'
-import { setupControlPanel } from './logic/gameSettings'
+import { setPong } from './logic/pong'
+import { setupControlPanel } from './logic/controlPanel'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
