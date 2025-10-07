@@ -416,6 +416,6 @@ function update(cvs: HTMLCanvasElement, player1: Player, player2: Player, ball: 
 		showOverlay_message(message);
 		setTimeout(() => {
 		  save_match(player1.score, player2.score, gameSettings.multiplayer);
-		}, 0); // Timeout so it doesn't reset values before saving (16ms if needed)
+		}, 16);
 	}
 }
