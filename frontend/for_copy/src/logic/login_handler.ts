@@ -1,7 +1,8 @@
 import { sharedState } from '../main'
+import { setupUserSection } from "./userSection";
 import  loading  from '../components/loading.html?raw'
 
-const BACKEND_LOGIN_URL = "http://localhost:3000/auth/login"; // placeholder backend URL
+const BACKEND_LOGIN_URL = `${import.meta.env.VITE_API_URL}/auth/login`; // placeholder backend URL
 
 export function setupLoginForm()
 {
@@ -115,6 +116,7 @@ export function setupLoginForm()
 			passwordInput.value = "";
 			loginSubmit.innerHTML = originalText;
 			loginSubmit.disabled = true;
+			setupUserSection();
 
 		} catch (err) {
 			if (controller.signal.aborted) {

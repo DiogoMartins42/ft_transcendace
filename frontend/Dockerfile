@@ -18,8 +18,13 @@ RUN if [ -f "package.json" ]; then \
 # Install additional dependencies
 RUN npm install tailwindcss @tailwindcss/vite
 
+
+
 # Copy your custom files
+COPY .env ./
 COPY ./for_copy .
+
+RUN npm run build
 
 EXPOSE 5173
 

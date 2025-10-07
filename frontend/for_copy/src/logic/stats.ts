@@ -89,12 +89,12 @@ export function setupStatsPage() {
 // Save match if the user is logged in
 export async function save_match(p1_score: number, p2_score: number, multiplayer: boolean) {
   // TO-DO: replace with actual logged-in players once you have auth
-  var winner;
-  var loser;
-  var winner_points;
-  var loser_points;
+  var winner : string;
+  var loser : string;
+  var winner_points : number;
+  var loser_points : number;
 
-  //if player isn't logged in, ignore saving the match
+  //if player isn't logged in, ignore saving the match (wait for the function)
 
   //Change winner = "<logged in user name>"
   if(p1_score > p2_score){

@@ -75,19 +75,6 @@ async function renderPage(pageHtml: string)
 	setupUserSection();
 	setupSidebarEvents();
 
-	initWebSocket((msg) => {
-  // msg will look like {chat: "..."} or {message: "..."}
-	const chatMessages = document.getElementById('chat-messages');
-	if (!chatMessages) return;
-
-	const div = document.createElement('div');
-	// show either the welcome message or the chat content
-	div.textContent = msg.chat || msg.message || JSON.stringify(msg);
-	chatMessages.appendChild(div);
-	chatMessages.scrollTop = chatMessages.scrollHeight;
-	});
-
-
 	setupChat();
 
 

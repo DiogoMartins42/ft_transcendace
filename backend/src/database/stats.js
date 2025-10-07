@@ -27,7 +27,7 @@ export default async function statsRoutes(fastify, options) {
 
   // Routes
   fastify.get("/api/user-stats", async (request, reply) => {
-    const username = request.query.username || "test";
+    const username = request.query.username || "bot";
     try {
       return getUserInfo(username);
     } catch (err) {

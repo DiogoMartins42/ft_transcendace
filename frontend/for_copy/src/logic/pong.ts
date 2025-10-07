@@ -414,6 +414,10 @@ function update(cvs: HTMLCanvasElement, player1: Player, player2: Player, ball: 
 			{ text: "Restart", onClick: () => { restartGame(cvs, player1, player2, ball); } },
 		]);
 		showOverlay_message(message);
-		save_match(player1.score, player2.score, gameSettings.multiplayer);
+
+		// Add match to match history
+		setTimeout(() => {
+		  save_match(player1.score, player2.score, gameSettings.multiplayer);
+		}, 0); // Timeout so it doesn't reset values before saving (16ms if needed)
 	}
 }

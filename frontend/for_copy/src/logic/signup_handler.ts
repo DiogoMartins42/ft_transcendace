@@ -1,7 +1,7 @@
 import { sharedState } from '../main'
 import loading from '../components/loading.html?raw'
 
-const BACKEND_SIGNUP_URL = "http://localhost:3000/auth/register"; // placeholder backend URL
+const BACKEND_SIGNUP_URL = `${import.meta.env.VITE_API_URL}/auth/register`;// placeholder backend URL
 
 export function setupSignupForm() {
 	const signupModal = document.getElementById('signup-modal') as HTMLElement | null;

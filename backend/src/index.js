@@ -69,52 +69,47 @@ fastify.register(fastifyWebsocket);
 const clients = new Set();
 
 fastify.register(async function (fastify) {
-    fastify.get("/ws", { websocket: true }, (connection, req) => {
-        console.log("Client connected!");
-        
-        const socket = connection.socket || connection;
-        clients.add(socket);
-        
-        // Send welcome message
-        if (socket.readyState === 1) {
-            socket.send(JSON.stringify({ 
-                type: "welcome", 
-                message: "Connected to server!" 
-            }));
+  fastify.get("/ws", { websocket: true }, (connection, req) => {
+      console.log("Client connected!");
+      
+      const socket = connection.socket || connection;
+      clients.add(socket);
+
+      // Assign username from query or message, or generate anonymous
+      socket.username = null;
+
+      socket.on("message", (message) => {
+        let messageData;
+        try {
+          messageData = JSON.parse(message.toString());
+        } catch (e) {
+          messageData = { type: "chat", text: message.toString() };
         }
-        
-        socket.on("message", (message) => {
-            console.log("Received:", message.toString());
 
-            let messageData;
-            try {
-                messageData = JSON.parse(message.toString());
-            } catch (e) {
-                messageData = { type: "chat", text: message.toString() };
-            }
+        // Set username if provided, otherwise generate anonymous
+        if (!socket.username) {
+          if (messageData.username) {
+            socket.username = messageData.username;
+          } else {
+            socket.username = "Anonymous" + Math.floor(1000 + Math.random() * 9000);
+          }
+        }
 
-            if (messageData.type === "chat") {
-                // Broadcast to every connected client except the sender
-                for (const client of clients) {
-                    if (client !== socket && client.readyState === 1) {
-                        client.send(JSON.stringify(messageData));
-                    }
-                }
-            } else if (messageData.type === "connection") {
-                console.log("Client connected with message:", messageData.text);
+        if (messageData.type === "chat") {
+          messageData.username = socket.username;
+
+          // Send to all clients, including sender
+          for (const client of clients) {
+            if (client.readyState === 1) {
+              client.send(JSON.stringify(messageData));
             }
-        });
-        
-        socket.on("close", () => {
-            console.log("Client disconnected");
-            clients.delete(socket);
-        });
-        
-        socket.on("error", (error) => {
-            console.error("WebSocket error:", error);
-            clients.delete(socket);
-        });
+          }
+        } else if (messageData.type === "connection") {
+            console.log("Client connected with message:", messageData.text);
+            // Don't broadcast connection messages - this is the key fix!
+        }
     });
+  });
 });
 
 
@@ -137,14 +132,18 @@ fastify.setNotFoundHandler((req, reply) => {
   }
 });
 
-
 //fastify.register(statsRoutes);
 fastify.register(statsRoutes, { prefix: "/stats" });
 
 const start = async () => {
   try {
     await fastify.listen({ port: 3000, host: '0.0.0.0' });
-    console.log("Server running on http://localhost:3000");
+    const address = fastify.server.address();
+    if (typeof address === 'string') {
+      console.log(`Server running on ${address}`);
+    } else {
+      console.log(`Server running on http://${address.address}:${address.port}`);
+    }
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
