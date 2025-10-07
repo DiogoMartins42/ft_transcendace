@@ -10,6 +10,9 @@ import authRoutes from "./routes/auth.js";
 import lobbyRoutes from "./routes/lobby.js";
 import { fileURLToPath } from "url";
 
+import statsRoutes from "./database/stats.js";
+import { initDB } from "./database/init.js"; 
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const fastify = Fastify({ logger: loggerOptions });
@@ -25,6 +28,25 @@ db.prepare(`
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`).run();
+
+db.prepare(`
+  INSERT OR IGNORE INTO users (username, email, password)
+  VALUES 
+    ('bot', 'bot@gmail.com', 'kdakwunda#^!@#HDJDOAPDKAW_D)AW*DANWDKAD><WAODWAD?DAIDAWdwad'),
+    ('guest_multiplayer', 'guest_multiplayer@gmail.com', 'iuhduiawHd7&!(1u831dhwuhd*@!&!@(dwadawd')
+`).run();
+
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS match_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_winner INTEGER NOT NULL,
+    id_loser INTEGER NOT NULL,
+    winner_points INTEGER DEFAULT 0,
+    loser_points INTEGER DEFAULT 0,
+    FOREIGN KEY (id_winner) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (id_loser) REFERENCES users(id) ON DELETE CASCADE
   )
 `).run();
 
@@ -110,6 +132,8 @@ fastify.setNotFoundHandler((req, reply) => {
   }
 });
 
+//fastify.register(statsRoutes);
+fastify.register(statsRoutes, { prefix: "/stats" });
 
 const start = async () => {
   try {

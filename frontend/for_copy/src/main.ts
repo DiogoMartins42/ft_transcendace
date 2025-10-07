@@ -19,6 +19,8 @@ import { setupChat } from './logic/chat'
 import { setPong } from './logic/pong'
 import { setupControlPanel } from './logic/controlPanel'
 
+import { setupStatsPage } from './logic/stats';
+
 const app = document.querySelector<HTMLDivElement>('#app')!
 
 export const sidebarState: { sidebarOpen: boolean } = { sidebarOpen: false }
@@ -130,6 +132,8 @@ async function renderPage(pageHtml: string) {
 
   setPong()
   setupControlPanel()
+
+  setupStatsPage()
 }
 
 function handleRoute() {
