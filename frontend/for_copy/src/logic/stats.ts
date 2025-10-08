@@ -2,7 +2,7 @@ export function setupStatsPage() {
     const statsContainer = document.getElementById('stats-container');
 	if (!statsContainer) return; // not on stats page → do nothing
 
-    console.log("Stats Script loaded");
+    // console.log("Stats Script loaded"); 
 
     const fetchButton = document.getElementById('fetchData') as HTMLButtonElement;
     const usernameInput = document.getElementById('usernameInput') as HTMLInputElement;
@@ -114,9 +114,6 @@ export async function save_match(p1_score: number, p2_score: number, multiplayer
     if(multiplayer) {winner = "guest_multiplayer";}
     else {winner = "bot";}
   }
-
-  /* if(winner == loser)
-    return ; */
 
   try {
     const res = await fetch("/stats/api/match", {
