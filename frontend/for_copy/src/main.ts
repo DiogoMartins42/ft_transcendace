@@ -69,6 +69,64 @@ class SharedState {
 
 export const sharedState = new SharedState()
 
+// --- Persistent Login Setup ---
+interface StoredUser {
+  username: string
+  avatarUrl?: string
+  token: string
+}
+
+export function loadStoredUser() {
+  const saved = localStorage.getItem("user")
+  if (!saved) return null
+
+  try {
+    const user: StoredUser = JSON.parse(saved)
+    // Optional: verify the token with backend before trusting it
+    return user
+  } catch {
+    console.warn("Invalid user data in localStorage — clearing it.")
+    localStorage.removeItem("user")
+    return null
+  }
+}
+
+export function saveUserSession(user: StoredUser) {
+  localStorage.setItem("user", JSON.stringify(user))
+}
+
+export function clearUserSession() {
+  localStorage.removeItem("user")
+}
+
+// --- Auto-restore login state ---
+const stored = loadStoredUser()
+if (stored) {
+  setSharedState({
+    isLoggedIn: true,
+    username: stored.username,
+    avatarUrl: stored.avatarUrl || "/default-avatar.png"
+  })
+
+  // Optionally, verify token on startup (recommended)
+  fetch("/api/verify-token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${stored.token}`
+    }
+  })
+  .then(res => {
+    if (!res.ok) throw new Error("Token invalid")
+  })
+  .catch(() => {
+    console.warn("Stored token invalid or expired — logging out.")
+    clearUserSession()
+    setSharedState({ isLoggedIn: false })
+  })
+}
+
+
 export function setSharedState(partial: Partial<{ isLoggedIn: boolean; username?: string; avatarUrl?: string }>) {
   sharedState.setState(partial)
 }
