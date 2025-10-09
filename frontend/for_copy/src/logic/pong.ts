@@ -1,4 +1,5 @@
 import { gameSettings } from './controlPanel';
+import { save_match } from './stats';
 
 let verifyStart: boolean = false;
 let verifyFirstCollision: boolean = false;
@@ -7,6 +8,8 @@ let verifyFirstCollision: boolean = false;
 const GameState = { START: "start", PLAYING: "playing", PAUSED: "paused", GAME_OVER: "gameOver" } as const;
 type GameStateType = typeof GameState[keyof typeof GameState];
 let gameState: GameStateType = GameState.START;
+
+let animationFrameId: number | null = null; // -a
 
 // ---- Types ----
 interface Player {
@@ -92,6 +95,7 @@ function showOverlay(btn_type: number, buttons: { text: string; onClick: () => v
 	}
 		overlay.classList.remove("hidden");
 }
+
 function hideOverlay()
 {
 	const overlay = document.getElementById("game-overlay");
@@ -101,6 +105,8 @@ function hideOverlay()
 // ---- Main entry ----
 export function setPong()
 {
+	stopGameLoop(); // <-- stop any previous gameLoop -a
+
 	const { canvas, context } = getCanvasAndContext();
 	if (!canvas || !context) return;
 
@@ -216,9 +222,9 @@ export function setPong()
 		//disable mouse
 		if (!gameSettings.mouse || gameSettings.multiplayer) canvas!.removeEventListener("mousemove", movePaddleListener);
 		game();
-		requestAnimationFrame(gameLoop);
+		animationFrameId = requestAnimationFrame(gameLoop); //-a
 	}
-	requestAnimationFrame(gameLoop);
+	animationFrameId = requestAnimationFrame(gameLoop); //-a
 }
 
 // ---- Helpers ----
@@ -413,5 +419,16 @@ function update(cvs: HTMLCanvasElement, player1: Player, player2: Player, ball: 
 			{ text: "Restart", onClick: () => { restartGame(cvs, player1, player2, ball); } },
 		]);
 		showOverlay_message(message);
+		setTimeout(() => {
+		  save_match(player1.score, player2.score, gameSettings.multiplayer);
+		}, 16);
 	}
+}
+
+// -a
+function stopGameLoop() {
+    if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+    }
 }

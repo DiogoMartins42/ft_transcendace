@@ -13,112 +13,154 @@ import controlPanelHtml from './components/controlPanel-modal.html?raw'
 
 import { setupUserSection } from './logic/userSection'
 import { setupSidebarEvents } from './logic/sidebar'
-import { initWebSocket } from './logic/ws';
-import { setupChat } from './logic/chat';
+import { initWebSocket } from './logic/ws'
+import { setupChat } from './logic/chat'
+
 import { setPong } from './logic/pong'
 import { setupControlPanel } from './logic/controlPanel'
-// import { setupLoginForm } from './logic/login_handler' // uncomment when ready
+
+import { setupStatsPage } from './logic/stats';
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
 export const sidebarState: { sidebarOpen: boolean } = { sidebarOpen: false }
 
+type StateListener = () => void
+
 class SharedState {
-	private _isLoggedIn = false;
-	private listeners: (() => void)[] = [];
+  private _isLoggedIn = false
+  private _username?: string
+  private _avatarUrl?: string
+  private listeners: StateListener[] = []
 
-	username?: string;
-	avatarUrl?: string;
+  get isLoggedIn() {
+    return this._isLoggedIn
+  }
 
-	get isLoggedIn() {
-		return this._isLoggedIn;
-	}
+  get username() {
+    return this._username
+  }
 
-	set isLoggedIn(val: boolean) {
-		this._isLoggedIn = val;
-		this.listeners.forEach(fn => fn()); // trigger re-render
-	}
+  get avatarUrl() {
+    return this._avatarUrl
+  }
 
-	subscribe(fn: () => void) {
-		this.listeners.push(fn);
-	}
+  setState(partial: Partial<{ isLoggedIn: boolean; username?: string; avatarUrl?: string }>) {
+    let changed = false
+    if (partial.isLoggedIn !== undefined && partial.isLoggedIn !== this._isLoggedIn) {
+      this._isLoggedIn = partial.isLoggedIn
+      changed = true
+    }
+    if (partial.username !== undefined && partial.username !== this._username) {
+      this._username = partial.username
+      changed = true
+    }
+    if (partial.avatarUrl !== undefined && partial.avatarUrl !== this._avatarUrl) {
+      this._avatarUrl = partial.avatarUrl
+      changed = true
+    }
+    if (changed) this.listeners.forEach(fn => fn())
+  }
+
+  subscribe(fn: StateListener) {
+    this.listeners.push(fn)
+  }
 }
 
-export const sharedState = new SharedState();
+export const sharedState = new SharedState()
 
-// 🟢 Restore session if token exists in localStorage
-async function restoreSession() {
-	const token = localStorage.getItem("token");
-	if (!token) return;
-
-	try {
-		const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
-			headers: { Authorization: `Bearer ${token}` },
-		});
-		if (res.ok) {
-			const user = await res.json();
-			sharedState.isLoggedIn = true;
-			sharedState.username = user.username;
-			sharedState.avatarUrl = "/default-avatar.png";
-			console.log("✅ Session restored:", sharedState.username);
-		} else {
-			localStorage.removeItem("token");
-		}
-	} catch (err) {
-		localStorage.removeItem("token");
-	}
+export function setSharedState(partial: Partial<{ isLoggedIn: boolean; username?: string; avatarUrl?: string }>) {
+  sharedState.setState(partial)
 }
 
 async function renderPage(pageHtml: string) {
-	app.innerHTML = `
-		${navbarHtml}
-		<main id="page-content" class="transition-all duration-300 pt-16 p-4">
-			${pageHtml}
-		</main>
-		${loginModalHtml}
-		${signupModalHtml}
-		${sidebarHtml}
-		${controlPanelHtml}
-	`;
+  app.innerHTML = `
+    ${navbarHtml}
+    <main id="page-content" class="transition-all duration-300 pt-16 p-4">
+      ${pageHtml}
+    </main>
+    ${loginModalHtml}
+    ${signupModalHtml}
+    ${sidebarHtml}
+    ${controlPanelHtml}
+  `
 
-	// setupLoginForm(); // uncomment when login form handler is ready
-	setupUserSection();
-	setupSidebarEvents();
-	setupChat();
-	setPong();
-	setupControlPanel();
+  setupUserSection()
+  setupSidebarEvents()
+
+  // --- SAFE websocket message handling (this is the changed part) ---
+  initWebSocket((msg: unknown) => {
+    const chatMessages = document.getElementById('chat-messages')
+    if (!chatMessages) return
+
+    const div = document.createElement('div')
+
+    // helper to convert unknown msg into a display string
+    const msgToText = (m: unknown): string => {
+      if (m === null || m === undefined) return ''
+
+      // string payload (maybe JSON string)
+      if (typeof m === 'string') {
+        // try to parse JSON string. If it fails, show the raw string.
+        try {
+          const parsed = JSON.parse(m) as any
+          if (parsed && typeof parsed === 'object') {
+            return String(parsed.chat ?? parsed.message ?? JSON.stringify(parsed))
+          }
+          return String(parsed)
+        } catch {
+          return m
+        }
+      }
+
+      // object payload
+      if (typeof m === 'object') {
+        const o = m as Record<string, any>
+        return String(o.chat ?? o.message ?? JSON.stringify(o))
+      }
+
+      // number/boolean/other
+      return String(m)
+    }
+
+    div.textContent = msgToText(msg)
+    chatMessages.appendChild(div)
+    chatMessages.scrollTop = chatMessages.scrollHeight
+  })
+
+  setupChat()
+
+  setPong()
+  setupControlPanel()
+
+  setupStatsPage()
 }
 
 function handleRoute() {
-	const route = window.location.hash.slice(1) || 'home';
+  const route = window.location.hash.slice(1) || 'home'
 
-	switch (route) {
-		case 'about':
-			renderPage(aboutHtml);
-			break;
-		case 'chat':
-			renderPage(chatHtml);
-			break;
-		case 'contact':
-			renderPage(contactHtml);
-			break;
-		case 'stats':
-			renderPage(statsHtml);
-			break;
-		case 'userSettings':
-			renderPage(userSettingsHtml);
-			break;
-		default:
-			renderPage(homeHtml);
-	}
-
-	sidebarState.sidebarOpen = false;
+  switch (route) {
+    case 'about':
+      renderPage(aboutHtml)
+      break
+    case 'chat':
+      renderPage(chatHtml)
+      break
+    case 'contact':
+      renderPage(contactHtml)
+      break
+    case 'stats':
+      renderPage(statsHtml)
+      break
+    case 'userSettings':
+      renderPage(userSettingsHtml)
+      break
+    default:
+      renderPage(homeHtml)
+  }
+  sidebarState.sidebarOpen = false
 }
 
-window.addEventListener('DOMContentLoaded', async () => {
-	await restoreSession(); // ✅ Make sure session state is set before rendering
-	handleRoute();
-});
-
-window.addEventListener('hashchange', handleRoute);
+window.addEventListener('DOMContentLoaded', handleRoute)
+window.addEventListener('hashchange', handleRoute)
 
