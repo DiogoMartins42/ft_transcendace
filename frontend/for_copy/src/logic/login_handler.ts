@@ -108,6 +108,8 @@ export function setupLoginForm()
     		const data = await response.json();
 
 			// Success
+			localStorage.setItem('token', data.token);
+
 			sharedState.isLoggedIn = true;
 			sharedState.username = data.username;
 			sharedState.avatarUrl = data.avatarUrl;
@@ -116,7 +118,7 @@ export function setupLoginForm()
 			passwordInput.value = "";
 			loginSubmit.innerHTML = originalText;
 			loginSubmit.disabled = true;
-
+		
 		} catch (err) {
 			if (controller.signal.aborted) {
 				// Timeout

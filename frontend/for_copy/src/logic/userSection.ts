@@ -49,6 +49,7 @@ export async function setupUserSection(user?: { username?: string; avatarUrl?: s
 			if (logoutBtn) {
 				logoutBtn.addEventListener("click", () => {
 					// reset state
+					localStorage.removeItem("token");
 					sharedState.isLoggedIn = false;
 					sharedState.username = undefined;
 					sharedState.avatarUrl = undefined;

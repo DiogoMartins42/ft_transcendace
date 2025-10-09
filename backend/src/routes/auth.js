@@ -33,29 +33,53 @@ export default async function routes(fastify, opts) {
     });
 
     fastify.post('/login', async (request, reply) => {
-        //To Do: Handle login
-        const { email, password} = request.body;
+    const { email, password } = request.body;
 
-        if (!email || !password){
-            return reply.status(400).send({ error: "Missing email or password!"})
-        }
+    if (!email || !password) {
+        return reply.status(400).send({ error: "Missing email or password!" });
+    }
 
-        const user = db
-            .prepare("SELECT id, password FROM users WHERE email = ?")
-            .get(email);
-        
-        if (!user) {
-            return reply.status(401).send({error : "Invalid email or password!"})
-        }
+    const user = db
+        .prepare("SELECT id, username, email, password FROM users WHERE email = ?")
+        .get(email);
+    
+    if (!user) {
+        return reply.status(401).send({ error: "Invalid email or password!" });
+    }
 
-        const passwordMatch = await bcrypt.compare(password, user.password);
+    const passwordMatch = await bcrypt.compare(password, user.password);
 
-        if (!passwordMatch) {
-            return reply.status(401).send({error : "Invalid email or password!"})
-        }
+    if (!passwordMatch) {
+        return reply.status(401).send({ error: "Invalid email or password!" });
+    }
 
-        const token = fastify.jwt.sign({userId: user.id});
+    const token = fastify.jwt.sign({ userId: user.id });
 
-        return reply.send({ token });
+    // ✅ Return token AND user info
+    return reply.send({
+            token,
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email
+            }
+        });
     });
+
+
+    fastify.get('/me', { preValidation: [fastify.authenticate] // requires valid token
+    }, async (request, reply) => {
+    const { userId } = request.user; // comes from the decoded JWT
+
+    const user = db
+        .prepare("SELECT id, username, email FROM users WHERE id = ?")
+        .get(userId);
+
+    if (!user) {
+        return reply.status(404).send({ error: "User not found" });
+    }
+
+    return reply.send(user);
+    });
+
 }
