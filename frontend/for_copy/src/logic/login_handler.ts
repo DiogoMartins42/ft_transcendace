@@ -1,7 +1,8 @@
 import { setSharedState } from '../main'
+import { saveUserSession } from '../main'
 import loading from '../components/loading.html?raw'
 
-const BACKEND_LOGIN_URL = "/api/login"
+const BACKEND_LOGIN_URL = `${import.meta.env.VITE_API_URL}/auth/login`;
 
 export function setupLoginForm() {
   const loginModal = document.getElementById('login-modal') as HTMLElement | null
@@ -94,6 +95,18 @@ export function setupLoginForm() {
         username: data.username,
         avatarUrl: data.avatarUrl
       })
+      if (data.token) {
+        saveUserSession({
+          username: data.username,
+          avatarUrl: data.avatarUrl,
+          token: data.token
+        })
+      }
+
+      localStorage.setItem("user", JSON.stringify({
+      username: data.username,
+      avatarUrl: data.avatarUrl
+      }))
 
       loginModal.classList.add('hidden')
       emailInput.value = ""
