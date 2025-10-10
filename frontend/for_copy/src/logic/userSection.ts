@@ -3,6 +3,7 @@ import navLoggedinHtml from '../components/navLoggedin.html?raw'
 import { setupLoginForm } from './login_handler'
 import { setupSignupForm } from './signup_handler'
 import { sharedState } from '../main'
+import { clearSession } from './session'
 
 export async function setupUserSection() {
   const userSection = document.getElementById('user-section') as HTMLDivElement | null
@@ -37,6 +38,7 @@ export async function setupUserSection() {
       const logoutBtn = document.getElementById("logout-btn") as HTMLButtonElement | null
       if (logoutBtn) {
         logoutBtn.addEventListener("click", () => {
+          clearSession()
           sharedState.setState({ isLoggedIn: false, username: undefined, avatarUrl: undefined })
         })
       }

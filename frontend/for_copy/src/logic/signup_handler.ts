@@ -1,4 +1,5 @@
-import { setSharedState, saveUserSession } from '../main'
+import { setSharedState} from '../main'
+import { saveSession } from './session'
 import loading from '../components/loading.html?raw'
 
 const BACKEND_SIGNUP_URL = `${import.meta.env.VITE_API_URL}/auth/register`;
@@ -19,25 +20,6 @@ export function setupSignupForm() {
 		console.warn("Signup modal setup failed: missing elements.");
 		return;
 	}
-
-	// Create error spans dynamically
-	function createErrorSpan(input: HTMLElement): HTMLElement {
-		let span = input.nextElementSibling as HTMLElement | null;
-		if (!span || !span.classList.contains("error-msg")) {
-			span = document.createElement("span");
-			span.className = "error-msg text-red-500 text-sm block hidden";
-			input.insertAdjacentElement("afterend", span);
-		}
-		return span;
-	}
-
-	const usernameError = createErrorSpan(usernameInput);
-	const emailError = createErrorSpan(emailInput);
-	const confirmEmailError = createErrorSpan(confirmEmailInput);
-	const passwordError = createErrorSpan(passwordInput);
-	const confirmPasswordError = createErrorSpan(confirmPasswordInput);
-
-	signupSubmit.disabled = true;
 
 	// Validation helpers
 	function isPasswordValid(pw: string): boolean {
@@ -62,50 +44,29 @@ export function setupSignupForm() {
 	function validateInputs() {
 		let valid = true;
 
-		if (usernameInput!.value.trim().length === 0) {
-			setInputState(usernameInput!, false, "Username is required.", usernameError);
-			valid = false;
-		} else setInputState(usernameInput!, true, "", usernameError);
+		if (!usernameInput!.value.trim()) { valid = false; setInputState(usernameInput!, false, "Username is required."); }
+		else setInputState(usernameInput!, true);
 
-		if (emailInput!.value.trim().length === 0) {
-			setInputState(emailInput!, false, "Email is required.", emailError);
-			valid = false;
-		} else setInputState(emailInput!, true, "", emailError);
+		if (!emailInput!.value.trim()) { valid = false; setInputState(emailInput!, false, "Email is required."); }
+		else setInputState(emailInput!, true);
 
-		if (confirmEmailInput!.value.trim() !== emailInput!.value.trim()) {
-			setInputState(confirmEmailInput!, false, "Emails do not match.", confirmEmailError);
-			valid = false;
-		} else setInputState(confirmEmailInput!, true, "", confirmEmailError);
+		if (confirmEmailInput!.value.trim() !== emailInput!.value.trim()) { valid = false; setInputState(confirmEmailInput!, false, "Emails do not match."); }
+		else setInputState(confirmEmailInput!, true);
 
-		if (!isPasswordValid(passwordInput!.value)) {
-			setInputState(passwordInput!, false, "Password must be ≥ 8 chars, 1 uppercase & 1 number.", passwordError);
-			valid = false;
-		} else setInputState(passwordInput!, true, "", passwordError);
+		if (!isPasswordValid(passwordInput!.value)) { valid = false; setInputState(passwordInput!, false, "Password must be ≥ 8 chars, 1 uppercase & 1 number."); }
+		else setInputState(passwordInput!, true);
 
-		if (confirmPasswordInput!.value !== passwordInput!.value) {
-			setInputState(confirmPasswordInput!, false, "Passwords do not match.", confirmPasswordError);
-			valid = false;
-		} else setInputState(confirmPasswordInput!, true, "", confirmPasswordError);
+		if (confirmPasswordInput!.value !== passwordInput!.value) { valid = false; setInputState(confirmPasswordInput!, false, "Passwords do not match."); }
+		else setInputState(confirmPasswordInput!, true);
 
 		signupSubmit!.disabled = !valid;
 	}
 
-	usernameInput.addEventListener('input', validateInputs);
-	emailInput.addEventListener('input', validateInputs);
-	confirmEmailInput.addEventListener('input', validateInputs);
-	passwordInput.addEventListener('input', validateInputs);
-	confirmPasswordInput.addEventListener('input', validateInputs);
+	[usernameInput, emailInput, confirmEmailInput, passwordInput, confirmPasswordInput].forEach(input => input?.addEventListener('input', validateInputs));
 
-	// Modal open/close
-	if (openBtnLogin) {
-		openBtnLogin.addEventListener('click', () => signupModal.classList.add('hidden'));
-	}
+	if (openBtnLogin) openBtnLogin.addEventListener('click', () => signupModal.classList.add('hidden'));
+	signupModal.addEventListener('click', (e) => { if (e.target === signupModal) signupModal.classList.add('hidden'); });
 
-	signupModal.addEventListener('click', (e) => {
-		if (e.target === signupModal) signupModal.classList.add('hidden');
-	});
-
-	// --- Submit handling ---
 	signupForm.addEventListener('submit', async (e) => {
 		e.preventDefault();
 
@@ -138,14 +99,12 @@ export function setupSignupForm() {
 			}
 
 			const data = await response.json();
-			console.log("Signup response:", data);
 
 			// ✅ Save JWT + session
 			if (data.token) {
-				saveUserSession({
+				saveSession(data.token, {
 					username: data.username || username,
-					avatarUrl: data.avatarUrl || "/default-avatar.png",
-					token: data.token
+					avatarUrl: data.avatarUrl || "/default-avatar.png"
 				});
 			}
 

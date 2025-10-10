@@ -51,19 +51,22 @@ db.prepare(`
 `).run();
 
 fastify.decorate("db", db);
-fastify.register(authRoutes, { prefix: "/auth" });
-fastify.register(lobbyRoutes, { prefix: "/lobby" });
 
-//JWT Auth
-
+//JWT Auth - MUST be registered BEFORE routes that use it
 fastify.register(fastifyJWT, { secret: env.JWT_SECRET });
+
+// ✅ Fixed authenticate decorator - returns proper JSON error
 fastify.decorate("authenticate", async function (request, reply) {
   try {
     await request.jwtVerify();
   } catch (err) {
-    reply.send(err);
+    reply.status(401).send({ error: "Unauthorized", message: err.message });
   }
 });
+
+// Register routes AFTER JWT setup
+fastify.register(authRoutes, { prefix: "/auth" });
+fastify.register(lobbyRoutes, { prefix: "/lobby" });
 
 fastify.register(fastifyWebsocket);
 const clients = new Set();
@@ -112,8 +115,6 @@ fastify.register(async function (fastify) {
   });
 });
 
-
-
 const frontendPath = "/app/frontend";
 fastify.register(FastifyStatic, { 
   root: frontendPath,
@@ -132,7 +133,6 @@ fastify.setNotFoundHandler((req, reply) => {
   }
 });
 
-//fastify.register(statsRoutes);
 fastify.register(statsRoutes, { prefix: "/stats" });
 
 const start = async () => {

@@ -1,10 +1,14 @@
 import { sendMessage, initWebSocket } from "./ws";
+import { loadSession } from "./session";
 
 function getUsername() {
-  // Replace with your actual auth logic
-  const user = localStorage.getItem("username");
-  if (user) return user;
-  // Generate a persistent anonymous username for this session
+  //First, try to get username from stored session
+  const session = loadSession();
+  if (session?.user?.username) {
+    return session.user.username;
+  }
+  
+  //Fallback: Generate a persistent anonymous username for this session
   if (!window.anonymousId) {
     window.anonymousId = "Anonymous" + Math.floor(1000 + Math.random() * 9000);
   }
