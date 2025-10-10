@@ -77,8 +77,6 @@ interface StoredUser {
   token: string
 }
 
-
-
 export function saveSession(token: string, user: { username: string; avatarUrl?: string }) {
   localStorage.setItem("userSession", JSON.stringify({ token, ...user }));
 }
@@ -87,8 +85,6 @@ export function loadUserSession() {
   const data = localStorage.getItem("userSession");
   return data ? JSON.parse(data) : null;
 }
-
-
 
 export function setSharedState(partial: Partial<{ isLoggedIn: boolean; username?: string; avatarUrl?: string }>) {
   sharedState.setState(partial)
@@ -157,34 +153,33 @@ async function renderPage(pageHtml: string) {
   setupStatsPage()
 }
 
-function handleRoute() {
+async function handleRoute() {
   const route = window.location.hash.slice(1) || 'home'
 
   switch (route) {
     case 'about':
-      renderPage(aboutHtml)
+      await renderPage(aboutHtml)
       break
     case 'chat':
-      renderPage(chatHtml)
+      await renderPage(chatHtml)
       break
     case 'contact':
-      renderPage(contactHtml)
+      await renderPage(contactHtml)
       break
     case 'stats':
-      renderPage(statsHtml)
+      await renderPage(statsHtml)
       break
     case 'userSettings':
-      renderPage(userSettingsHtml)
+      await renderPage(userSettingsHtml)
       break
     default:
-      renderPage(homeHtml)
+      await renderPage(homeHtml)
   }
   sidebarState.sidebarOpen = false
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-  await verifyStoredSession()  // restores session if JWT exists
-  handleRoute()                // then render the page
+  await verifyStoredSession()  // ✅ restores session state first
+  await handleRoute()          // ✅ then render the page (setupUserSection will use the restored state)
 })
 window.addEventListener('hashchange', handleRoute)
-
