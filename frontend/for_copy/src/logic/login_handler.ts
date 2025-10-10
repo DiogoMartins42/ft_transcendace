@@ -20,12 +20,35 @@ export function setupLoginForm() {
     return;
   }
 
-  openBtnLogin.addEventListener("click", () => loginModal.classList.toggle("hidden"));
-  loginModal.addEventListener("click", (e) => { if (e.target === loginModal) loginModal.classList.add("hidden"); });
-  if (openBtnSignup && signupModal) openBtnSignup.addEventListener("click", () => { loginModal.classList.add("hidden"); signupModal.classList.remove("hidden"); });
+  // 🔹 Enable/disable button based on input fields
+  function validateInputs() {
+    const isValid = emailInput!.value.trim() && passwordInput!.value.trim();
+    loginSubmit!.disabled = !isValid;
+  }
 
+  emailInput.addEventListener("input", validateInputs);
+  passwordInput.addEventListener("input", validateInputs);
+  validateInputs(); // run once on load
+
+  // 🔹 Modal open/close logic
+  openBtnLogin.addEventListener("click", () => loginModal.classList.toggle("hidden"));
+  loginModal.addEventListener("click", (e) => {
+    if (e.target === loginModal) loginModal.classList.add("hidden");
+  });
+
+  if (openBtnSignup && signupModal) {
+    openBtnSignup.addEventListener("click", () => {
+      loginModal.classList.add("hidden");
+      signupModal.classList.remove("hidden");
+    });
+  }
+
+  // 🔹 Handle login submission
   loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (!emailInput!.value || !passwordInput!.value) return;
+
+    if (loginMessage) loginMessage.textContent = "";
 
     const originalText = loginSubmit.innerHTML;
     loginSubmit.innerHTML = loading;
@@ -50,7 +73,6 @@ export function setupLoginForm() {
 
       const data = await response.json();
 
-      // ✅ Sync with backend structure
       if (data.token && data.user) {
         saveSession(data.token, {
           username: data.user.username,
@@ -65,13 +87,15 @@ export function setupLoginForm() {
       }
 
       loginModal.classList.add("hidden");
+      emailInput.value = "";
+      passwordInput.value = "";
+      validateInputs();
     } catch (err) {
       console.error("Login error:", err);
       if (loginMessage) loginMessage.textContent = "An error occurred. Please try again.";
     } finally {
       loginSubmit.innerHTML = originalText;
-      loginSubmit.disabled = false;
+      validateInputs();
     }
   });
 }
-
