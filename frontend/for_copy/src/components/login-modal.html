@@ -1,29 +1,18 @@
-<div id="login-modal" class="fixed inset-0 flex flex-col items-end justify-start mt-22 mr-4 h-screen hidden">
-  <div class="w-full max-w-md bg-[#0E172B] border-1 border-[#F5CB5C] rounded-lg shadow-md p-6">
-    <h2 class="text-2xl font-bold text-[#F5CB5C] mb-4 ">Login</h2>
+<div id="login-modal" class="fixed inset-0 flex flex-col items-end justify-start mt-18 h-screen hidden">
+  <div class="w-full max-w-md bg-white rounded-lg shadow-md p-6">
+    <h2 class="text-2xl font-bold text-gray-900 mb-4">Login</h2>
     <form id="login-form" class="flex flex-col">
-      <input id="login-email" type="email" class="bg-[#0E172B] text-white border-1 border-[#F5CB5C] rounded-md p-2 mb-4 focus:outline-none focus:ring-1 focus:ring-white transition ease-in-out duration-150" placeholder="Email address">
-      <input id="login-password" type="password" class="bg-[#0E172B] text-white border-1 border-[#F5CB5C] rounded-md p-2 mb-4 focus:outline-none focus:ring-1 focus:ring-white transition ease-in-out duration-150" placeholder="Password">
+      <input id="login-email" type="email" class="bg-gray-100 text-gray-900 border-0 rounded-md p-2 mb-4 focus:bg-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 transition ease-in-out duration-150" placeholder="Email address">
+      <input id="login-password" type="password" class="bg-gray-100 text-gray-900 border-0 rounded-md p-2 mb-4 focus:bg-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 transition ease-in-out duration-150" placeholder="Password">
       <div class="flex items-center justify-between flex-wrap">
-        <label for="remember-me" class="text-sm text-white flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="remember-me"
-            class="appearance-none w-4 h-4 border border-[#F5CB5C] rounded-sm
-                   checked:bg-[#F5CB5C] checked:border-[#F5CB5C]
-                   checked:after:content-['✓'] checked:after:block checked:after:text-black
-                   checked:after:text-xs checked:after:leading-4 checked:after:text-center
-                   flex items-center justify-center cursor-pointer"/>
-            Remember me
+        <label for="remember-me" class="text-sm text-gray-900 cursor-pointer">
+          <input type="checkbox" id="remember-me" class="mr-2">
+          Remember me
         </label>
-        <button type="button" id="forgotPass"  class="text-sm text-[#F5CB5C] hover:underline mb-0.5 cursor-pointer">Forgot password?</button>
-        <p class="text-white mt-4"> Don't have an account? 
-          <button id="open-signup" type="button" class="text-sm text-[#F5CB5C] -200 hover:underline mt-4 cursor-pointer">
-            Signup
-          </button>
-        </p>
+        <a href="#" id="forgotPass"  class="text-sm text-blue-500 hover:underline mb-0.5">Forgot password?</a>
+        <p id="open-signup" class="text-gray-900 mt-4"> Don't have an account? <a href="#" class="text-sm text-blue-500 -200 hover:underline mt-4">Signup</a></p>
       </div>
-      <button id="login-submit" type="submit" disabled class="bg-gradient-to-r from-[#f59e0b] via-[#fcd34d] to-[#fef9c3] text-black font-bold py-2 px-4 rounded-md mt-4 transition ease-in-out duration-150 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed hover:opacity-80">Login</button>
+      <button id="login-submit" type="submit" disabled class="bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-bold py-2 px-4 rounded-md mt-4 transition ease-in-out duration-150 disabled:opacity-50 disabled:cursor-not-allowed">Login</button>
       <p id="login-message" class="text-sm text-red-500 mt-2 hidden"></p>
     </form>
   </div>
