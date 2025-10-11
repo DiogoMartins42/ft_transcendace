@@ -1,42 +1,46 @@
 let ws: WebSocket | null = null;
 
-export function initWebSocket(onMessage?: (msg: unknown) => void): WebSocket {
-  // Build URL automatically from where the page is served
-  const wsUrl =
-    import.meta.env.VITE_WS_URL ||
-    `ws://${window.location.hostname}:3000/ws`;
-
-  if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+export function initWebSocket( 
+    onMessage?: (msg: unknown) => void
+): WebSocket {
+    const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:3000/ws";
     ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      console.log("Connected to WebSocket:", wsUrl);
+        console.log("Connected to WebSocket:", wsUrl);
+        // Send a proper JSON message instead of plain text
+        sendMessage({ type: "connection", text: "Hello from frontend!" });
+    };
+
+    ws.onmessage = (event: MessageEvent) => {
+        console.log("Message from server:", event.data);
+        if (onMessage) {
+            try {
+                const parsedMessage = JSON.parse(event.data);
+                onMessage(parsedMessage);
+                
+                // Handle different message types
+                if (parsedMessage.type === "welcome") {
+                    console.log("✅", parsedMessage.message);
+                } else if (parsedMessage.type === "chat") {
+                    console.log("💬", parsedMessage.text);
+                }
+            } catch {
+                console.warn("Received non-json message:", event.data);
+            }
+        }
     };
 
     ws.onclose = () => {
-      console.log("Disconnected from server!");
-      ws = null;
+        console.log("Disconnected from server!");
     };
 
     ws.onerror = (err) => {
-      console.log("WebSocket error!", err);
-      ws = null;
+        console.log("WebSocket error!", err);
     };
-  }
 
-  ws.onmessage = (event: MessageEvent) => {
-    if (onMessage) {
-      try {
-        onMessage(JSON.parse(event.data));
-      } catch {
-        console.warn("Received non-JSON message:", event.data);
-      }
-    }
-  };
-
-  return ws;
+    return ws;
 }
-
 
 export function sendMessage(message: unknown): void {
     if (ws && ws.readyState === WebSocket.OPEN) {

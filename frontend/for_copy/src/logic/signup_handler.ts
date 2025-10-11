@@ -1,7 +1,7 @@
-import { sharedState } from '../main'
+import { setSharedState } from '../main'
 import loading from '../components/loading.html?raw'
 
-const BACKEND_SIGNUP_URL = "/api/signup"; // placeholder backend URL
+const BACKEND_SIGNUP_URL = `${import.meta.env.VITE_API_URL}/auth/register`;
 
 export function setupSignupForm() {
 	const signupModal = document.getElementById('signup-modal') as HTMLElement | null;
@@ -37,7 +37,7 @@ export function setupSignupForm() {
 	const passwordError = createErrorSpan(passwordInput);
 	const confirmPasswordError = createErrorSpan(confirmPasswordInput);
 
-	// Initialy disable button
+	// Initially disable button
 	signupSubmit.disabled = true;
 
 	// Helpers
@@ -64,8 +64,7 @@ export function setupSignupForm() {
 	}
 
 	// Validate inputs
-	function validateInputs() 
-	{
+	function validateInputs() {
 		let valid = true;
 
 		// Username
@@ -132,8 +131,7 @@ export function setupSignupForm() {
 	});
 
 	// --- Submit handling ---
-	signupForm.addEventListener('submit', async (e) => 
-	{
+	signupForm.addEventListener('submit', async (e) => {
 		e.preventDefault();
 
 		const username = usernameInput!.value.trim();
@@ -146,36 +144,35 @@ export function setupSignupForm() {
 		signupSubmit!.disabled = true;
 
 		try {
-		  const controller = new AbortController();
-		  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
-		const response = await fetch(BACKEND_SIGNUP_URL, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ username, email, password }),
-			signal: controller.signal
-		});
+			const response = await fetch(BACKEND_SIGNUP_URL, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ username, email, password }),
+				signal: controller.signal
+			});
 
-		clearTimeout(timeoutId);
+			clearTimeout(timeoutId);
 
-		if (response.ok) {
-			const data = await response.json();
-			if (data.success) {
-				sharedState.isLoggedIn = true;
-				sharedState.username = data.username;
-				sharedState.avatarUrl = data.avatarUrl;
+			if (response.ok) {
+				const data = await response.json();
+				console.log("Signup response:", data);
+
+				setSharedState({
+				  username,
+				  avatarUrl: data.avatarUrl || "/default-avatar.png",
+				  isLoggedIn: true
+				});
+
 				signupModal.classList.add("hidden");
 				console.log("Signup successful!");
 			} else {
-				alert(data.message || "Signup failed. Please try again.");
+				alert("Signup failed. Please try again.");
 				passwordInput!.value = "";
 				confirmPasswordInput!.value = "";
 			}
-		} else {
-			alert("Signup request failed. Please try again.");
-			passwordInput!.value = "";
-			confirmPasswordInput!.value = "";
-		}
 		} catch (err) {
 			console.error("Signup error:", err);
 			alert("Network error or request timeout.");
@@ -187,3 +184,5 @@ export function setupSignupForm() {
 		}
 	});
 }
+
+
