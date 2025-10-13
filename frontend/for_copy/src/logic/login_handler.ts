@@ -1,7 +1,7 @@
 import { setSharedState } from '../main'
 import loading from '../components/loading.html?raw'
 
-const BACKEND_LOGIN_URL = "/api/login"
+const BACKEND_SIGNUP_URL = `${import.meta.env.VITE_API_URL}/auth/login`;
 
 export function setupLoginForm() {
   const loginModal = document.getElementById('login-modal') as HTMLElement | null
