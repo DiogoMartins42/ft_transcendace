@@ -3,22 +3,46 @@ import FastifyStatic from "@fastify/static";
 import env from "./config/env.js";
 import { options as loggerOptions } from "./config/logger.js";
 import path from "path";
-
+import fs from "fs";
 import fastifyJWT from "@fastify/jwt";
 import fastifyWebsocket from "@fastify/websocket";
 import authRoutes from "./routes/auth.js";
 import lobbyRoutes from "./routes/lobby.js";
 import { fileURLToPath } from "url";
-
 import statsRoutes from "./database/stats.js";
-import { initDB } from "./database/init.js"; 
+import { initDB } from "./database/init.js";
+import Database from "better-sqlite3";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const fastify = Fastify({ logger: loggerOptions });
 
-//SQLite
-import Database from "better-sqlite3";
+// --- Optional HTTPS setup ---
+let httpsOptions = undefined;
+try {
+  const certDir = "/app/certs";
+  const keyPath = path.join(certDir, "key.pem");
+  const certPath = path.join(certDir, "cert.pem");
+
+  if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+    httpsOptions = {
+      key: fs.readFileSync(keyPath),
+      cert: fs.readFileSync(certPath)
+    };
+    console.log("✅ HTTPS certificates loaded successfully");
+  } else {
+    console.warn("⚠️ HTTPS certs not found (certs/key.pem, certs/cert.pem). Running in HTTP mode.");
+  }
+} catch (err) {
+  console.warn("⚠️ Error loading HTTPS certificates, defaulting to HTTP:", err);
+}
+
+// --- Create Fastify instance (with HTTPS if available) ---
+const fastify = Fastify({
+  logger: loggerOptions,
+  https: httpsOptions
+});
+
+// --- SQLite setup ---
 const db = new Database(env.dbFile);
 
 db.prepare(`
@@ -52,10 +76,10 @@ db.prepare(`
 
 fastify.decorate("db", db);
 
-//JWT Auth - MUST be registered BEFORE routes that use it
+// --- JWT setup ---
 fastify.register(fastifyJWT, { secret: env.JWT_SECRET });
 
-// ✅ Fixed authenticate decorator - returns proper JSON error
+// Auth decorator
 fastify.decorate("authenticate", async function (request, reply) {
   try {
     await request.jwtVerify();
@@ -64,66 +88,55 @@ fastify.decorate("authenticate", async function (request, reply) {
   }
 });
 
-// Register routes AFTER JWT setup
+// --- Routes ---
 fastify.register(authRoutes, { prefix: "/auth" });
 fastify.register(lobbyRoutes, { prefix: "/lobby" });
+fastify.register(statsRoutes, { prefix: "/stats" });
 
+// --- WebSocket setup ---
 fastify.register(fastifyWebsocket);
 const clients = new Set();
 
 fastify.register(async function (fastify) {
   fastify.get("/ws", { websocket: true }, (connection, req) => {
-      console.log("Client connected!");
-      
-      const socket = connection.socket || connection;
-      clients.add(socket);
+    console.log("Client connected!");
 
-      // Assign username from query or message, or generate anonymous
-      socket.username = null;
+    const socket = connection.socket || connection;
+    clients.add(socket);
+    socket.username = null;
 
-      socket.on("message", (message) => {
-        let messageData;
-        try {
-          messageData = JSON.parse(message.toString());
-        } catch (e) {
-          messageData = { type: "chat", text: message.toString() };
+    socket.on("message", (message) => {
+      let messageData;
+      try {
+        messageData = JSON.parse(message.toString());
+      } catch {
+        messageData = { type: "chat", text: message.toString() };
+      }
+
+      if (!socket.username) {
+        socket.username = messageData.username || "Anonymous" + Math.floor(1000 + Math.random() * 9000);
+      }
+
+      if (messageData.type === "chat") {
+        messageData.username = socket.username;
+        for (const client of clients) {
+          if (client.readyState === 1) client.send(JSON.stringify(messageData));
         }
-
-        // Set username if provided, otherwise generate anonymous
-        if (!socket.username) {
-          if (messageData.username) {
-            socket.username = messageData.username;
-          } else {
-            socket.username = "Anonymous" + Math.floor(1000 + Math.random() * 9000);
-          }
-        }
-
-        if (messageData.type === "chat") {
-          messageData.username = socket.username;
-
-          // Send to all clients, including sender
-          for (const client of clients) {
-            if (client.readyState === 1) {
-              client.send(JSON.stringify(messageData));
-            }
-          }
-        } else if (messageData.type === "connection") {
-            console.log("Client connected with message:", messageData.text);
-            // Don't broadcast connection messages - this is the key fix!
-        }
+      } else if (messageData.type === "connection") {
+        console.log("Client connected with message:", messageData.text);
+      }
     });
   });
 });
 
+// --- Static frontend ---
 const frontendPath = "/app/frontend";
-fastify.register(FastifyStatic, { 
+fastify.register(FastifyStatic, {
   root: frontendPath,
-  prefix: "/",
+  prefix: "/"
 });
 
-fastify.get("/", (req, reply) => {
-  reply.sendFile("index.html");
-});
+fastify.get("/", (req, reply) => reply.sendFile("index.html"));
 
 fastify.setNotFoundHandler((req, reply) => {
   if (req.raw.url.startsWith("/api") || req.raw.url.startsWith("/auth")) {
@@ -133,16 +146,16 @@ fastify.setNotFoundHandler((req, reply) => {
   }
 });
 
-fastify.register(statsRoutes, { prefix: "/stats" });
-
+// --- Start server ---
 const start = async () => {
   try {
-    await fastify.listen({ port: 3000, host: '0.0.0.0' });
+    await fastify.listen({ port: 3000, host: "0.0.0.0" });
     const address = fastify.server.address();
-    if (typeof address === 'string') {
-      console.log(`Server running on ${address}`);
+    const protocol = httpsOptions ? "https" : "http";
+    if (typeof address === "string") {
+      console.log(`🚀 Server running at ${protocol}://${address}`);
     } else {
-      console.log(`Server running on http://${address.address}:${address.port}`);
+      console.log(`🚀 Server running at ${protocol}://${address.address}:${address.port}`);
     }
   } catch (err) {
     fastify.log.error(err);
