@@ -1,8 +1,13 @@
 <section>
-  <div class="p-4">
-    <h2 class="text-xl font-bold">Chat</h2>
-    <div id="chat-messages" class="border p-2 h-64 overflow-y-auto bg-gray-100"></div>
-    <input id="chat-input" type="text" class="border p-2 w-full mt-2" placeholder="Type a message..." />
-    <button id="chat-send" class="bg-blue-500 text-white px-4 py-2 mt-2 rounded">Send</button>
+  <div class="grid grid-cols-4 gap-4">
+  <div class="col-span-1 bg-gray-900 p-4 rounded-xl" id="chat-users"></div>
+
+  <div class="col-span-3 flex flex-col bg-gray-900 p-4 rounded-xl">
+    <div id="chat-messages" class="flex-1 overflow-y-auto mb-2"></div>
+    <div class="flex gap-2">
+      <input id="chat-input" type="text" class="flex-1 bg-gray-800 p-2 rounded text-white" placeholder="Type a message..." />
+      <button id="chat-send" class="bg-green-600 px-4 py-2 rounded">Send</button>
+    </div>
   </div>
+</div>
 </section>

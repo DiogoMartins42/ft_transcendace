@@ -1,47 +1,42 @@
-let ws: WebSocket | null = null;
+// logic/ws.ts (frontend)
+import { loadSession } from './session'
 
-export function initWebSocket(onMessage?: (msg: unknown) => void): WebSocket {
-  // Build URL automatically from where the page is served
-  const wsUrl =
-    import.meta.env.VITE_WS_URL ||
-    `ws://${window.location.hostname}:3000/ws`;
+let socket: WebSocket | null = null
 
-  if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
-    ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-      console.log("Connected to WebSocket:", wsUrl);
-    };
-
-    ws.onclose = () => {
-      console.log("Disconnected from server!");
-      ws = null;
-    };
-
-    ws.onerror = (err) => {
-      console.log("WebSocket error!", err);
-      ws = null;
-    };
+export function initWebSocket(onMessage?: (msg: unknown) => void) {
+  const session = loadSession()
+  if (!session || !session.token) {
+    console.warn("⚠️ No session token, skipping WebSocket connection.")
+    return
   }
 
-  ws.onmessage = (event: MessageEvent) => {
-    if (onMessage) {
-      try {
-        onMessage(JSON.parse(event.data));
-      } catch {
-        console.warn("Received non-JSON message:", event.data);
-      }
-    }
-  };
+  const url = `ws://${window.location.hostname}:3000/ws?token=${session.token}`
+  socket = new WebSocket(url)
 
-  return ws;
+  socket.addEventListener("open", () => {
+    console.log("✅ WebSocket connected")
+  })
+
+  socket.addEventListener("close", () => {
+    console.log("❌ WebSocket disconnected")
+    socket = null
+  })
+
+  socket.addEventListener("message", (event) => {
+    try {
+      const data = JSON.parse(event.data)
+      if (onMessage) onMessage(data)
+    } catch {
+      console.log("📩 WS:", event.data)
+      if (onMessage) onMessage(event.data)
+    }
+  })
 }
 
-
-export function sendMessage(message: unknown): void {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(message));
-    } else {
-        console.warn("WebSocket not connected!");
-    }
+export function sendMessage(payload: object) {
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify(payload))
+  } else {
+    console.warn("⚠️ WebSocket not connected. Cannot send message.")
+  }
 }

@@ -52,7 +52,30 @@ db.prepare(`
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
+  );
+
+  CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sender_id INTEGER NOT NULL,
+    receiver_id INTEGER NOT NULL,
+    content TEXT,
+    type TEXT DEFAULT 'text',
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS blocked_users (
+    user_id INTEGER NOT NULL,
+    blocked_user_id INTEGER NOT NULL,
+    PRIMARY KEY (user_id, blocked_user_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    type TEXT,
+    message TEXT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `).run();
 
 db.prepare(`

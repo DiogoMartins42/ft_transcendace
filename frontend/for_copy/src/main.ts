@@ -1,3 +1,4 @@
+// main.ts
 import './style.css'
 import homeHtml from './pages/home.html?raw'
 import navbarHtml from './components/navbar.html?raw'
@@ -16,11 +17,9 @@ import { setupSidebarEvents } from './logic/sidebar'
 import { initWebSocket } from './logic/ws'
 import { verifyStoredSession } from './logic/session'
 import { setupChat } from './logic/chat'
-
 import { setPong } from './logic/pong'
 import { setupControlPanel } from './logic/controlPanel'
-
-import { setupStatsPage } from './logic/stats';
+import { setupStatsPage } from './logic/stats'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -81,7 +80,7 @@ export function saveSession(token: string, user: { username: string; avatarUrl?:
   localStorage.setItem("userSession", JSON.stringify({ token, ...user }));
 }
 
-export function loadUserSession() {
+export function loadUserSession(): StoredUser | null {
   const data = localStorage.getItem("userSession");
   return data ? JSON.parse(data) : null;
 }
@@ -105,51 +104,38 @@ async function renderPage(pageHtml: string) {
   setupUserSection()
   setupSidebarEvents()
 
-  // --- SAFE websocket message handling (this is the changed part) ---
-  initWebSocket((msg: unknown) => {
-    const chatMessages = document.getElementById('chat-messages')
-    if (!chatMessages) return
+  // ✅ Initialize WebSocket with token and message handler
+  const session = loadUserSession()
+  const token = session?.token
 
-    const div = document.createElement('div')
+  initWebSocket((msg: any) => {
+  const chatMessages = document.getElementById('chat-messages')
+  if (!chatMessages) return
 
-    // helper to convert unknown msg into a display string
-    const msgToText = (m: unknown): string => {
-      if (m === null || m === undefined) return ''
+  const div = document.createElement('div')
 
-      // string payload (maybe JSON string)
-      if (typeof m === 'string') {
-        // try to parse JSON string. If it fails, show the raw string.
-        try {
-          const parsed = JSON.parse(m) as any
-          if (parsed && typeof parsed === 'object') {
-            return String(parsed.chat ?? parsed.message ?? JSON.stringify(parsed))
-          }
-          return String(parsed)
-        } catch {
-          return m
-        }
-      }
+  if (msg.type === 'message') {
+    div.textContent = `💬 ${msg.from}: ${msg.content}`
+  } else if (msg.type === 'invite_game') {
+    div.textContent = `🎮 Game invite from ${msg.from}`
+  } else if (msg.type === 'tournament_notify') {
+    div.textContent = `🏆 Tournament: ${msg.message}`
+  } else if (msg.type === 'profile') {
+    div.textContent = `👤 Profile: ${JSON.stringify(msg.profile)}`
+  } else if (msg.type === 'info') {
+    div.textContent = `ℹ️ ${msg.message}`
+  } else {
+    div.textContent = `⚙️ ${JSON.stringify(msg)}`
+  }
 
-      // object payload
-      if (typeof m === 'object') {
-        const o = m as Record<string, any>
-        return String(o.chat ?? o.message ?? JSON.stringify(o))
-      }
+  chatMessages.appendChild(div)
+  chatMessages.scrollTop = chatMessages.scrollHeight
+})
 
-      // number/boolean/other
-      return String(m)
-    }
-
-    div.textContent = msgToText(msg)
-    chatMessages.appendChild(div)
-    chatMessages.scrollTop = chatMessages.scrollHeight
-  })
 
   setupChat()
-
   setPong()
   setupControlPanel()
-
   setupStatsPage()
 }
 
@@ -179,7 +165,8 @@ async function handleRoute() {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-  await verifyStoredSession()  // ✅ restores session state first
-  await handleRoute()          // ✅ then render the page (setupUserSection will use the restored state)
+  await verifyStoredSession()
+  await handleRoute()
 })
+
 window.addEventListener('hashchange', handleRoute)
