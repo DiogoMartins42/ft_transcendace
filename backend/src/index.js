@@ -42,6 +42,13 @@ const fastify = Fastify({
   https: httpsOptions
 });
 
+import fastifyCors from '@fastify/cors';
+fastify.register(fastifyCors, {
+  origin: ['https://pongpong.duckdns.org'],
+  credentials: true,
+});
+
+
 // --- SQLite setup ---
 const db = new Database(env.dbFile);
 
@@ -52,8 +59,10 @@ db.prepare(`
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
+  )
+`).run();
 
+db.prepare(`
   CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     sender_id INTEGER NOT NULL,
@@ -61,22 +70,46 @@ db.prepare(`
     content TEXT,
     type TEXT DEFAULT 'text',
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
+  )
+`).run();
 
+db.prepare(`
   CREATE TABLE IF NOT EXISTS blocked_users (
     user_id INTEGER NOT NULL,
     blocked_user_id INTEGER NOT NULL,
     PRIMARY KEY (user_id, blocked_user_id)
-  );
+  )
+`).run();
 
+db.prepare(`
   CREATE TABLE IF NOT EXISTS notifications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     type TEXT,
     message TEXT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
+  )
 `).run();
+
+db.prepare(`
+  INSERT OR IGNORE INTO users (username, email, password)
+  VALUES 
+    ('bot', 'bot@gmail.com', 'kdakwunda#^!@#HDJDOAPDKAW_D)AW*DANWDKAD><WAODWAD?DAIDAWdwad'),
+    ('guest_multiplayer', 'guest_multiplayer@gmail.com', 'iuhduiawHd7&!(1u831dhwuhd*@!&!@(dwadawd')
+`).run();
+
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS match_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_winner INTEGER NOT NULL,
+    id_loser INTEGER NOT NULL,
+    winner_points INTEGER DEFAULT 0,
+    loser_points INTEGER DEFAULT 0,
+    FOREIGN KEY (id_winner) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (id_loser) REFERENCES users(id) ON DELETE CASCADE
+  )
+`).run();
+
 
 db.prepare(`
   INSERT OR IGNORE INTO users (username, email, password)
@@ -116,40 +149,160 @@ fastify.register(authRoutes, { prefix: "/auth" });
 fastify.register(lobbyRoutes, { prefix: "/lobby" });
 fastify.register(statsRoutes, { prefix: "/stats" });
 
-// --- WebSocket setup ---
-fastify.register(fastifyWebsocket);
+await fastify.register(fastifyWebsocket, {
+  options: {
+    maxPayload: 1048576,
+    verifyClient: function (info, next) {
+      console.log("🔍 WS Upgrade attempt:", {
+        origin: info.origin,
+        secure: info.secure,
+        url: info.req.url
+      });
+      next(true);
+    }
+  }
+});
+
 const clients = new Set();
 
-fastify.register(async function (fastify) {
-  fastify.get("/ws", { websocket: true }, (connection, req) => {
-    console.log("Client connected!");
+// WebSocket route
+// --- WebSocket route ---
+fastify.get("/ws", { websocket: true }, (connection, req) => {
+  const socket = connection.socket; // ✅ Correct
+  if (!socket) {
+    console.error("❌ No socket in connection!");
+    return;
+  }
 
-    const socket = connection.socket || connection;
-    clients.add(socket);
-    socket.username = null;
+  let username = "Anonymous";
+  let userId = null;
 
-    socket.on("message", (message) => {
-      let messageData;
-      try {
-        messageData = JSON.parse(message.toString());
-      } catch {
-        messageData = { type: "chat", text: message.toString() };
+  console.log("🔌 New WebSocket connection attempt");
+  console.log("   URL:", req.url);
+  console.log("   Headers:", req.headers);
+
+  try {
+    // Parse the token
+    const url = new URL(req.url, `https://${req.headers.host || "localhost"}`);
+    const token = url.searchParams.get("token");
+
+    if (token) {
+      console.log("🔍 Token found:", token.substring(0, 20) + "...");
+      const decoded = fastify.jwt.verify(token);
+      userId = decoded.userId;
+
+      const user = fastify.db.prepare(`SELECT username FROM users WHERE id = ?`).get(userId);
+      if (user) {
+        username = user.username;
+        console.log(`✅ Authenticated: ${username} (ID: ${userId})`);
+      } else {
+        console.warn(`⚠️ User ID ${userId} not found in DB`);
       }
+    } else {
+      console.warn("⚠️ No token provided");
+    }
+  } catch (err) {
+    console.error("❌ Auth error:", err.message);
+  }
 
-      if (!socket.username) {
-        socket.username = messageData.username || "Anonymous" + Math.floor(1000 + Math.random() * 9000);
-      }
+  console.log(`✅ WebSocket connected: ${username}`);
 
-      if (messageData.type === "chat") {
-        messageData.username = socket.username;
-        for (const client of clients) {
-          if (client.readyState === 1) client.send(JSON.stringify(messageData));
+  const client = { socket, username, userId };
+  clients.add(client);
+
+  // ✅ Welcome message
+  try {
+    socket.send(
+      JSON.stringify({
+        type: "system",
+        text: `Connected as ${username}`,
+        timestamp: new Date().toISOString(),
+      })
+    );
+  } catch (err) {
+    console.error("❌ Failed to send welcome:", err.message);
+  }
+
+  // ✅ Message handler
+  socket.on("message", (rawMessage) => {
+    console.log(`📨 Message from ${username}:`, rawMessage.toString());
+
+    let data;
+    try {
+      data = JSON.parse(rawMessage.toString());
+    } catch {
+      console.warn("⚠️ Invalid JSON:", rawMessage.toString());
+      return;
+    }
+
+    const timestamp = new Date().toISOString();
+
+    if (data.type === "direct" && data.to) {
+      console.log(`💬 Direct message: ${username} -> ${data.to}`);
+
+      for (const c of clients) {
+        if (c.socket.readyState !== 1) continue;
+
+        if (c.username === data.to || c.username === username) {
+          try {
+            c.socket.send(
+              JSON.stringify({
+                from: username,
+                to: data.to,
+                text: data.text,
+                type: "direct",
+                timestamp,
+              })
+            );
+          } catch (err) {
+            console.error(`❌ Failed to send to ${c.username}:`, err.message);
+          }
         }
-      } else if (messageData.type === "connection") {
-        console.log("Client connected with message:", messageData.text);
       }
-    });
+    } else if (["system", "invite", "chat"].includes(data.type)) {
+      console.log(`📢 Broadcast from ${username}:`, data.text);
+
+      for (const c of clients) {
+        if (c.socket.readyState !== 1) continue;
+
+        try {
+          c.socket.send(
+            JSON.stringify({
+              from: username,
+              text: data.text,
+              type: data.type,
+              timestamp,
+            })
+          );
+        } catch (err) {
+          console.error(`❌ Failed to broadcast to ${c.username}:`, err.message);
+        }
+      }
+    }
   });
+
+  socket.on("close", () => {
+    console.log(`❌ Disconnected: ${username}`);
+    clients.delete(client);
+  });
+
+  socket.on("error", (err) => {
+    console.error(`❌ WS Error for ${username}:`, err.message);
+  });
+});
+
+
+// Diagnostic endpoint
+fastify.get("/ws-test", async (request, reply) => {
+  return {
+    websocketEnabled: !!fastify.websocketServer,
+    activeConnections: clients.size,
+    clients: Array.from(clients).map(c => ({
+      username: c.username,
+      userId: c.userId,
+      readyState: c.ws.readyState
+    }))
+  };
 });
 
 // --- Static frontend ---
@@ -169,20 +322,60 @@ fastify.setNotFoundHandler((req, reply) => {
   }
 });
 
+fastify.get("/api/users", { preHandler: [fastify.authenticate] }, async (req, reply) => {
+  const users = fastify.db.prepare(`
+    SELECT id, username, email FROM users
+    ORDER BY username ASC
+  `).all();
+  reply.send(users);
+});
+
 // --- Start server ---
 const start = async () => {
   try {
-    await fastify.listen({ port: 3000, host: "0.0.0.0" });
+    // Listen on all interfaces
+    await fastify.listen({ 
+      port: 3000, 
+      host: "0.0.0.0" 
+    });
+    
     const address = fastify.server.address();
     const protocol = httpsOptions ? "https" : "http";
+    
+    console.log("\n" + "=".repeat(60));
+    console.log("🚀 SERVER STARTED SUCCESSFULLY");
+    console.log("=".repeat(60));
+    
     if (typeof address === "string") {
-      console.log(`🚀 Server running at ${protocol}://${address}`);
-    } else {
-      console.log(`🚀 Server running at ${protocol}://${address.address}:${address.port}`);
+      console.log(`📍 Listening on: ${protocol}://${address}`);
+    } else if (address) {
+      console.log(`📍 Listening on: ${protocol}://${address.address}:${address.port}`);
+      console.log(`🌐 External URL: ${protocol}://pongpong.duckdns.org:${address.port}`);
     }
+    
+    console.log(`🔒 HTTPS: ${httpsOptions ? "Enabled ✅" : "Disabled ❌"}`);
+    console.log(`🔌 WebSocket: ${fastify.websocketServer ? "Enabled ✅" : "Disabled ❌"}`);
+    
+    if (fastify.websocketServer) {
+      console.log(`📡 WebSocket URL: wss://pongpong.duckdns.org:3000/ws`);
+    } else {
+      console.log(`⚠️  WARNING: WebSocket server not initialized!`);
+    }
+    
+    console.log("=".repeat(60) + "\n");
+    
+    // Test database
+    const userCount = fastify.db.prepare('SELECT COUNT(*) as count FROM users').get();
+    console.log(`👥 Users in database: ${userCount.count}`);
+    
   } catch (err) {
-    fastify.log.error(err);
+    console.error("\n" + "=".repeat(60));
+    console.error("❌ SERVER STARTUP FAILED");
+    console.error("=".repeat(60));
+    console.error(err);
+    console.error("=".repeat(60) + "\n");
     process.exit(1);
   }
 };
+
 start();

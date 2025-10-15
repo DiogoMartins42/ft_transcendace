@@ -20,10 +20,12 @@ let blockedUsers: Set<string> = new Set()
 
 export function setupChat() {
   const session = loadSession()
-  if (!session) {
+  const username = session.user?.username || session.username;
+  if (!username) {
     console.warn('⚠️ No user session found, chat disabled.')
-    return
+    return;
   }
+
 
   const chatInput = document.getElementById('chat-input') as HTMLInputElement | null
   const sendBtn = document.getElementById('chat-send') as HTMLButtonElement | null
@@ -35,15 +37,17 @@ export function setupChat() {
     return
   }
 
-  // --- Load and show active users (example fetch, backend should provide this endpoint) ---
-  fetch('/api/users')
+  // --- Load active users ---
+  fetch('/api/users', {
+    headers: { Authorization: `Bearer ${session.token}` },
+  })
     .then(res => res.json())
     .then((users: User[]) => {
       if (!usersDiv) return
       usersDiv.innerHTML = ''
 
       users.forEach(u => {
-        if (u.username === session.username) return
+        if (u.username === username) return
 
         const userEl = document.createElement('div')
         userEl.className =
@@ -84,13 +88,12 @@ export function setupChat() {
         inviteBtn.textContent = '🏓'
         inviteBtn.title = 'Invite to Pong'
         inviteBtn.onclick = () => {
-          if (currentRecipient)
-            sendMessage({
-              type: 'invite',
-              to: u.username,
-              from: session.username,
-              text: `${session.username} invited you to a Pong match!`,
-            })
+          sendMessage({
+            type: 'invite',
+            to: u.username,
+            from: username,
+            text: `${username} invited you to a Pong match!`,
+          })
         }
 
         const profileBtn = document.createElement('button')
@@ -117,68 +120,86 @@ export function setupChat() {
     if (!text) return
 
     const msg: ChatMessage = {
-      from: session.username,
+      from: username,
       to: currentRecipient,
       text,
       type: 'direct',
       timestamp: new Date().toISOString(),
     }
 
+    // Send & render locally
     sendMessage(msg)
     addChatMessage(msg)
     chatInput.value = ''
   })
 }
 
-// --- Message rendering helpers ---
-export function addChatMessage(msg: ChatMessage) {
+// --- Render chat messages ---
+export function addChatMessage(msg: { from: string; text: string; timestamp: string }) {
   const messagesDiv = document.getElementById('chat-messages')
   if (!messagesDiv) return
 
-  if (msg.type === 'direct' && msg.to && blockedUsers.has(msg.from)) return
-
   const div = document.createElement('div')
-  div.className = 'text-sm text-gray-200 mb-1'
+  const date = new Date(msg.timestamp).toLocaleString('en-GB')
 
-  const isOutgoing = msg.from === loadSession()?.username
+  const username = msg.from || 'Anonymous'
+  div.textContent = `${username}: ${msg.text} (${date})`
+
+  const isOutgoing = username === loadSession()?.username
   div.classList.add(isOutgoing ? 'text-green-400' : 'text-blue-400')
+  div.classList.add('text-sm', 'mb-1')
 
-  let prefix = ''
-  if (msg.type === 'invite') prefix = '🏓 '
-  if (msg.type === 'tournament') prefix = '🏆 '
-  if (msg.type === 'system') prefix = '⚙️ '
-
-  div.textContent = `${prefix}${msg.from}: ${msg.text}`
   messagesDiv.appendChild(div)
   messagesDiv.scrollTop = messagesDiv.scrollHeight
 }
 
+// --- System messages ---
 export function addSystemMessage(text: string) {
-  addChatMessage({
-    from: 'System',
-    text,
-    type: 'system',
-    timestamp: new Date().toISOString(),
+  const messagesDiv = document.getElementById('chat-messages')
+  if (!messagesDiv) return
+
+  const time = new Date().toLocaleString('en-GB', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
   })
+
+  const div = document.createElement('div')
+  div.className = 'text-gray-400 italic mb-1'
+  div.textContent = `⚙️ ${text} (${time})`
+
+  messagesDiv.appendChild(div)
+  messagesDiv.scrollTop = messagesDiv.scrollHeight
 }
 
-// --- Handle special notifications from WebSocket ---
+// --- Handle incoming WebSocket messages ---
 export function handleIncomingMessage(data: any) {
-  if (typeof data !== 'object') return
+  if (!data || typeof data !== 'object') return
 
   const msgType = data.type || 'direct'
 
-  if (msgType === 'tournament') {
-    addSystemMessage(`🏆 Tournament update: ${data.text}`)
-  } else if (msgType === 'invite') {
-    addSystemMessage(`🏓 ${data.from} invited you to a Pong game!`)
-  } else if (msgType === 'direct') {
-    addChatMessage({
-      from: data.from,
-      to: data.to,
-      text: data.text,
-      type: 'direct',
-      timestamp: new Date().toISOString(),
-    })
+  switch (msgType) {
+    case 'direct':
+      addChatMessage({
+        from: data.from || 'Anonymous',
+        text: data.text || '',
+        timestamp: data.timestamp || new Date().toISOString(),
+      })
+      break
+
+    case 'system':
+      addSystemMessage(data.text)
+      break
+
+    case 'invite':
+      addSystemMessage(`🏓 ${data.from} invited you to a Pong game!`)
+      break
+
+    case 'tournament':
+      addSystemMessage(`🏆 Tournament update: ${data.text}`)
+      break
   }
 }
