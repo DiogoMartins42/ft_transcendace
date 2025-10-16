@@ -2,6 +2,7 @@ import navLoggedoutHtml from '../components/navLoggedout.html?raw'
 import navLoggedinHtml from '../components/navLoggedin.html?raw'
 import { setupLoginForm } from './login_handler'
 import { setupSignupForm } from './signup_handler'
+//import { setupSettingsButton } from "./UpdateUserInformation";
 import { sharedState } from '../main'
 
 export async function setupUserSection() {
@@ -47,24 +48,32 @@ export async function setupUserSection() {
       const settingsClose = document.getElementById("settings-close") as HTMLButtonElement | null;
 
       if (settingsBtn && settingsModal) {
-        // open modal on click (same-page behaviour like your login)
         settingsBtn.addEventListener("click", (ev) => {
-          ev.stopPropagation(); // prevent accidental closing from other listeners
+          ev.stopPropagation();
           settingsModal.classList.remove("hidden");
+          settingsModal.classList.add("opacity-100", "pointer-events-auto");
         });
-
-        // close via button
+      
         if (settingsClose) {
           settingsClose.addEventListener("click", () => {
             settingsModal.classList.add("hidden");
+            settingsModal.classList.remove("opacity-100", "pointer-events-auto");
           });
         }
-
-        // close if clicking outside the inner modal box
+      
+        // close when clicking outside modal
         settingsModal.addEventListener("click", (e) => {
-          if (e.target === settingsModal) settingsModal.classList.add("hidden");
+          if (e.target === settingsModal) {
+            settingsModal.classList.add("hidden");
+            settingsModal.classList.remove("opacity-100", "pointer-events-auto");
+          }
         });
       }
+
+
+      /* document.addEventListener("DOMContentLoaded", () => {
+        setupSettingsButton();
+      }); */
 
     } else {
       userSection!.innerHTML = navLoggedoutHtml
