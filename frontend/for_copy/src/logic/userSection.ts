@@ -41,6 +41,31 @@ export async function setupUserSection() {
         })
       }
 
+      // setup settings / Change user info
+      const settingsBtn = document.getElementById("settings-btn") as HTMLButtonElement | null;
+      const settingsModal = document.getElementById("settings-modal") as HTMLElement | null;
+      const settingsClose = document.getElementById("settings-close") as HTMLButtonElement | null;
+
+      if (settingsBtn && settingsModal) {
+        // open modal on click (same-page behaviour like your login)
+        settingsBtn.addEventListener("click", (ev) => {
+          ev.stopPropagation(); // prevent accidental closing from other listeners
+          settingsModal.classList.remove("hidden");
+        });
+
+        // close via button
+        if (settingsClose) {
+          settingsClose.addEventListener("click", () => {
+            settingsModal.classList.add("hidden");
+          });
+        }
+
+        // close if clicking outside the inner modal box
+        settingsModal.addEventListener("click", (e) => {
+          if (e.target === settingsModal) settingsModal.classList.add("hidden");
+        });
+      }
+
     } else {
       userSection!.innerHTML = navLoggedoutHtml
       setupLoginForm()

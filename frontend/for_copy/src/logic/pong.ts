@@ -9,7 +9,7 @@ const GameState = { START: "start", PLAYING: "playing", PAUSED: "paused", GAME_O
 type GameStateType = typeof GameState[keyof typeof GameState];
 let gameState: GameStateType = GameState.START;
 
-let animationFrameId: number | null = null; // -a
+let animationFrameId: number | null = null;
 
 // ---- Types ----
 interface Player {
@@ -105,7 +105,7 @@ function hideOverlay()
 // ---- Main entry ----
 export function setPong()
 {
-	stopGameLoop(); // <-- stop any previous gameLoop -a
+	stopGameLoop(); // <-- stop any previous gameLoop
 
 	const { canvas, context } = getCanvasAndContext();
 	if (!canvas || !context) return;
@@ -222,9 +222,9 @@ export function setPong()
 		//disable mouse
 		if (!gameSettings.mouse || gameSettings.multiplayer) canvas!.removeEventListener("mousemove", movePaddleListener);
 		game();
-		animationFrameId = requestAnimationFrame(gameLoop); //-a
+		animationFrameId = requestAnimationFrame(gameLoop);
 	}
-	animationFrameId = requestAnimationFrame(gameLoop); //-a
+	animationFrameId = requestAnimationFrame(gameLoop);
 }
 
 // ---- Helpers ----
@@ -425,7 +425,6 @@ function update(cvs: HTMLCanvasElement, player1: Player, player2: Player, ball: 
 	}
 }
 
-// -a
 function stopGameLoop() {
     if (animationFrameId !== null) {
         cancelAnimationFrame(animationFrameId);

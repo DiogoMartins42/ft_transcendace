@@ -1,3 +1,13 @@
+import { loadSession } from "./session";
+
+function getLoggedInUsername(){
+  //First, try to get username from stored session
+  const session = loadSession();
+  if (session?.user?.username){
+    return session?.user.username;
+  }
+}
+
 export function setupStatsPage() {
     const statsContainer = document.getElementById('stats-container');
 	if (!statsContainer) return; // not on stats page → do nothing
@@ -88,7 +98,8 @@ export function setupStatsPage() {
 
 // Save match if the user is logged in
 export async function save_match(p1_score: number, p2_score: number, multiplayer: boolean) {
-  // TO-DO: replace with actual logged-in players once you have auth
+  const username = getLoggedInUsername();
+
   var winner : string;
   var loser : string;
   var winner_points : number;
@@ -101,7 +112,8 @@ export async function save_match(p1_score: number, p2_score: number, multiplayer
     winner_points = p1_score;
     loser_points = p2_score;
   
-    winner = "nome";
+    //winner = "nome";
+    winner = username;
     if(multiplayer) {loser = "guest_multiplayer";}
     else {loser = "bot";}
   }
@@ -110,7 +122,8 @@ export async function save_match(p1_score: number, p2_score: number, multiplayer
     winner_points = p2_score;
     loser_points = p1_score;
   
-    loser = "nome";
+    //loser = "nome";
+    loser = username;
     if(multiplayer) {winner = "guest_multiplayer";}
     else {winner = "bot";}
   }
