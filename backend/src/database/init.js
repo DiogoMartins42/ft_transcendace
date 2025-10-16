@@ -53,6 +53,16 @@ export async function updateUserInfo(username, updates) {
     const values = [];
 
     if (updates.email) {
+      const emailExists = db.prepare("SELECT 1 FROM users WHERE email = ?").get(updates.email);
+      if (emailExists) throw new Error("Email already in use");
+    }
+    
+    if (updates.newUsername) {
+      const userExists = db.prepare("SELECT 1 FROM users WHERE username = ?").get(updates.newUsername);
+      if (userExists) throw new Error("Username already in use");
+    }
+
+    if (updates.email) {
       fields.push("email = ?");
       values.push(updates.email);
     }

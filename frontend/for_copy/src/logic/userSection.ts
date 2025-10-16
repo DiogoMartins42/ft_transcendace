@@ -2,7 +2,7 @@ import navLoggedoutHtml from '../components/navLoggedout.html?raw'
 import navLoggedinHtml from '../components/navLoggedin.html?raw'
 import { setupLoginForm } from './login_handler'
 import { setupSignupForm } from './signup_handler'
-//import { setupSettingsButton } from "./UpdateUserInformation";
+import { setupUserSettings } from "./UpdateUserInformation";
 import { sharedState } from '../main'
 
 export async function setupUserSection() {
@@ -53,14 +53,12 @@ export async function setupUserSection() {
           settingsModal.classList.remove("hidden");
           settingsModal.classList.add("opacity-100", "pointer-events-auto");
         });
-      
         if (settingsClose) {
           settingsClose.addEventListener("click", () => {
             settingsModal.classList.add("hidden");
             settingsModal.classList.remove("opacity-100", "pointer-events-auto");
           });
         }
-      
         // close when clicking outside modal
         settingsModal.addEventListener("click", (e) => {
           if (e.target === settingsModal) {
@@ -69,11 +67,8 @@ export async function setupUserSection() {
           }
         });
       }
-
-
-      /* document.addEventListener("DOMContentLoaded", () => {
-        setupSettingsButton();
-      }); */
+      // Update the information from the logged in user
+      setupUserSettings(settingsModal)
 
     } else {
       userSection!.innerHTML = navLoggedoutHtml
