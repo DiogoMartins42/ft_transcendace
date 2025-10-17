@@ -12,14 +12,16 @@ import signupModalHtml from './components/signup-modal.html?raw'
 import sidebarHtml from './components/sidebar.html?raw'
 import controlPanelHtml from './components/controlPanel-modal.html?raw'
 
+
 import { setupUserSection } from './logic/userSection'
 import { setupSidebarEvents } from './logic/sidebar'
 import { initWebSocket } from './logic/ws'
 import { verifyStoredSession } from './logic/session'
-import { setupChat } from './logic/chat'
+import { setupChat, handleIncomingMessage } from './logic/chat'
 import { setPong } from './logic/pong'
 import { setupControlPanel } from './logic/controlPanel'
 import { setupStatsPage } from './logic/stats'
+
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -103,36 +105,6 @@ async function renderPage(pageHtml: string) {
 
   setupUserSection()
   setupSidebarEvents()
-
-  // ✅ Initialize WebSocket with token and message handler
-  const session = loadUserSession()
-  const token = session?.token
-
-  initWebSocket((msg: any) => {
-  const chatMessages = document.getElementById('chat-messages')
-  if (!chatMessages) return
-
-  const div = document.createElement('div')
-
-  if (msg.type === 'message') {
-    div.textContent = `💬 ${msg.from}: ${msg.content}`
-  } else if (msg.type === 'invite_game') {
-    div.textContent = `🎮 Game invite from ${msg.from}`
-  } else if (msg.type === 'tournament_notify') {
-    div.textContent = `🏆 Tournament: ${msg.message}`
-  } else if (msg.type === 'profile') {
-    div.textContent = `👤 Profile: ${JSON.stringify(msg.profile)}`
-  } else if (msg.type === 'info') {
-    div.textContent = `ℹ️ ${msg.message}`
-  } else {
-    div.textContent = `⚙️ ${JSON.stringify(msg)}`
-  }
-
-  chatMessages.appendChild(div)
-  chatMessages.scrollTop = chatMessages.scrollHeight
-})
-
-
   setupChat()
   setPong()
   setupControlPanel()
@@ -164,8 +136,28 @@ async function handleRoute() {
   sidebarState.sidebarOpen = false
 }
 
+window.addEventListener('error', (event) => {
+  console.error('🛑 Global error caught:', event.error);
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('🛑 Unhandled promise rejection:', event.reason);
+});
+
 window.addEventListener('DOMContentLoaded', async () => {
+  console.log('🚀 App initializing...')
+  
+  // 1. Verify session first
   await verifyStoredSession()
+  
+  // 2. Initialize WebSocket with the chat message handler
+  console.log('🔌 Initializing WebSocket...')
+  initWebSocket((msg: any) => {
+    console.log('📥 WebSocket message received in main:', msg)
+    handleIncomingMessage(msg)
+  })
+  
+  // 3. Render initial page
   await handleRoute()
 })
 

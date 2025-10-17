@@ -1,99 +1,161 @@
-// logic/ws.ts - Try connecting without explicit port
-import { loadSession } from './session'
+// logic/ws.ts - Fixed WebSocket connection with robust error handling
+import { getToken, getUsername } from './session'
+
+declare global {
+  interface Window {
+    anonymousId?: string
+  }
+}
 
 let socket: WebSocket | null = null
+let outgoingQueue: string[] = []
+let reconnectAttempts = 0
+const MAX_RECONNECT_ATTEMPTS = 5
+let isConnecting = false
 
 export function initWebSocket(onMessage?: (msg: unknown) => void) {
-  const session = loadSession()
-  if (!session || !session.token) {
-    console.warn("⚠️ No session or token found")
+  if (isConnecting) {
+    console.log('🔄 WebSocket connection already in progress...')
     return
   }
 
-  // Try multiple connection strategies
-  const strategies = [
-    // Strategy 1: Use same protocol and host (recommended)
-    () => {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      return `${protocol}//${window.location.host}/ws?token=${session.token}`
-    },
-    // Strategy 2: Direct to port 3000 (fallback)
-    () => {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      return `${protocol}//${window.location.hostname}:3000/ws?token=${session.token}`
-    },
-    // Strategy 3: ws:// instead of wss:// (if HTTPS is causing issues)
-    () => {
-      return `ws://${window.location.hostname}:3000/ws?token=${session.token}`
-    }
-  ]
-
-  let strategyIndex = 0
-
-  function tryConnect() {
-    if (strategyIndex >= strategies.length) {
-      console.error("❌ All WebSocket connection strategies failed")
-      return
-    }
-
-    const url = strategies[strategyIndex]()
-    console.log(`🔌 Connecting to (strategy ${strategyIndex + 1}):`, url)
-    
-    socket = new WebSocket(url)
-    let connected = false
-
-    socket.addEventListener("open", () => {
-      connected = true
-      console.log("✅ WebSocket connected successfully!")
-      // Send username to server
-      socket?.send(JSON.stringify({ 
-        type: "setUsername", 
-        username: session.user?.username || session.username 
-      }))
-    })
-
-    socket.addEventListener("error", (error) => {
-      console.error(`❌ WebSocket error (strategy ${strategyIndex + 1}):`, error)
-    })
-
-    socket.addEventListener("close", (event) => {
-      if (!connected && strategyIndex < strategies.length - 1) {
-        console.log(`⚠️ Strategy ${strategyIndex + 1} failed, trying next...`)
-        strategyIndex++
-        setTimeout(tryConnect, 1000)
-      } else {
-        console.log("❌ WebSocket disconnected", event.code, event.reason)
-        socket = null
-      }
-    })
-
-    socket.addEventListener("message", (event) => {
-      try {
-        const data = JSON.parse(event.data)
-        console.log("📨 Received:", data)
-        if (onMessage) onMessage(data)
-      } catch {
-        console.log("📩 WS:", event.data)
-        if (onMessage) onMessage(event.data)
-      }
-    })
+  // Safely get token and username with fallbacks
+  let token: string | null = null;
+  let username: string = 'Anonymous';
+  
+  try {
+    token = getToken();
+    username = getUsername();
+  } catch (error) {
+    console.error('❌ Error getting session info:', error);
+    // Use fallback values
+    username = 'Anonymous' + Math.floor(1000 + Math.random() * 9000);
   }
 
-  tryConnect()
+  // Use same protocol as current page
+  const isSecure = window.location.protocol === 'https:'
+  const wsProtocol = isSecure ? 'wss:' : 'ws:'
+  
+  // Build WebSocket URL
+  const wsBase = `${wsProtocol}//${window.location.host}/ws`
+  const wsUrl = token ? `${wsBase}?token=${encodeURIComponent(token)}` : wsBase
+
+  console.log(`🔌 Connecting to WebSocket:`, wsUrl)
+  console.log(`   Username: ${username}, Token: ${token ? 'Yes' : 'No'}`)
+
+  isConnecting = true
+
+  try {
+    socket = new WebSocket(wsUrl)
+  } catch (err) {
+    console.error(`❌ Failed to create WebSocket:`, err)
+    isConnecting = false
+    return
+  }
+
+  socket.addEventListener("open", () => {
+    console.log("✅ WebSocket connected successfully")
+    isConnecting = false
+    reconnectAttempts = 0
+
+    // Inform server of username
+    try {
+      const usernameMsg = { type: "setUsername", username }
+      socket?.send(JSON.stringify(usernameMsg))
+      console.log("📤 Sent setUsername:", username)
+    } catch (err) {
+      console.warn("⚠️ Failed to send setUsername:", err)
+    }
+
+    // Flush queued messages
+    flushQueuedMessages()
+  })
+
+  socket.addEventListener("error", (error) => {
+    console.error(`❌ WebSocket error:`, error)
+    isConnecting = false
+  })
+
+  socket.addEventListener("close", (event) => {
+    console.log(`❌ WebSocket disconnected:`, {
+      code: event.code,
+      reason: event.reason,
+      wasClean: event.wasClean
+    })
+    isConnecting = false
+    socket = null
+
+    // Reconnect logic for unexpected closures
+    if (event.code !== 1000 && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000)
+      reconnectAttempts++
+      console.log(`🔄 Reconnecting in ${delay}ms... (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`)
+      setTimeout(() => initWebSocket(onMessage), delay)
+    }
+  })
+
+  socket.addEventListener("message", (event) => {
+    try {
+      const data = JSON.parse(event.data)
+      console.log("📨 Received WebSocket message:", data)
+      if (onMessage) onMessage(data)
+    } catch {
+      console.log("📩 WS (raw):", event.data)
+      if (onMessage) onMessage(event.data)
+    }
+  })
+}
+
+function flushQueuedMessages() {
+  if (!socket || socket.readyState !== WebSocket.OPEN) return
+
+  while (outgoingQueue.length > 0) {
+    const msg = outgoingQueue.shift()!
+    try {
+      console.log("📤 Flushing queued message:", JSON.parse(msg))
+      socket.send(msg)
+    } catch (err) {
+      console.error("❌ Failed to send queued message:", err)
+      // Re-queue failed message
+      outgoingQueue.unshift(msg)
+      break
+    }
+  }
 }
 
 export function sendMessage(payload: object) {
+  const str = JSON.stringify(payload)
+
   if (socket && socket.readyState === WebSocket.OPEN) {
-    console.log("📤 Sending:", payload)
-    socket.send(JSON.stringify(payload))
+    console.log("📤 Sending message:", payload)
+    try {
+      socket.send(str)
+    } catch (err) {
+      console.error("❌ Failed to send message:", err)
+      outgoingQueue.push(str)
+    }
   } else {
-    console.warn("⚠️ WebSocket not connected. Cannot send message.", {
-      socket: !!socket,
+    console.warn("⚠️ WebSocket not connected. Queueing message.", { 
       readyState: socket?.readyState,
-      CONNECTING: WebSocket.CONNECTING,
-      OPEN: WebSocket.OPEN,
-      CLOSING: WebSocket.CLOSING,
-      CLOSED: WebSocket.CLOSED
+      isConnecting 
     })
+    outgoingQueue.push(str)
+    
+    // Try to reconnect if not already connecting
+    if (!isConnecting && (!socket || socket.readyState === WebSocket.CLOSED)) {
+      console.log("🔄 Triggering reconnection...")
+      initWebSocket()
+    }
+  }
+}
+
+// Export connection status for debugging
+export function getWebSocketStatus() {
+  return {
+    socket: !!socket,
+    readyState: socket?.readyState,
+    isConnecting,
+    queueLength: outgoingQueue.length,
+    reconnectAttempts
   }
 }

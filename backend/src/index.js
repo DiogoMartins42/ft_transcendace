@@ -5,7 +5,7 @@ import { options as loggerOptions } from "./config/logger.js";
 import path from "path";
 import fs from "fs";
 import fastifyJWT from "@fastify/jwt";
-import fastifyWebsocket from "@fastify/websocket";
+import fastifyWebsocket from '@fastify/websocket' // add near other imports
 import authRoutes from "./routes/auth.js";
 import lobbyRoutes from "./routes/lobby.js";
 import { fileURLToPath } from "url";
@@ -149,159 +149,196 @@ fastify.register(authRoutes, { prefix: "/auth" });
 fastify.register(lobbyRoutes, { prefix: "/lobby" });
 fastify.register(statsRoutes, { prefix: "/stats" });
 
-await fastify.register(fastifyWebsocket, {
-  options: {
-    maxPayload: 1048576,
-    verifyClient: function (info, next) {
-      console.log("🔍 WS Upgrade attempt:", {
-        origin: info.origin,
-        secure: info.secure,
-        url: info.req.url
-      });
-      next(true);
-    }
-  }
-});
+// register websocket plugin (must be registered before routes)
+fastify.register(fastifyWebsocket)
 
-const clients = new Set();
+// simple WS clients store
+const wsClients = new Set()
 
-// WebSocket route
-// --- WebSocket route ---
-fastify.get("/ws", { websocket: true }, (connection, req) => {
-  const socket = connection.socket; // ✅ Correct
+fastify.get('/ws', { websocket: true }, (connection, req) => {
+  const socket = connection && connection.socket ? connection.socket : connection;
+  
   if (!socket) {
-    console.error("❌ No socket in connection!");
+    fastify.log.warn('❌ No socket in connection!');
     return;
   }
 
-  let username = "Anonymous";
-  let userId = null;
+  // Extract token from query parameters
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const token = url.searchParams.get('token');
+  
+  let client = { 
+    socket, 
+    username: 'Anonymous', // Default username
+    userId: null,
+    authenticated: false,
+    id: Math.random().toString(36).substr(2, 9) // Simple ID for logging
+  };
 
-  console.log("🔌 New WebSocket connection attempt");
-  console.log("   URL:", req.url);
-  console.log("   Headers:", req.headers);
+  fastify.log.info(`🔍 New WebSocket connection [${client.id}]:`, {
+    hasToken: !!token,
+    origin: req.headers.origin
+  });
 
-  try {
-    // Parse the token
-    const url = new URL(req.url, `https://${req.headers.host || "localhost"}`);
-    const token = url.searchParams.get("token");
-
-    if (token) {
-      console.log("🔍 Token found:", token.substring(0, 20) + "...");
+  // Verify token if provided
+  if (token) {
+    try {
       const decoded = fastify.jwt.verify(token);
-      userId = decoded.userId;
-
-      const user = fastify.db.prepare(`SELECT username FROM users WHERE id = ?`).get(userId);
+      client.userId = decoded.userId;
+      client.authenticated = true;
+      
+      // Get username from database
+      const user = fastify.db.prepare('SELECT username FROM users WHERE id = ?').get(decoded.userId);
       if (user) {
-        username = user.username;
-        console.log(`✅ Authenticated: ${username} (ID: ${userId})`);
-      } else {
-        console.warn(`⚠️ User ID ${userId} not found in DB`);
+        client.username = user.username;
+        fastify.log.info(`✅ Authenticated WebSocket [${client.id}] for: ${user.username}`);
       }
-    } else {
-      console.warn("⚠️ No token provided");
+    } catch (err) {
+      fastify.log.warn(`❌ Invalid JWT token [${client.id}]:`, err.message);
+      // Don't close connection - allow as anonymous
     }
-  } catch (err) {
-    console.error("❌ Auth error:", err.message);
   }
 
-  console.log(`✅ WebSocket connected: ${username}`);
+  // Add to clients store
+  wsClients.add(client);
+  fastify.log.info(`➕ WS client connected [${client.id}]: ${client.username}, Total: ${wsClients.size}`);
 
-  const client = { socket, username, userId };
-  clients.add(client);
-
-  // ✅ Welcome message
-  try {
-    socket.send(
-      JSON.stringify({
-        type: "system",
-        text: `Connected as ${username}`,
-        timestamp: new Date().toISOString(),
-      })
-    );
-  } catch (err) {
-    console.error("❌ Failed to send welcome:", err.message);
-  }
-
-  // ✅ Message handler
-  socket.on("message", (rawMessage) => {
-    console.log(`📨 Message from ${username}:`, rawMessage.toString());
-
+  socket.on('message', (raw) => {
     let data;
     try {
-      data = JSON.parse(rawMessage.toString());
-    } catch {
-      console.warn("⚠️ Invalid JSON:", rawMessage.toString());
+      data = JSON.parse(raw.toString());
+      fastify.log.info(`📨 Received [${client.id}]:`, data.type);
+    } catch (err) {
+      fastify.log.warn(`⚠️ Invalid JSON [${client.id}]:`, raw.toString());
       return;
     }
 
-    const timestamp = new Date().toISOString();
+    // Handle setUsername
+    if (data.type === 'setUsername' && typeof data.username === 'string') {
+      const newUsername = data.username.trim();
+      if (newUsername && newUsername.length > 0) {
+        const oldUsername = client.username;
+        client.username = newUsername;
+        fastify.log.info(`🔁 Username changed [${client.id}]: ${oldUsername} → ${newUsername}`);
+        
+        try {
+          socket.send(JSON.stringify({ 
+            type: 'system', 
+            text: `Username set to ${newUsername}` 
+          }));
+        } catch (_) {}
+      }
+      return;
+    }
 
-    if (data.type === "direct" && data.to) {
-      console.log(`💬 Direct message: ${username} -> ${data.to}`);
+    // Handle direct messages
+    if (data.type === 'direct' && data.to && data.text) {
+      const targetUsername = data.to.trim();
+      const messageText = data.text.trim();
 
-      for (const c of clients) {
-        if (c.socket.readyState !== 1) continue;
+      if (!messageText) return;
 
-        if (c.username === data.to || c.username === username) {
+      fastify.log.info(`💬 Direct message [${client.id}]: ${client.username} → ${targetUsername}`);
+
+      // Find target user
+      let delivered = false;
+      for (const targetClient of wsClients) {
+        if (targetClient.username && 
+            targetClient.username.toLowerCase() === targetUsername.toLowerCase() && 
+            targetClient.socket.readyState === 1) {
           try {
-            c.socket.send(
-              JSON.stringify({
-                from: username,
-                to: data.to,
-                text: data.text,
-                type: "direct",
-                timestamp,
-              })
-            );
+            targetClient.socket.send(JSON.stringify({
+              from: client.username,
+              to: targetUsername,
+              text: messageText,
+              type: 'direct',
+              timestamp: new Date().toISOString(),
+            }));
+            delivered = true;
+            fastify.log.info(`✅ Message delivered to: ${targetClient.username}`);
           } catch (err) {
-            console.error(`❌ Failed to send to ${c.username}:`, err.message);
+            fastify.log.error(`❌ Failed to send to ${targetClient.username}:`, err.message);
           }
         }
       }
-    } else if (["system", "invite", "chat"].includes(data.type)) {
-      console.log(`📢 Broadcast from ${username}:`, data.text);
 
-      for (const c of clients) {
-        if (c.socket.readyState !== 1) continue;
+      // Send delivery status to sender
+      try {
+        socket.send(JSON.stringify({
+          type: 'system',
+          text: delivered ? `Message delivered to ${targetUsername}` : `User ${targetUsername} not found`
+        }));
+      } catch (_) {}
+      
+      return;
+    }
 
-        try {
-          c.socket.send(
-            JSON.stringify({
-              from: username,
-              text: data.text,
-              type: data.type,
-              timestamp,
-            })
-          );
-        } catch (err) {
-          console.error(`❌ Failed to broadcast to ${c.username}:`, err.message);
+    // Handle other message types
+    if (data.type === 'invite' && data.to) {
+      const targetUsername = data.to.trim();
+      
+      fastify.log.info(`🏓 Invite [${client.id}]: ${client.username} → ${targetUsername}`);
+      
+      // Find target user and send invite
+      for (const targetClient of wsClients) {
+        if (targetClient.username && 
+            targetClient.username.toLowerCase() === targetUsername.toLowerCase() && 
+            targetClient.socket.readyState === 1) {
+          try {
+            targetClient.socket.send(JSON.stringify({
+              type: 'invite',
+              from: client.username,
+              to: targetUsername,
+              text: data.text || `${client.username} invited you to a Pong match!`,
+              timestamp: new Date().toISOString(),
+            }));
+          } catch (err) {
+            fastify.log.error(`❌ Failed to send invite:`, err.message);
+          }
+          break;
         }
       }
+      return;
     }
   });
 
-  socket.on("close", () => {
-    console.log(`❌ Disconnected: ${username}`);
-    clients.delete(client);
+  socket.on('close', (code, reason) => {
+    wsClients.delete(client);
+    fastify.log.info(`➖ WS client disconnected [${client.id}]:`, { 
+      username: client.username,
+      code, 
+      reason: reason.toString(),
+      remaining: wsClients.size 
+    });
   });
 
-  socket.on("error", (err) => {
-    console.error(`❌ WS Error for ${username}:`, err.message);
+  socket.on('error', (err) => {
+    fastify.log.error(`❌ WS error [${client.id}]:`, err.message);
   });
+
+  // Send welcome message
+  try {
+    socket.send(JSON.stringify({
+      type: 'system',
+      text: `Connected as ${client.username}`
+    }));
+  } catch (err) {
+    fastify.log.error(`❌ Failed to send welcome [${client.id}]:`, err.message);
+  }
 });
-
-
 // Diagnostic endpoint
-fastify.get("/ws-test", async (request, reply) => {
+fastify.get("/ws-debug", async (request, reply) => {
+  const clients = Array.from(wsClients).map(c => ({
+    username: c.username,
+    userId: c.userId,
+    authenticated: c.authenticated,
+    readyState: c.socket ? c.socket.readyState : 'unknown'
+  }));
+
   return {
-    websocketEnabled: !!fastify.websocketServer,
-    activeConnections: clients.size,
-    clients: Array.from(clients).map(c => ({
-      username: c.username,
-      userId: c.userId,
-      readyState: c.ws.readyState
-    }))
+    totalConnections: wsClients.size,
+    activeConnections: clients.filter(c => c.readyState === 1).length,
+    clients: clients
   };
 });
 
