@@ -3,6 +3,7 @@ import navLoggedinHtml from '../components/navLoggedin.html?raw'
 import { setupLoginForm } from './login_handler'
 import { setupSignupForm } from './signup_handler'
 import { setupUserSettings } from "./UpdateUserInformation";
+import { setUserAvatar } from './user-avatar';
 import { sharedState } from '../main'
 
 export async function setupUserSection() {
@@ -21,7 +22,7 @@ export async function setupUserSection() {
       if (greeting) greeting.textContent = sharedState.username || "User"
 
       // handle avatar
-      const avatar = document.getElementById("user-avatar") as HTMLImageElement | null
+      /* const avatar = document.getElementById("user-avatar") as HTMLImageElement | null
       const defaultAvatar = document.getElementById("default-avatar") as SVGElement | null
       if (sharedState.avatarUrl) {
         if (avatar) {
@@ -30,6 +31,19 @@ export async function setupUserSection() {
         }
         if (defaultAvatar) defaultAvatar.classList.add("hidden")
       } else {
+        if (avatar) avatar.classList.add("hidden")
+        if (defaultAvatar) defaultAvatar.classList.remove("hidden")
+      } */
+
+      // handle avatar dynamically
+      const avatar = document.getElementById("user-avatar") as HTMLImageElement | null
+      const defaultAvatar = document.getElementById("default-avatar") as SVGElement | null
+      if (avatar && sharedState.username) {
+        setUserAvatar(sharedState.username, "user-avatar")
+        avatar.classList.remove("hidden")
+        if (defaultAvatar) defaultAvatar.classList.add("hidden")
+      }
+      else{
         if (avatar) avatar.classList.add("hidden")
         if (defaultAvatar) defaultAvatar.classList.remove("hidden")
       }
