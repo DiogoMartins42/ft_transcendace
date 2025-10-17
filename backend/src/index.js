@@ -10,6 +10,8 @@ import authRoutes from "./routes/auth.js";
 import lobbyRoutes from "./routes/lobby.js";
 import { fileURLToPath } from "url";
 
+import uploadsRoutes from "./uploads/uploads.js";
+
 import statsRoutes from "./database/stats.js";
 import { initDB } from "./database/init.js"; 
 
@@ -112,8 +114,6 @@ fastify.register(async function (fastify) {
   });
 });
 
-
-
 const frontendPath = "/app/frontend";
 fastify.register(FastifyStatic, { 
   root: frontendPath,
@@ -124,6 +124,12 @@ fastify.get("/", (req, reply) => {
   reply.sendFile("index.html");
 });
 
+//fastify.register(statsRoutes);
+fastify.register(statsRoutes, { prefix: "/stats" });
+
+//fastify.register photos uploads
+fastify.register(uploadsRoutes, { prefix: "/uploads" });
+
 fastify.setNotFoundHandler((req, reply) => {
   if (req.raw.url.startsWith("/api") || req.raw.url.startsWith("/auth")) {
     reply.code(404).send({ error: "Not Found" });
@@ -131,9 +137,6 @@ fastify.setNotFoundHandler((req, reply) => {
     reply.sendFile("index.html");
   }
 });
-
-//fastify.register(statsRoutes);
-fastify.register(statsRoutes, { prefix: "/stats" });
 
 const start = async () => {
   try {
