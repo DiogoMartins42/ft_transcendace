@@ -17,7 +17,7 @@ export default async function uploadsRoutes(fastify, options) {
     console.log("Serving avatar for:", username);
     console.log("Looking for file at:", filePath);
 
-    // Check if the image exists
+    // Check if the image exists (Forced png here)
     if (fs.existsSync(filePath)) {
       reply.type("image/png").send(fs.readFileSync(filePath));
     } else {
