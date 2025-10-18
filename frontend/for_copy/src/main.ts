@@ -12,16 +12,14 @@ import signupModalHtml from './components/signup-modal.html?raw'
 import sidebarHtml from './components/sidebar.html?raw'
 import controlPanelHtml from './components/controlPanel-modal.html?raw'
 
-
 import { setupUserSection } from './logic/userSection'
 import { setupSidebarEvents } from './logic/sidebar'
-import { initWebSocket } from './logic/ws'
+import { initWebSocket, disconnectWebSocket } from './logic/ws'
 import { verifyStoredSession } from './logic/session'
 import { setupChat, handleIncomingMessage } from './logic/chat'
 import { setPong } from './logic/pong'
 import { setupControlPanel } from './logic/controlPanel'
 import { setupStatsPage } from './logic/stats'
-
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -48,6 +46,8 @@ class SharedState {
   }
 
   setState(partial: Partial<{ isLoggedIn: boolean; username?: string; avatarUrl?: string }>) {
+    const wasLoggedIn = this._isLoggedIn
+    
     let changed = false
     if (partial.isLoggedIn !== undefined && partial.isLoggedIn !== this._isLoggedIn) {
       this._isLoggedIn = partial.isLoggedIn
@@ -61,7 +61,14 @@ class SharedState {
       this._avatarUrl = partial.avatarUrl
       changed = true
     }
-    if (changed) this.listeners.forEach(fn => fn())
+    
+    if (changed) {
+      // Handle WebSocket connection changes
+      if (wasLoggedIn !== this._isLoggedIn) {
+        handleAuthStateChange(this._isLoggedIn)
+      }
+      this.listeners.forEach(fn => fn())
+    }
   }
 
   subscribe(fn: StateListener) {
@@ -70,6 +77,20 @@ class SharedState {
 }
 
 export const sharedState = new SharedState()
+
+// --- Auth State Management ---
+export function handleAuthStateChange(isLoggedIn: boolean) {
+  if (isLoggedIn) {
+    console.log('🔌 Initializing WebSocket for logged-in user...')
+    initWebSocket((msg: any) => {
+      console.log('📥 WebSocket message received in main:', msg)
+      handleIncomingMessage(msg)
+    })
+  } else {
+    console.log('🔌 Disconnecting WebSocket - user logged out')
+    disconnectWebSocket()
+  }
+}
 
 // --- Persistent Login Setup ---
 interface StoredUser {
@@ -89,6 +110,27 @@ export function loadUserSession(): StoredUser | null {
 
 export function setSharedState(partial: Partial<{ isLoggedIn: boolean; username?: string; avatarUrl?: string }>) {
   sharedState.setState(partial)
+}
+
+// Login/Logout functions for use in other modules
+export async function handleLogin(token: string, userData: any) {
+  saveSession(token, userData)
+  setSharedState({
+    isLoggedIn: true,
+    username: userData.username,
+    avatarUrl: userData.avatarUrl
+  })
+  // WebSocket will be automatically initialized by the auth state change handler
+}
+
+export function handleLogout() {
+  localStorage.removeItem("userSession")
+  setSharedState({
+    isLoggedIn: false,
+    username: undefined,
+    avatarUrl: undefined
+  })
+  // WebSocket will be automatically disconnected by the auth state change handler
 }
 
 async function renderPage(pageHtml: string) {
@@ -148,14 +190,18 @@ window.addEventListener('DOMContentLoaded', async () => {
   console.log('🚀 App initializing...')
   
   // 1. Verify session first
-  await verifyStoredSession()
+  const hasValidSession = await verifyStoredSession()
   
-  // 2. Initialize WebSocket with the chat message handler
-  console.log('🔌 Initializing WebSocket...')
-  initWebSocket((msg: any) => {
-    console.log('📥 WebSocket message received in main:', msg)
-    handleIncomingMessage(msg)
-  })
+  // 2. Initialize WebSocket only if user is logged in
+  if (hasValidSession) {
+    console.log('🔌 Initializing WebSocket for authenticated user...')
+    initWebSocket((msg: any) => {
+      console.log('📥 WebSocket message received in main:', msg)
+      handleIncomingMessage(msg)
+    })
+  } else {
+    console.log('🚫 No valid session, skipping WebSocket initialization')
+  }
   
   // 3. Render initial page
   await handleRoute()

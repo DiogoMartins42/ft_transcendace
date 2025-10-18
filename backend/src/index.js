@@ -5,9 +5,10 @@ import { options as loggerOptions } from "./config/logger.js";
 import path from "path";
 import fs from "fs";
 import fastifyJWT from "@fastify/jwt";
-import fastifyWebsocket from '@fastify/websocket' // add near other imports
+import fastifyWebsocket from '@fastify/websocket'
 import authRoutes from "./routes/auth.js";
 import lobbyRoutes from "./routes/lobby.js";
+import blockRoutes from "./routes/block.js";
 import { fileURLToPath } from "url";
 import statsRoutes from "./database/stats.js";
 import { initDB } from "./database/init.js";
@@ -39,15 +40,17 @@ try {
 // --- Create Fastify instance (with HTTPS if available) ---
 const fastify = Fastify({
   logger: loggerOptions,
-  https: httpsOptions
+  https: httpsOptions,
+  trustProxy: true, // Important for reverse proxy scenarios
+  connectionTimeout: 0, // Important for WebSocket
+  keepAliveTimeout: 0 // Important for WebSocket
 });
 
 import fastifyCors from '@fastify/cors';
 fastify.register(fastifyCors, {
-  origin: ['https://pongpong.duckdns.org'],
+  origin: ['https://pongpong.duckdns.org', 'https://localhost:3000', 'http://localhost:5173'],
   credentials: true,
 });
-
 
 // --- SQLite setup ---
 const db = new Database(env.dbFile);
@@ -77,7 +80,10 @@ db.prepare(`
   CREATE TABLE IF NOT EXISTS blocked_users (
     user_id INTEGER NOT NULL,
     blocked_user_id INTEGER NOT NULL,
-    PRIMARY KEY (user_id, blocked_user_id)
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, blocked_user_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (blocked_user_id) REFERENCES users(id) ON DELETE CASCADE
   )
 `).run();
 
@@ -90,26 +96,6 @@ db.prepare(`
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `).run();
-
-db.prepare(`
-  INSERT OR IGNORE INTO users (username, email, password)
-  VALUES 
-    ('bot', 'bot@gmail.com', 'kdakwunda#^!@#HDJDOAPDKAW_D)AW*DANWDKAD><WAODWAD?DAIDAWdwad'),
-    ('guest_multiplayer', 'guest_multiplayer@gmail.com', 'iuhduiawHd7&!(1u831dhwuhd*@!&!@(dwadawd')
-`).run();
-
-db.prepare(`
-  CREATE TABLE IF NOT EXISTS match_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    id_winner INTEGER NOT NULL,
-    id_loser INTEGER NOT NULL,
-    winner_points INTEGER DEFAULT 0,
-    loser_points INTEGER DEFAULT 0,
-    FOREIGN KEY (id_winner) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (id_loser) REFERENCES users(id) ON DELETE CASCADE
-  )
-`).run();
-
 
 db.prepare(`
   INSERT OR IGNORE INTO users (username, email, password)
@@ -147,198 +133,234 @@ fastify.decorate("authenticate", async function (request, reply) {
 // --- Routes ---
 fastify.register(authRoutes, { prefix: "/auth" });
 fastify.register(lobbyRoutes, { prefix: "/lobby" });
+fastify.register(blockRoutes, { prefix: "/block" });
 fastify.register(statsRoutes, { prefix: "/stats" });
 
-// register websocket plugin (must be registered before routes)
-fastify.register(fastifyWebsocket)
-
-// simple WS clients store
-const wsClients = new Set()
-
-fastify.get('/ws', { websocket: true }, (connection, req) => {
-  const socket = connection && connection.socket ? connection.socket : connection;
-  
-  if (!socket) {
-    fastify.log.warn('❌ No socket in connection!');
-    return;
-  }
-
-  // Extract token from query parameters
-  const url = new URL(req.url, `http://${req.headers.host}`);
-  const token = url.searchParams.get('token');
-  
-  let client = { 
-    socket, 
-    username: 'Anonymous', // Default username
-    userId: null,
-    authenticated: false,
-    id: Math.random().toString(36).substr(2, 9) // Simple ID for logging
-  };
-
-  fastify.log.info(`🔍 New WebSocket connection [${client.id}]:`, {
-    hasToken: !!token,
-    origin: req.headers.origin
-  });
-
-  // Verify token if provided
-  if (token) {
-    try {
-      const decoded = fastify.jwt.verify(token);
-      client.userId = decoded.userId;
-      client.authenticated = true;
-      
-      // Get username from database
-      const user = fastify.db.prepare('SELECT username FROM users WHERE id = ?').get(decoded.userId);
-      if (user) {
-        client.username = user.username;
-        fastify.log.info(`✅ Authenticated WebSocket [${client.id}] for: ${user.username}`);
-      }
-    } catch (err) {
-      fastify.log.warn(`❌ Invalid JWT token [${client.id}]:`, err.message);
-      // Don't close connection - allow as anonymous
+// Register websocket plugin with options
+fastify.register(fastifyWebsocket, {
+  options: {
+    maxPayload: 1048576, // 1MB
+    verifyClient: (info, next) => {
+      // Log all WebSocket connection attempts
+      console.log('🔍 WebSocket upgrade attempt:', {
+        origin: info.origin,
+        secure: info.secure,
+        url: info.req.url
+      });
+      next(true); // Accept all connections
     }
   }
+});
 
-  // Add to clients store
-  wsClients.add(client);
-  fastify.log.info(`➕ WS client connected [${client.id}]: ${client.username}, Total: ${wsClients.size}`);
+// Helper to extract and verify JWT token from WebSocket URL
+async function extractUserFromToken(url, jwtSecret) {
+  try {
+    const urlObj = new URL(url, 'http://localhost');
+    const token = urlObj.searchParams.get('token');
+    if (!token) return null;
+    
+    const jwt = await import('@fastify/jwt');
+    const decoded = jwt.default.verify(token, jwtSecret);
+    return decoded;
+  } catch (err) {
+    console.error('JWT verification failed:', err.message);
+    return null;
+  }
+}
 
-  socket.on('message', (raw) => {
-    let data;
-    try {
-      data = JSON.parse(raw.toString());
-      fastify.log.info(`📨 Received [${client.id}]:`, data.type);
-    } catch (err) {
-      fastify.log.warn(`⚠️ Invalid JSON [${client.id}]:`, raw.toString());
+// Simple WS clients store
+const wsClients = new Set();
+
+// Helper function to check if user A has blocked user B
+function isUserBlocked(db, userIdA, userIdB) {
+  const block = db.prepare(`
+    SELECT 1 FROM blocked_users 
+    WHERE user_id = ? AND blocked_user_id = ?
+    LIMIT 1
+  `).get(userIdA, userIdB);
+  return !!block;
+}
+
+// Helper function to get user ID from username
+function getUserIdByUsername(db, username) {
+  const user = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+  return user ? user.id : null;
+}
+
+// WebSocket route with improved error handling and block checking
+fastify.register(async function (fastify) {
+  fastify.get('/ws', { websocket: true }, (connection, req) => {
+    const socket = connection.socket || connection;
+    
+    fastify.log.info('🎯 WebSocket connection established:', {
+      origin: req.headers.origin,
+      url: req.url,
+      protocol: req.headers['sec-websocket-protocol']
+    });
+
+    if (!socket) {
+      fastify.log.error('❌ No socket in connection!');
       return;
     }
 
-    // Handle setUsername
-    if (data.type === 'setUsername' && typeof data.username === 'string') {
-      const newUsername = data.username.trim();
-      if (newUsername && newUsername.length > 0) {
-        const oldUsername = client.username;
-        client.username = newUsername;
-        fastify.log.info(`🔁 Username changed [${client.id}]: ${oldUsername} → ${newUsername}`);
-        
+    const client = { socket, username: null, userId: null };
+    wsClients.add(client);
+    fastify.log.info('➕ WS client connected, total:', wsClients.size);
+
+    // Send welcome message
+    try {
+      socket.send(JSON.stringify({ 
+        type: 'system', 
+        text: 'Connected to WebSocket server',
+        timestamp: new Date().toISOString()
+      }));
+    } catch (err) {
+      fastify.log.error('❌ Failed to send welcome message:', err);
+    }
+
+    socket.on('message', (raw) => {
+      let data;
+      try {
+        const rawStr = raw.toString();
+        fastify.log.info('📨 Received raw message:', rawStr);
+        data = JSON.parse(rawStr);
+      } catch (err) {
+        fastify.log.warn('⚠️ WS invalid JSON:', raw.toString());
+        return;
+      }
+
+      // Handle setUsername
+      if (data.type === 'setUsername' && typeof data.username === 'string') {
+        client.username = data.username.trim();
+        fastify.log.info('👤 setUsername:', client.username);
         try {
           socket.send(JSON.stringify({ 
             type: 'system', 
-            text: `Username set to ${newUsername}` 
+            text: `Username set to ${client.username}`,
+            timestamp: new Date().toISOString()
           }));
-        } catch (_) {}
+        } catch (err) {
+          fastify.log.error('❌ Failed to send username confirmation:', err);
+        }
+        return;
       }
-      return;
-    }
 
-    // Handle direct messages
-    if (data.type === 'direct' && data.to && data.text) {
-      const targetUsername = data.to.trim();
-      const messageText = data.text.trim();
+      // Handle direct messages with block checking
+      if (data.type === 'direct' && data.to) {
+        const target = data.to.trim().toLowerCase();
+        const sender = (client.username || 'Anonymous').trim();
+        const timestamp = new Date().toISOString();
 
-      if (!messageText) return;
+        fastify.log.info('💬 Direct message request:', { from: sender, to: target });
 
-      fastify.log.info(`💬 Direct message [${client.id}]: ${client.username} → ${targetUsername}`);
+        // Get user IDs for block checking
+        const senderUserId = getUserIdByUsername(fastify.db, sender);
+        const targetUserId = getUserIdByUsername(fastify.db, data.to.trim());
 
-      // Find target user
-      let delivered = false;
-      for (const targetClient of wsClients) {
-        if (targetClient.username && 
-            targetClient.username.toLowerCase() === targetUsername.toLowerCase() && 
-            targetClient.socket.readyState === 1) {
-          try {
-            targetClient.socket.send(JSON.stringify({
-              from: client.username,
-              to: targetUsername,
-              text: messageText,
-              type: 'direct',
-              timestamp: new Date().toISOString(),
-            }));
-            delivered = true;
-            fastify.log.info(`✅ Message delivered to: ${targetClient.username}`);
-          } catch (err) {
-            fastify.log.error(`❌ Failed to send to ${targetClient.username}:`, err.message);
+        if (!senderUserId || !targetUserId) {
+          fastify.log.warn('⚠️ Could not find user IDs for block check');
+          // Continue without block check if users not in DB (e.g., anonymous users)
+        }
+
+        // Check if either user has blocked the other
+        if (senderUserId && targetUserId) {
+          const senderBlockedTarget = isUserBlocked(fastify.db, senderUserId, targetUserId);
+          const targetBlockedSender = isUserBlocked(fastify.db, targetUserId, senderUserId);
+
+          if (targetBlockedSender) {
+            fastify.log.info(`🚫 Message blocked: ${target} has blocked ${sender}`);
+            // Send error back to sender only
+            try {
+              socket.send(JSON.stringify({
+                type: 'error',
+                text: 'Your message was not delivered. This user has blocked you.',
+                timestamp: new Date().toISOString()
+              }));
+            } catch (err) {
+              fastify.log.error('❌ Failed to send block notification:', err);
+            }
+            return;
+          }
+
+          if (senderBlockedTarget) {
+            fastify.log.info(`🚫 Message blocked: ${sender} has blocked ${target}`);
+            // Send error back to sender
+            try {
+              socket.send(JSON.stringify({
+                type: 'error',
+                text: 'Cannot send message to a blocked user.',
+                timestamp: new Date().toISOString()
+              }));
+            } catch (err) {
+              fastify.log.error('❌ Failed to send block notification:', err);
+            }
+            return;
+          }
+        }
+
+        // If not blocked, deliver the message
+        for (const c of wsClients) {
+          const state = c.socket && c.socket.readyState;
+          if (state !== 1) continue; // 1 = OPEN
+
+          const name = (c.username || '').trim().toLowerCase();
+          if (name === target || name === sender.toLowerCase()) {
+            try {
+              c.socket.send(JSON.stringify({
+                from: sender,
+                to: data.to,
+                text: data.text,
+                type: 'direct',
+                timestamp,
+              }));
+              fastify.log.info(`✅ Sent to ${c.username || 'Anonymous'}`);
+            } catch (err) {
+              fastify.log.error(`❌ Failed to send to ${c.username}:`, err.message);
+            }
           }
         }
       }
+    });
 
-      // Send delivery status to sender
-      try {
-        socket.send(JSON.stringify({
-          type: 'system',
-          text: delivered ? `Message delivered to ${targetUsername}` : `User ${targetUsername} not found`
-        }));
-      } catch (_) {}
-      
-      return;
-    }
+    socket.on('close', (code, reason) => {
+      wsClients.delete(client);
+      fastify.log.info('➖ WS client disconnected', { 
+        username: client.username,
+        code, 
+        reason: reason.toString(),
+        total: wsClients.size 
+      });
+    });
 
-    // Handle other message types
-    if (data.type === 'invite' && data.to) {
-      const targetUsername = data.to.trim();
-      
-      fastify.log.info(`🏓 Invite [${client.id}]: ${client.username} → ${targetUsername}`);
-      
-      // Find target user and send invite
-      for (const targetClient of wsClients) {
-        if (targetClient.username && 
-            targetClient.username.toLowerCase() === targetUsername.toLowerCase() && 
-            targetClient.socket.readyState === 1) {
-          try {
-            targetClient.socket.send(JSON.stringify({
-              type: 'invite',
-              from: client.username,
-              to: targetUsername,
-              text: data.text || `${client.username} invited you to a Pong match!`,
-              timestamp: new Date().toISOString(),
-            }));
-          } catch (err) {
-            fastify.log.error(`❌ Failed to send invite:`, err.message);
-          }
-          break;
-        }
-      }
-      return;
-    }
-  });
+    socket.on('error', (err) => {
+      fastify.log.error('❌ WS socket error:', err.message);
+    });
 
-  socket.on('close', (code, reason) => {
-    wsClients.delete(client);
-    fastify.log.info(`➖ WS client disconnected [${client.id}]:`, { 
-      username: client.username,
-      code, 
-      reason: reason.toString(),
-      remaining: wsClients.size 
+    socket.on('ping', () => {
+      fastify.log.debug('🏓 Received ping');
+    });
+
+    socket.on('pong', () => {
+      fastify.log.debug('🏓 Received pong');
     });
   });
-
-  socket.on('error', (err) => {
-    fastify.log.error(`❌ WS error [${client.id}]:`, err.message);
-  });
-
-  // Send welcome message
-  try {
-    socket.send(JSON.stringify({
-      type: 'system',
-      text: `Connected as ${client.username}`
-    }));
-  } catch (err) {
-    fastify.log.error(`❌ Failed to send welcome [${client.id}]:`, err.message);
-  }
 });
-// Diagnostic endpoint
-fastify.get("/ws-debug", async (request, reply) => {
-  const clients = Array.from(wsClients).map(c => ({
-    username: c.username,
-    userId: c.userId,
-    authenticated: c.authenticated,
-    readyState: c.socket ? c.socket.readyState : 'unknown'
-  }));
 
+// Diagnostic endpoint
+fastify.get("/ws-test", async (request, reply) => {
   return {
-    totalConnections: wsClients.size,
-    activeConnections: clients.filter(c => c.readyState === 1).length,
-    clients: clients
+    websocketEnabled: !!fastify.websocketServer,
+    activeConnections: wsClients.size,
+    clients: Array.from(wsClients).map(c => ({
+      username: c.username,
+      userId: c.userId,
+      readyState: c.socket ? c.socket.readyState : null
+    })),
+    server: {
+      https: !!httpsOptions,
+      host: request.hostname,
+      protocol: request.protocol
+    }
   };
 });
 
@@ -378,23 +400,25 @@ const start = async () => {
     
     const address = fastify.server.address();
     const protocol = httpsOptions ? "https" : "http";
+    const wsProtocol = httpsOptions ? "wss" : "ws";
     
     console.log("\n" + "=".repeat(60));
     console.log("🚀 SERVER STARTED SUCCESSFULLY");
     console.log("=".repeat(60));
     
     if (typeof address === "string") {
-      console.log(`📍 Listening on: ${protocol}://${address}`);
+      console.log(`🌐 Listening on: ${protocol}://${address}`);
     } else if (address) {
-      console.log(`📍 Listening on: ${protocol}://${address.address}:${address.port}`);
-      console.log(`🌐 External URL: ${protocol}://pongpong.duckdns.org:${address.port}`);
+      console.log(`🌐 Listening on: ${protocol}://${address.address}:${address.port}`);
+      console.log(`🌍 External URL: ${protocol}://pongpong.duckdns.org:${address.port}`);
     }
     
     console.log(`🔒 HTTPS: ${httpsOptions ? "Enabled ✅" : "Disabled ❌"}`);
     console.log(`🔌 WebSocket: ${fastify.websocketServer ? "Enabled ✅" : "Disabled ❌"}`);
     
     if (fastify.websocketServer) {
-      console.log(`📡 WebSocket URL: wss://pongpong.duckdns.org:3000/ws`);
+      console.log(`📡 WebSocket URL: ${wsProtocol}://pongpong.duckdns.org:3000/ws`);
+      console.log(`📡 Local WebSocket: ${wsProtocol}://localhost:3000/ws`);
     } else {
       console.log(`⚠️  WARNING: WebSocket server not initialized!`);
     }
