@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// If path exists, serve the image requested to the server, otherwise send default.png
 export default async function uploadsRoutes(fastify, options) {
   fastify.get("/avatars/:username", async (request, reply) => {
     const { username } = request.params;
@@ -12,6 +13,7 @@ export default async function uploadsRoutes(fastify, options) {
     const filePath = path.join(__dirname, "./avatars", `${username}.png`);
     const defaultPath = path.join(__dirname, "./avatars", "default.png");
 
+    // For debugging
     console.log("Serving avatar for:", username);
     console.log("Looking for file at:", filePath);
 

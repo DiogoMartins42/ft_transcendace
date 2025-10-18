@@ -1,5 +1,5 @@
 
-
+// Fetch the URL avatar from the backend and serve it to the HTML file
 export function setUserAvatar(username: string, elementId: string = "profile-pic"): void {
   const backendBase = import.meta.env.VITE_API_URL as string;
   const img = document.getElementById(elementId) as HTMLImageElement | null;
@@ -13,5 +13,5 @@ export function setUserAvatar(username: string, elementId: string = "profile-pic
     img.src = `${backendBase}/uploads/avatars/default.png`;
   };
 
-  img.src = `${backendBase}/uploads/avatars/${username}.png`;
+  img.src = `${backendBase}/uploads/avatars/${username}`;
 }
