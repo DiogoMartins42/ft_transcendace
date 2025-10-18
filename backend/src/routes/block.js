@@ -4,18 +4,36 @@ export default async function (fastify, opts) {
   fastify.post('/block', {
     preHandler: [fastify.authenticate]
   }, async (request, reply) => {
-    console.log('🔐 AUTHENTICATED USER:', request.user);
-    console.log('📦 REQUEST BODY:', request.body);
+    console.log('🔐 AUTHENTICATED USER OBJECT:', request.user);
 
     const { blockedUserId } = request.body;
     
-    // Check if user ID exists in JWT
-    if (!request.user || !request.user.id) {
-      console.error('❌ JWT MISSING USER ID:', request.user);
-      return reply.status(401).send({ error: 'Invalid authentication: missing user ID' });
+    // ✅ More robust user ID extraction
+    let userId = request.user.id;
+    
+    // Fallback: try userId field if id doesn't exist
+    if (!userId && request.user.userId) {
+      console.log('⚠️ Using userId field instead of id');
+      userId = request.user.userId;
     }
     
-    const userId = request.user.id;
+    // Final fallback: get from database using username
+    if (!userId && request.user.username) {
+      console.log('⚠️ Fetching user ID from database using username');
+      const userFromDb = fastify.db.prepare('SELECT id FROM users WHERE username = ?').get(request.user.username);
+      if (userFromDb) {
+        userId = userFromDb.id;
+        console.log('✅ Found user ID from username:', userId);
+      }
+    }
+
+    if (!userId) {
+      console.error('❌ Cannot determine user ID from JWT:', request.user);
+      return reply.status(401).send({ 
+        error: 'Cannot determine user identity',
+        details: 'JWT token missing user ID' 
+      });
+    }
 
     console.log('🚫 BLOCK REQUEST - User ID:', userId, 'Blocked User ID:', blockedUserId);
 
@@ -68,6 +86,100 @@ export default async function (fastify, opts) {
     } catch (error) {
       console.error('❌ BLOCK ERROR:', error);
       console.error('Error details:', error.message);
+      return reply.status(500).send({ 
+        error: 'Internal server error',
+        details: error.message 
+      });
+    }
+  });
+
+  // Unblock a user
+  fastify.post('/unblock', {
+    preHandler: [fastify.authenticate]
+  }, async (request, reply) => {
+    const { blockedUserId } = request.body;
+    
+    // ✅ Same robust user ID extraction
+    let userId = request.user.id;
+    if (!userId && request.user.userId) userId = request.user.userId;
+    if (!userId && request.user.username) {
+      const userFromDb = fastify.db.prepare('SELECT id FROM users WHERE username = ?').get(request.user.username);
+      if (userFromDb) userId = userFromDb.id;
+    }
+
+    if (!userId) {
+      return reply.status(401).send({ error: 'Cannot determine user identity' });
+    }
+
+    console.log('✅ UNBLOCK REQUEST:', { userId, blockedUserId });
+
+    if (!blockedUserId) {
+      return reply.status(400).send({ error: 'blockedUserId is required' });
+    }
+
+    try {
+      const result = fastify.db.prepare(`
+        DELETE FROM blocked_users 
+        WHERE user_id = ? AND blocked_user_id = ?
+      `).run(userId, blockedUserId);
+
+      console.log('✅ Unblock result, changes:', result.changes);
+
+      if (result.changes === 0) {
+        return reply.status(404).send({ error: 'Block relationship not found' });
+      }
+
+      return { 
+        success: true, 
+        message: 'User unblocked successfully',
+        blockedUserId 
+      };
+    } catch (error) {
+      console.error('❌ UNBLOCK ERROR:', error);
+      return reply.status(500).send({ 
+        error: 'Internal server error',
+        details: error.message 
+      });
+    }
+  });
+
+  // Check if user is blocked
+  fastify.get('/is-blocked/:userId', {
+    preHandler: [fastify.authenticate]
+  }, async (request, reply) => {
+    const targetUserId = parseInt(request.params.userId);
+    
+    // ✅ Same robust user ID extraction
+    let userId = request.user.id;
+    if (!userId && request.user.userId) userId = request.user.userId;
+    if (!userId && request.user.username) {
+      const userFromDb = fastify.db.prepare('SELECT id FROM users WHERE username = ?').get(request.user.username);
+      if (userFromDb) userId = userFromDb.id;
+    }
+
+    if (!userId) {
+      return reply.status(401).send({ error: 'Cannot determine user identity' });
+    }
+
+    console.log('🔍 BLOCK CHECK:', { userId, targetUserId });
+
+    if (isNaN(targetUserId)) {
+      return reply.status(400).send({ error: 'Invalid user ID' });
+    }
+
+    try {
+      const block = fastify.db.prepare(`
+        SELECT 1 FROM blocked_users 
+        WHERE user_id = ? AND blocked_user_id = ?
+        LIMIT 1
+      `).get(userId, targetUserId);
+
+      const isBlocked = !!block;
+      console.log('🔍 Block status result:', { userId, targetUserId, isBlocked });
+
+      return { isBlocked };
+    } catch (error) {
+      console.error('❌ BLOCK CHECK ERROR:', error);
       return reply.status(500).send({ 
         error: 'Internal server error',
         details: error.message 
