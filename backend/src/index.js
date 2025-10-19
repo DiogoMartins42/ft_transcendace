@@ -52,6 +52,17 @@ db.prepare(`
   )
 `).run();
 
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS friends (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    friend_id INTEGER NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY(friend_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(user_id, friend_id)
+  )
+`).run();
+
 fastify.decorate("db", db);
 fastify.register(authRoutes, { prefix: "/auth" });
 fastify.register(lobbyRoutes, { prefix: "/lobby" });

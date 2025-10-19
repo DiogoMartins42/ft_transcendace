@@ -82,11 +82,69 @@ export default async function statsRoutes(fastify, options) {
   fastify.patch("/api/user/:username", async (request, reply) => {
     const { username } = request.params;
     const updates = request.body;
-    try {
+    try{
       await updateUserInfo(username, updates);
       return { message: `User '${username}' updated successfully` };
     } catch (err) {
       return reply.code(400).send({ error: err.message });
+    }
+  });
+
+  // Add user as a friend (treated has followers)
+  fastify.post("/api/friends/:username", async (request, reply) => {
+    const { username } = request.params;
+    const { friendUsername } = request.body;
+    const db = new Database(env.dbFile);
+
+    try {
+      if (!friendUsername) {
+        return reply.code(400).send({ error: "Missing 'friendUsername' in body" });
+      }
+
+      // Get user IDs
+      const user = db.prepare("SELECT id FROM users WHERE username = ?").get(username);
+      const friend = db.prepare("SELECT id FROM users WHERE username = ?").get(friendUsername);
+
+      if (!user) return reply.code(404).send({ error: `User '${username}' not found` });
+      if (!friend) return reply.code(404).send({ error: `User '${friendUsername}' not found` });
+      if (user.id === friend.id) return reply.code(400).send({ error: "You cannot add yourself" });
+
+      // Insert into friends table
+      const stmt = db.prepare("INSERT INTO friends (user_id, friend_id) VALUES (?, ?)");
+      stmt.run(user.id, friend.id);
+
+      return reply.code(201).send({ message: `${username} added ${friendUsername} as a friend` });
+    } catch (err) {
+      if (err.message.includes("UNIQUE")) {
+        return reply.code(400).send({ error: `${friendUsername} is already added` });
+      }
+      return reply.code(500).send({ error: err.message });
+    } finally {
+      db.close();
+    }
+  });
+
+  // Get list of a user’s friends
+  fastify.get("/api/friends/:username", async (request, reply) => {
+    const { username } = request.params;
+    const db = new Database(env.dbFile);
+
+    try {
+      const user = db.prepare("SELECT id FROM users WHERE username = ?").get(username);
+      if (!user) return reply.code(404).send({ error: `User '${username}' not found` });
+
+      const friends = db.prepare(`
+        SELECT u.username
+        FROM friends f
+        JOIN users u ON f.friend_id = u.id
+        WHERE f.user_id = ?
+      `).all(user.id);
+
+      return reply.send({ username, friends: friends.map(f => f.username) });
+    } catch (err) {
+      return reply.code(500).send({ error: err.message });
+    } finally {
+      db.close();
     }
   });
 }
