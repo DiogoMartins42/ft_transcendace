@@ -22,20 +22,6 @@ export async function setupUserSection() {
       if (greeting) greeting.textContent = sharedState.username || "User"
 
       // handle avatar
-      /* const avatar = document.getElementById("user-avatar") as HTMLImageElement | null
-      const defaultAvatar = document.getElementById("default-avatar") as SVGElement | null
-      if (sharedState.avatarUrl) {
-        if (avatar) {
-          avatar.src = sharedState.avatarUrl
-          avatar.classList.remove("hidden")
-        }
-        if (defaultAvatar) defaultAvatar.classList.add("hidden")
-      } else {
-        if (avatar) avatar.classList.add("hidden")
-        if (defaultAvatar) defaultAvatar.classList.remove("hidden")
-      } */
-
-      // handle avatar dynamically
       const avatar = document.getElementById("user-avatar") as HTMLImageElement | null
       const defaultAvatar = document.getElementById("default-avatar") as SVGElement | null
       if (avatar && sharedState.username) {
@@ -80,6 +66,7 @@ export async function setupUserSection() {
             settingsModal.classList.remove("opacity-100", "pointer-events-auto");
           }
         });
+        
       }
       // Update the information from the logged in user
       setupUserSettings(settingsModal)

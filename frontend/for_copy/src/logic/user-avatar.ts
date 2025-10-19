@@ -15,3 +15,38 @@ export function setUserAvatar(username: string, elementId: string = "profile-pic
 
   img.src = `${backendBase}/uploads/avatars/${username}`;
 }
+
+//Frontend
+/* 
+const avatarUpload = document.getElementById("avatar-upload") as HTMLInputElement | null;
+if (avatarUpload) {
+  avatarUpload.addEventListener("change", async (e) => {
+    const file = avatarUpload.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/upload-avatar/${sharedState.username}`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        console.error("Upload failed:", await response.text());
+        return;
+      }
+
+      // Update avatar immediately in UI
+      setUserAvatar(sharedState.username!, "user-avatar");
+      setUserAvatar(sharedState.username!, "user-avatar-modal");
+
+      console.log("✅ Avatar uploaded successfully");
+    } catch (err) {
+      console.error("Error uploading avatar:", err);
+    }
+  });
+}
+*/
+

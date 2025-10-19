@@ -11,7 +11,7 @@ export function initFriendsPage() {
     return;
   }
 
-  // Load friends only if logged in
+  // Load friends only if the user is logged in
   async function loadFriends() {
     const currentUsername = sharedState.username;
     if (!currentUsername) {
@@ -37,7 +37,7 @@ export function initFriendsPage() {
     }
   }
 
-  // Add a friend (check login dynamically)
+  // Add a friend
   async function addFriend() {
     const currentUsername = sharedState.username;
     if (!currentUsername) {

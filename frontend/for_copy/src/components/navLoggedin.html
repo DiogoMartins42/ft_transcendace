@@ -135,7 +135,22 @@
               <input id="settings-username" placeholder="Username" class="bg-[#0E172B] text-white border-1 border-[#F5CB5C] rounded-md p-2 mb-3" type="text">
               <input id="settings-email" placeholder="New Email" class="bg-[#0E172B] text-white border-1 border-[#F5CB5C] rounded-md p-2 mb-3" type="email">
               <input id="settings-password" placeholder="New Password" class="bg-[#0E172B] text-white border-1 border-[#F5CB5C] rounded-md p-2 mb-3" type="password">
-            
+
+              <!-- ✅ Add the profile picture upload here -->
+              <div class="mt-4">
+                <label for="avatar-upload" class="block text-sm font-medium text-gray-300 mb-1">
+                  Change profile picture
+                </label>
+                <input
+                  type="file"
+                  id="avatar-upload"
+                  accept="image/*"
+                  class="block w-full text-sm text-gray-400
+                         file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0
+                         file:text-sm file:font-semibold file:bg-yellow-600 file:text-white
+                         hover:file:bg-yellow-500"
+                />
+              </div>
               <div class="flex gap-2 justify-end mt-2">
                 <button type="button" id="settings-close" class="px-4 py-2 rounded bg-gray-700 text-white">Close</button>
                 <button type="submit" class="px-4 py-2 rounded bg-gradient-to-r from-[#f59e0b] via-[#fcd34d] to-[#fef9c3] text-black">Save</button>
@@ -143,7 +158,6 @@
             </form>
           </div>
         </div>
-
 
       <!-- Right: avatar inside modal -->
       <div class="ml-3 w-10 h-10 rounded-full border-2 border-[#F5CB5C] bg-gray-200 flex items-center justify-center overflow-hidden">
