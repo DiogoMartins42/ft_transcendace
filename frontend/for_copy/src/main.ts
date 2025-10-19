@@ -10,6 +10,7 @@ import loginModalHtml from './components/login-modal.html?raw'
 import signupModalHtml from './components/signup-modal.html?raw'
 import sidebarHtml from './components/sidebar.html?raw'
 import controlPanelHtml from './components/controlPanel-modal.html?raw'
+import friendsHtml from './pages/friend_list.html?raw'
 
 import { setupUserSection } from './logic/userSection'
 import { setupSidebarEvents } from './logic/sidebar'
@@ -20,6 +21,8 @@ import { setPong } from './logic/pong'
 import { setupControlPanel } from './logic/controlPanel'
 
 import { setupStatsPage } from './logic/stats';
+import { initFriendsPage } from './logic/friend_list';
+
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -134,6 +137,8 @@ async function renderPage(pageHtml: string) {
   setupControlPanel()
 
   setupStatsPage()
+
+  initFriendsPage()
 }
 
 function handleRoute() {
@@ -154,6 +159,9 @@ function handleRoute() {
       break
     case 'userSettings':
       renderPage(userSettingsHtml)
+      break
+    case 'friends':
+      renderPage(friendsHtml)
       break
     default:
       renderPage(homeHtml)
