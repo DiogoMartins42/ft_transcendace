@@ -2,6 +2,7 @@ import './style.css'
 import homeHtml from './pages/home.html?raw'
 import navbarHtml from './components/navbar.html?raw'
 import aboutHtml from './pages/about.html?raw'
+import tournamentHtml from './pages/tournament.html?raw'
 import chatHtml from './pages/chat.html?raw'
 import contactHtml from './pages/contact.html?raw'
 import statsHtml from './pages/stats.html?raw'
@@ -81,6 +82,9 @@ function handleRoute()
 	switch (route) {
 		case 'about':
 			renderPage(aboutHtml)
+			break
+		case 'tournament':
+			renderPage(tournamentHtml)
 			break
 		case 'chat':
 			renderPage(chatHtml)

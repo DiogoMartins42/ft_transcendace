@@ -1,8 +1,8 @@
-// main.ts
 import './style.css'
 import homeHtml from './pages/home.html?raw'
 import navbarHtml from './components/navbar.html?raw'
 import aboutHtml from './pages/about.html?raw'
+import tournamentHtml from './pages/tournament.html?raw'
 import chatHtml from './pages/chat.html?raw'
 import contactHtml from './pages/contact.html?raw'
 import statsHtml from './pages/stats.html?raw'
@@ -12,7 +12,13 @@ import signupModalHtml from './components/signup-modal.html?raw'
 import sidebarHtml from './components/sidebar.html?raw'
 import controlPanelHtml from './components/controlPanel-modal.html?raw'
 
+// import { setupModalEvents } from './logic/simulatedModals'
+// import { setupUserSection } from './logic/simulatedUserSection'
+// import { setupModalEvents } from './logic/modals'
 import { setupUserSection } from './logic/userSection'
+
+// import { setupLoginForm } from './logic/login_handler'
+
 import { setupSidebarEvents } from './logic/sidebar'
 import { initWebSocket, disconnectWebSocket } from './logic/ws'
 import { verifyStoredSession } from './logic/session'
@@ -78,7 +84,10 @@ class SharedState {
   }
 }
 
-export const sharedState = new SharedState()
+class SharedState 
+{
+	private _isLoggedIn = false;
+	private listeners: (() => void)[] = [];
 
 // --- Auth State Management ---
 export function handleAuthStateChange(isLoggedIn: boolean) {
@@ -101,17 +110,18 @@ interface StoredUser {
   token: string
 }
 
-export function saveSession(token: string, user: { username: string; avatarUrl?: string }) {
-  localStorage.setItem("userSession", JSON.stringify({ token, ...user }));
-}
+	get isLoggedIn() {
+		return this._isLoggedIn;
+	}
 
-export function loadUserSession(): StoredUser | null {
-  const data = localStorage.getItem("userSession");
-  return data ? JSON.parse(data) : null;
-}
+	set isLoggedIn(val: boolean) {
+		this._isLoggedIn = val;
+		this.listeners.forEach(fn => fn()); // trigger re-render
+	}
 
-export function setSharedState(partial: Partial<{ isLoggedIn: boolean; username?: string; avatarUrl?: string }>) {
-  sharedState.setState(partial)
+	subscribe(fn: () => void) {
+		this.listeners.push(fn);
+	}
 }
 
 // Login/Logout functions for use in other modules
@@ -156,29 +166,33 @@ async function renderPage(pageHtml: string) {
   setupOAuth()        // ADD THIS - Initialize OAuth buttons
 }
 
-async function handleRoute() {
-  const route = window.location.hash.slice(1) || 'home'
+function handleRoute()
+{
+	const route = window.location.hash.slice(1) || 'home';
 
-  switch (route) {
-    case 'about':
-      await renderPage(aboutHtml)
-      break
-    case 'chat':
-      await renderPage(chatHtml)
-      break
-    case 'contact':
-      await renderPage(contactHtml)
-      break
-    case 'stats':
-      await renderPage(statsHtml)
-      break
-    case 'userSettings':
-      await renderPage(userSettingsHtml)
-      break
-    default:
-      await renderPage(homeHtml)
-  }
-  sidebarState.sidebarOpen = false
+	switch (route) {
+		case 'about':
+			renderPage(aboutHtml)
+			break
+		case 'tournament':
+			renderPage(tournamentHtml)
+			break  
+		case 'chat':
+			renderPage(chatHtml)
+			break
+		case 'contact':
+			renderPage(contactHtml)
+			break
+		case 'stats':
+			renderPage(statsHtml)
+			break
+		case 'userSettings':
+			renderPage(userSettingsHtml)
+			break
+		default:
+			renderPage(homeHtml)
+	}
+	sidebarState.sidebarOpen = false;
 }
 
 window.addEventListener('error', (event) => {
