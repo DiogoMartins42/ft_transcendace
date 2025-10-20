@@ -7,6 +7,8 @@ import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const avatarsDir = path.join(__dirname, "./avatars");
+
 
 // If path exists, serve the image requested to the server, otherwise send default.png
 const SUPPORTED_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
@@ -18,7 +20,7 @@ export default async function uploadsRoutes(fastify, options) {
     // Try each supported extension until one exists
     let filePath = null;
     for (const ext of SUPPORTED_EXTENSIONS) {
-      const possiblePath = path.join(__dirname, "./avatars", `${username}${ext}`);
+      const possiblePath = path.join(avatarsDir, `${username}${ext}`);
       if (fs.existsSync(possiblePath)) {
         filePath = possiblePath;
         break;
@@ -26,7 +28,7 @@ export default async function uploadsRoutes(fastify, options) {
     }
 
     // Default avatar if none found
-    const defaultPath = path.join(__dirname, "./avatars", "default.png");
+    const defaultPath = path.join(avatarsDir, "default.png");
 
     const finalPath = filePath || defaultPath;
     const ext = path.extname(finalPath).toLowerCase();
@@ -42,6 +44,9 @@ export default async function uploadsRoutes(fastify, options) {
 
     console.log(`Serving avatar: ${username} → ${path.basename(finalPath)}`);
 
+    console.log("Requested username:", username);
+    console.log("File path found:", filePath || "none, using default");
+
     reply.type(mimeType).send(fs.readFileSync(finalPath));
   });
 
@@ -49,16 +54,16 @@ export default async function uploadsRoutes(fastify, options) {
 
   fastify.addContentTypeParser("application/octet-stream", { parseAs: "buffer" }, async (req, body) => body);
 
-  fastify.post("/uploads/upload-avatar/:username",
+  fastify.post("/upload-avatar/:username",
     { bodyLimit: 20 * 1024 * 1024 }, // 20 MB
     async (request, reply) => {
       const { username } = request.params;
-      const fileData = request.body; // raw binary
+      const fileData = request.body;
 
-      const uploadDir = path.join(process.cwd(), "uploads", "avatars");
-      const filePath = path.join(uploadDir, `${username}.png`);
+      //const uploadDir = path.join(process.cwd(), /* "uploads", */ "avatars");
+      const filePath = path.join(avatarsDir, `${username}.png`);
 
-      await fs.promises.mkdir(uploadDir, { recursive: true });
+      await fs.promises.mkdir(avatarsDir, { recursive: true });
       await fs.promises.writeFile(filePath, fileData);
 
       return reply.send({ message: "Avatar uploaded successfully" });

@@ -47,6 +47,7 @@ db.prepare(`
     id_loser INTEGER NOT NULL,
     winner_points INTEGER DEFAULT 0,
     loser_points INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (id_winner) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (id_loser) REFERENCES users(id) ON DELETE CASCADE
   )
@@ -140,6 +141,7 @@ fastify.register(statsRoutes, { prefix: "/stats" });
 
 //fastify.register photos uploads
 fastify.register(uploadsRoutes, { prefix: "/uploads" });
+
 
 fastify.setNotFoundHandler((req, reply) => {
   if (req.raw.url.startsWith("/api") || req.raw.url.startsWith("/auth")) {
