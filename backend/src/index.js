@@ -9,6 +9,7 @@ import fastifyWebsocket from '@fastify/websocket'
 import authRoutes from "./routes/auth.js";
 import lobbyRoutes from "./routes/lobby.js";
 import blockRoutes from "./routes/block.js";
+import oauthRoutes from "./routes/oauth.js";
 import { fileURLToPath } from "url";
 import statsRoutes from "./database/stats.js";
 import { initDB } from "./database/init.js";
@@ -61,6 +62,9 @@ db.prepare(`
     username TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
+    google_id TEXT UNIQUE,
+    avatar_url TEXT,
+    email_verified BOOLEAN DEFAULT FALSE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `).run();
@@ -135,7 +139,7 @@ fastify.register(authRoutes, { prefix: "/auth" });
 fastify.register(lobbyRoutes, { prefix: "/lobby" });
 fastify.register(blockRoutes, { prefix: "/block" });
 fastify.register(statsRoutes, { prefix: "/stats" });
-
+fastify.register(oauthRoutes, { prefix: "/oauth" });
 // Register websocket plugin with options
 fastify.register(fastifyWebsocket, {
   options: {

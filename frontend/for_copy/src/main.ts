@@ -20,6 +20,9 @@ import { setupChat, handleIncomingMessage } from './logic/chat'
 import { setPong } from './logic/pong'
 import { setupControlPanel } from './logic/controlPanel'
 import { setupStatsPage } from './logic/stats'
+import { setupLoginForm } from './logic/login_handler'
+import { setupSignupForm } from './logic/signup_handler'
+import { setupOAuth, handleOAuthCallback, initOAuthUI } from './logic/oauth'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -63,7 +66,6 @@ class SharedState {
     }
     
     if (changed) {
-      // Handle WebSocket connection changes
       if (wasLoggedIn !== this._isLoggedIn) {
         handleAuthStateChange(this._isLoggedIn)
       }
@@ -120,7 +122,6 @@ export async function handleLogin(token: string, userData: any) {
     username: userData.username,
     avatarUrl: userData.avatarUrl
   })
-  // WebSocket will be automatically initialized by the auth state change handler
 }
 
 export function handleLogout() {
@@ -130,7 +131,6 @@ export function handleLogout() {
     username: undefined,
     avatarUrl: undefined
   })
-  // WebSocket will be automatically disconnected by the auth state change handler
 }
 
 async function renderPage(pageHtml: string) {
@@ -151,6 +151,9 @@ async function renderPage(pageHtml: string) {
   setPong()
   setupControlPanel()
   setupStatsPage()
+  setupLoginForm()    // ADD THIS
+  setupSignupForm()   // ADD THIS
+  setupOAuth()        // ADD THIS - Initialize OAuth buttons
 }
 
 async function handleRoute() {
@@ -188,10 +191,24 @@ window.addEventListener('unhandledrejection', (event) => {
 
 window.addEventListener('DOMContentLoaded', async () => {
   console.log('🚀 App initializing...')
-  
-  // 1. Verify session first
+
+  // process OAuth return (if any) BEFORE checking stored session
+  try {
+    await handleOAuthCallback()
+  } catch (err) {
+    console.error('OAuth callback handling failed:', err)
+  }
+
+  // init OAuth UI (show/hide Google button) early
+  try {
+    await initOAuthUI()
+  } catch (err) {
+    console.warn('initOAuthUI failed:', err)
+  }
+
+  // 1. Verify session after possible OAuth login
   const hasValidSession = await verifyStoredSession()
-  
+
   // 2. Initialize WebSocket only if user is logged in
   if (hasValidSession) {
     console.log('🔌 Initializing WebSocket for authenticated user...')

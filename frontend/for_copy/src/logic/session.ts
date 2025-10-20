@@ -1,4 +1,4 @@
-// session.ts
+// session.ts - Updated to handle OAuth users
 import { setSharedState } from "../main";
 
 // Extend Window interface to include anonymousId
@@ -34,7 +34,7 @@ export function saveSession(token: string, user: any) {
       id: user.id,
       username: user.username,
       email: user.email,
-      avatarUrl: user.avatarUrl || "/default-avatar.png"
+      avatarUrl: user.avatar_url || user.avatarUrl || "/default-avatar.png"
     }
   };
   localStorage.setItem("userSession", JSON.stringify(sessionData));
@@ -111,7 +111,7 @@ export async function verifyStoredSession() {
     setSharedState({
       isLoggedIn: true,
       username: user.username,
-      avatarUrl: user.avatarUrl || "/default-avatar.png"
+      avatarUrl: user.avatar_url || user.avatarUrl || "/default-avatar.png"
     });
 
     console.log("✅ Session restored:", user.username);
