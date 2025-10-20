@@ -1,7 +1,557 @@
-<main class="pt-20 p-4 text-white">
-  <input id="friendInput" placeholder="Username to add">
-  <button id="addFriendBtn">Add Friend</button>
-  <p id="friendsMsg"></p>
-  <ul id="friendsList"></ul>
-  <script src="/js/friends.js"></script>
-</main>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Friends - Your Site</title>
+    <style>
+        /* Friends page specific styles - won't affect your existing navigation */
+        .friends-container {
+            max-width: 800px;
+            margin: 80px auto 20px;
+            padding: 20px;
+        }
+
+        .friends-header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        .friends-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .friends-header .subtitle {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .add-friend-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            border: 1px solid #e9ecef;
+        }
+
+        .add-friend-section h2 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .friend-input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        .friend-input:focus {
+            border-color: #4CAF50;
+        }
+
+        .add-friend-btn {
+            padding: 12px 25px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+
+        .add-friend-btn:hover {
+            background: #45a049;
+        }
+
+        .friends-message {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            min-height: 20px;
+        }
+
+        .friends-list-section h2 {
+            margin-bottom: 20px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .friends-count {
+            background: #4CAF50;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        .status-filter {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .filter-btn {
+            padding: 8px 15px;
+            background: #e9ecef;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .filter-btn.active {
+            background: #4CAF50;
+            color: white;
+            border-color: #4CAF50;
+        }
+
+        .friends-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .friend-item {
+            display: flex;
+            align-items: center;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .friend-item:hover {
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .friend-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #6c757d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: white;
+        }
+
+        .friend-info {
+            flex: 1;
+        }
+
+        .friend-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .friend-status {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .status-online {
+            background: #4CAF50;
+            box-shadow: 0 0 5px #4CAF50;
+        }
+
+        .status-offline {
+            background: #6c757d;
+        }
+
+        .status-away {
+            background: #ffc107;
+        }
+
+        .friend-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .friend-action-btn {
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .message-btn {
+            background: #2196F3;
+            color: white;
+        }
+
+        .message-btn:hover {
+            background: #0b7dda;
+        }
+
+        .remove-btn {
+            background: #dc3545;
+            color: white;
+        }
+
+        .remove-btn:hover {
+            background: #c82333;
+        }
+
+        .no-friends {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+            font-style: italic;
+            background: white;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+        }
+
+        @media (max-width: 768px) {
+            .friends-container {
+                margin: 60px auto 20px;
+                padding: 15px;
+            }
+            
+            .input-group {
+                flex-direction: column;
+            }
+            
+            .friend-item {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .friend-avatar {
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+            
+            .friend-actions {
+                margin-top: 10px;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Your existing navigation bar remains untouched -->
+    
+    <main class="friends-container">
+        <header class="friends-header">
+            <h1>Friends List</h1>
+            <p class="subtitle">Connect with other players and see who's online</p>
+        </header>
+
+        <section class="add-friend-section">
+            <h2>Add a Friend</h2>
+            <div class="input-group">
+                <input type="text" class="friend-input" id="friendInput" placeholder="Enter username">
+                <button class="add-friend-btn" id="addFriendBtn">Add Friend</button>
+            </div>
+            <p class="friends-message" id="friendsMsg"></p>
+        </section>
+
+        <section class="friends-list-section">
+            <h2>
+                Your Friends
+                <span class="friends-count" id="friendsCount">0</span>
+            </h2>
+            
+            <div class="status-filter">
+                <button class="filter-btn active" data-status="all">All</button>
+                <button class="filter-btn" data-status="online">Online</button>
+                <button class="filter-btn" data-status="offline">Offline</button>
+            </div>
+            
+            <div class="friends-list" id="friendsList">
+                <div class="no-friends">No friends added yet. Start by adding some friends!</div>
+            </div>
+        </section>
+    </main>
+
+    <script type="module">
+        // Friends management functionality
+        class FriendsManager {
+            constructor() {
+                this.friends = [];
+                this.currentFilter = 'all';
+                this.initializeElements();
+                this.setupEventListeners();
+            }
+
+            initializeElements() {
+                this.friendInput = document.getElementById('friendInput');
+                this.addFriendBtn = document.getElementById('addFriendBtn');
+                this.friendsMsg = document.getElementById('friendsMsg');
+                this.friendsList = document.getElementById('friendsList');
+                this.friendsCount = document.getElementById('friendsCount');
+                this.filterBtns = document.querySelectorAll('.filter-btn');
+
+                if (!this.friendInput || !this.addFriendBtn || !this.friendsList) {
+                    console.error("Friends page elements not found");
+                    return;
+                }
+            }
+
+            setupEventListeners() {
+                this.addFriendBtn.addEventListener('click', () => this.addFriend());
+                
+                this.friendInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.addFriend();
+                });
+                
+                this.filterBtns.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        this.filterBtns.forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        this.currentFilter = btn.dataset.status || 'all';
+                        this.renderFriendsList();
+                    });
+                });
+            }
+
+            async initFriendsPage() {
+                // Get current user from your existing auth system
+                const currentUser = await this.getCurrentUser();
+                if (currentUser) {
+                    await this.loadFriends(currentUser);
+                } else {
+                    this.showMessage("Please log in to manage your friends", "error");
+                    this.friendsList.innerHTML = '<div class="no-friends">Please log in to see your friends.</div>';
+                }
+            }
+
+            async getCurrentUser() {
+                // Use your existing authentication system
+                // This is a placeholder - replace with your actual auth check
+                try {
+                    // Example: Check if user is logged in via your existing system
+                    const response = await fetch('/auth/check', { 
+                        credentials: 'include' 
+                    });
+                    if (response.ok) {
+                        const userData = await response.json();
+                        return userData.username;
+                    }
+                } catch (error) {
+                    console.error('Error checking auth status:', error);
+                }
+                return null;
+            }
+
+            async loadFriends(username) {
+                try {
+                    const res = await fetch(`/stats/api/friends/${username}`);
+                    const data = await res.json();
+
+                    if (!res.ok) throw new Error(data.error || "Failed to fetch friends");
+
+                    this.friends = await Promise.all(
+                        data.friends.map(async (friendUsername, index) => {
+                            const status = await this.getFriendStatus(friendUsername);
+                            return {
+                                id: index + 1,
+                                name: friendUsername,
+                                status: status,
+                                avatar: friendUsername.substring(0, 2).toUpperCase()
+                            };
+                        })
+                    );
+                    
+                    this.renderFriendsList();
+                } catch (err) {
+                    console.error('Error loading friends:', err);
+                    this.showMessage("Error loading friends", "error");
+                }
+            }
+
+            async getFriendStatus(username) {
+                try {
+                    // Try to get actual status from your backend
+                    const res = await fetch(`/stats/api/user-status/${username}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        return data.status || 'offline';
+                    }
+                } catch (err) {
+                    console.error('Error fetching friend status:', err);
+                }
+                
+                // Fallback to mock status
+                const statuses = ['online', 'offline', 'away'];
+                return statuses[Math.floor(Math.random() * statuses.length)];
+            }
+
+            renderFriendsList() {
+                const filteredFriends = this.currentFilter === 'all' 
+                    ? this.friends 
+                    : this.friends.filter(friend => friend.status === this.currentFilter);
+                
+                this.friendsCount.textContent = filteredFriends.length.toString();
+                
+                if (filteredFriends.length === 0) {
+                    this.friendsList.innerHTML = '<div class="no-friends">No friends match the selected filter.</div>';
+                    return;
+                }
+                
+                this.friendsList.innerHTML = filteredFriends.map(friend => `
+                    <div class="friend-item" data-id="${friend.id}">
+                        <div class="friend-avatar">${friend.avatar}</div>
+                        <div class="friend-info">
+                            <div class="friend-name">${friend.name}</div>
+                            <div class="friend-status">
+                                <div class="status-indicator status-${friend.status}"></div>
+                                <span>${friend.status.charAt(0).toUpperCase() + friend.status.slice(1)}</span>
+                            </div>
+                        </div>
+                        <div class="friend-actions">
+                            <button class="friend-action-btn message-btn" data-id="${friend.id}">Message</button>
+                            <button class="friend-action-btn remove-btn" data-id="${friend.id}">Remove</button>
+                        </div>
+                    </div>
+                `).join('');
+                
+                // Add event listeners to dynamically created buttons
+                this.friendsList.querySelectorAll('.message-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const id = parseInt(e.target.getAttribute('data-id'));
+                        this.messageFriend(id);
+                    });
+                });
+                
+                this.friendsList.querySelectorAll('.remove-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const id = parseInt(e.target.getAttribute('data-id'));
+                        this.removeFriend(id);
+                    });
+                });
+            }
+
+            async addFriend() {
+                const currentUser = await this.getCurrentUser();
+                if (!currentUser) {
+                    this.showMessage("You must be logged in to add friends.", "error");
+                    return;
+                }
+
+                const friendUsername = this.friendInput.value.trim();
+                if (!friendUsername) {
+                    this.showMessage("Please enter a username", "error");
+                    return;
+                }
+
+                if (this.friends.some(friend => friend.name.toLowerCase() === friendUsername.toLowerCase())) {
+                    this.showMessage("This user is already in your friends list", "error");
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`/stats/api/friends/${currentUser}`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ friendUsername }),
+                    });
+
+                    const data = await res.json();
+
+                    if (!res.ok) {
+                        this.showMessage(data.error || "Failed to add friend", "error");
+                        return;
+                    }
+
+                    this.friendInput.value = '';
+                    this.showMessage(`Successfully added ${friendUsername} to your friends list`, "success");
+                    await this.loadFriends(currentUser);
+                } catch (err) {
+                    console.error('Error adding friend:', err);
+                    this.showMessage("Error adding friend", "error");
+                }
+            }
+
+            async removeFriend(id) {
+                const friend = this.friends.find(f => f.id === id);
+                if (!friend) return;
+
+                if (!confirm(`Are you sure you want to remove ${friend.name} from your friends?`)) {
+                    return;
+                }
+
+                const currentUser = await this.getCurrentUser();
+                if (!currentUser) {
+                    this.showMessage("You must be logged in to remove friends.", "error");
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`/stats/api/friends/${currentUser}/${friend.name}`, {
+                        method: "DELETE",
+                    });
+
+                    if (!res.ok) {
+                        throw new Error("Failed to remove friend");
+                    }
+
+                    this.friends = this.friends.filter(f => f.id !== id);
+                    this.renderFriendsList();
+                    this.showMessage("Friend removed successfully", "success");
+                } catch (err) {
+                    console.error('Error removing friend:', err);
+                    this.showMessage("Error removing friend", "error");
+                }
+            }
+
+            messageFriend(id) {
+                const friend = this.friends.find(f => f.id === id);
+                if (friend) {
+                    // Use your existing messaging system
+                    alert(`Opening chat with ${friend.name}...`);
+                }
+            }
+
+            showMessage(message, type) {
+                this.friendsMsg.textContent = message;
+                this.friendsMsg.style.color = type === 'success' ? '#4CAF50' : '#dc3545';
+                
+                setTimeout(() => {
+                    this.friendsMsg.textContent = '';
+                }, 3000);
+            }
+        }
+
+        // Initialize friends page
+        document.addEventListener('DOMContentLoaded', () => {
+            const friendsManager = new FriendsManager();
+            friendsManager.initFriendsPage();
+        });
+    </script>
+</body>
+</html>
