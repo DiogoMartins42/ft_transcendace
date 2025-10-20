@@ -1,227 +1,276 @@
-import { GameState, StateMessage, InputMessage } from "./pong_types";
+// Multiplayer Pong client logic
+
+import { InputMessage, StateMessage, GameState, GameStateType } from "./pong_types";
 import { gameSettings } from "./gameSettings";
+import { stopSearchingOverlay } from "./setupPong";
 
-// -------------------- Helpers --------------------
-function getCanvasAndContext()
-{
-	const canvas = document.getElementById("pong") as HTMLCanvasElement | null;
-	if (!canvas) {
-		console.error("Canvas element not found!");
-		return { canvas: null, context: null };
-	}
-	const context = canvas.getContext("2d");
-	if (!context) {
-		console.error("Failed to get 2D context!");
-		return { canvas: null, context: null };
-	}
-	return { canvas, context };
+
+/* -------------------------- Canvas & Rendering -------------------------- */
+
+export function getCanvasAndContext(): {
+  canvas: HTMLCanvasElement | null;
+  context: CanvasRenderingContext2D | null;
+} {
+  const canvas = document.getElementById("pong") as HTMLCanvasElement | null;
+  if (!canvas) {
+    console.error("Canvas element #pong not found");
+    return { canvas: null, context: null };
+  }
+  const context = canvas.getContext("2d");
+  if (!context) {
+    console.error("2D context not available");
+    return { canvas, context: null };
+  }
+  return { canvas, context };
 }
 
-function render
-(
-	canvas: HTMLCanvasElement,
-	context: CanvasRenderingContext2D,
-	player1: any,
-	player2: any,
-	ball: any,
-	net: any
+export function render(
+  canvas: HTMLCanvasElement,
+  context: CanvasRenderingContext2D,
+  player1: any,
+  player2: any,
+  ball: any,
+  net: { x: number; y: number; width: number; height: number }
 ) {
-	// Clear canvas
-	context.fillStyle = gameSettings.bgColor;
-	context.fillRect(0, 0, canvas.width, canvas.height);
+  // background
+  context.fillStyle = gameSettings.bgColor || "#000";
+  context.fillRect(0, 0, canvas.width, canvas.height);
 
-	// Draw net
-	for (let i = 0; i <= canvas.height; i += 15) {
-		context.fillStyle = gameSettings.itemsColor;
-		context.fillRect(net.x, net.y + i, net.width, net.height);
-	}
+  // net
+  for (let i = 0; i < canvas.height; i += net.height + 5) {
+    context.fillStyle = gameSettings.itemsColor || "#fff";
+    context.fillRect(net.x, net.y + i, net.width, net.height);
+  }
 
-	// Draw scores
-	context.fillStyle = "#FFF";
-	context.font = "35px Lucky";
-	context.fillText(player1.score.toString(), canvas.width / 4, canvas.height / 5);
-	context.fillText(
-		player2.score.toString(),
-		(3 * canvas.width) / 4,
-		canvas.height / 5
-	);
+  // scores
+  context.fillStyle = "#fff";
+  context.font = "32px sans-serif";
+  context.textAlign = "center";
+  context.fillText(String(player1.score ?? 0), canvas.width / 4, 60);
+  context.fillText(String(player2.score ?? 0), (3 * canvas.width) / 4, 60);
 
-	// Draw paddles
-	context.fillStyle = gameSettings.itemsColor;
-	context.fillRect(player1.x, player1.y, player1.width, player1.height);
-	context.fillRect(player2.x, player2.y, player2.width, player2.height);
+  // paddles
+  context.fillStyle = gameSettings.itemsColor || "#fff";
+  context.fillRect(player1.x, player1.y, player1.width, player1.height);
+  context.fillRect(player2.x, player2.y, player2.width, player2.height);
 
-	// Draw ball
-	context.fillStyle = "#05EDFF";
-	context.beginPath();
-	context.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2, false);
-	context.closePath();
-	context.fill();
+  // ball
+  context.beginPath();
+  context.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+  context.closePath();
+  context.fillStyle = "#05EDFF";
+  context.fill();
 }
 
-// -------------------- Client Init --------------------
-export function initClientPong() {
-	const { canvas, context } = getCanvasAndContext();
-	if (!canvas || !context) return;
+/* ---------------------------- Overlay helpers --------------------------- */
 
-	const pauseBtn = document.getElementById("pause-btn") as HTMLButtonElement | null;
-	const settingsBtn = document.getElementById("openSettings") as HTMLButtonElement | null;
-
-	// Keep track of player role
-	let playerRole: "left" | "right" | "spectator" = "spectator";
-
-	// WebSocket connection
-	const socket = new WebSocket("ws://localhost:3000/ws");
-
-	socket.onopen = () => {
-		console.log("Connected to server, waiting for role assignment...");
-	};
-
-	socket.onmessage = (event) => {
-		const msg = JSON.parse(event.data);
-
-		// Role assignment
-		if (msg.type === "role") {
-		  playerRole = msg.role;
-		  console.log(`✅ You are the ${playerRole.toUpperCase()} player`);
-		  if (playerRole === "spectator") {
-			showOverlay("Spectator mode", []);
-			} else {
-				showOverlay("Press SPACE to start!", [
-					{
-						text: "Start",
-						onClick: () =>
-							socket.send(JSON.stringify({ type: "control", action: "start" })),
-					},
-				]);
-			}
-			return;
-		}
-
-		// Game state updates 
-		if (msg.type === "state") {
-			const state: StateMessage = msg;
-
-    		render(
-    			canvas!,
-    			context!,
-    			state.paddles.left,
-    			state.paddles.right,
-    			state.ball,
-    			{ x: canvas!.width / 2 - 1, y: 0, width: 2, height: 10 }
-    		);
-
-			// Game over overlay
-			if (state.gameState === GameState.GAME_OVER) {
-				showOverlay("Game Over!", [
-					{
-						text: "Restart",
-						onClick: () =>
-							socket.send(
-								JSON.stringify({ type: "control", action: "restart" })
-							),
-					},
-				]);
-			}
-		}
-	};
-
-	// -------------------- INPUT HANDLING --------------------
-	// Only active players can control paddles
-	window.addEventListener("keydown", (e) => {
-		if (playerRole === "spectator") return;
-
-		let msg: InputMessage | null = null;
-		if (playerRole === "left") {
-			if (e.code === "KeyW") msg = { type: "input", player: "left", direction: "up" };
-			else if (e.code === "KeyS") msg = { type: "input", player: "left", direction: "down" };
-		} else if (playerRole === "right") {
-			if (e.code === "ArrowUp") msg = { type: "input", player: "right", direction: "up" };
-			else if (e.code === "ArrowDown") msg = { type: "input", player: "right", direction: "down" };
-		}
-
-		if (msg) socket.send(JSON.stringify(msg));
-
-    	// Start/resume with SPACE
-    	if (e.code === "Space") {
-    		socket.send(JSON.stringify({ type: "control", action: "resume" }));
-    		hideOverlay();
-    	}
-	});
-
-	// Key release → stop paddle
-	window.addEventListener("keyup", (e) => {
-		if (playerRole === "spectator") return;
-
-		let msg: InputMessage | null = null;
-		if (playerRole === "left" && ["KeyW", "KeyS"].includes(e.code)) {
-			msg = { type: "input", player: "left", direction: "stop" };
-		} else if (playerRole === "right" && ["ArrowUp", "ArrowDown"].includes(e.code)) {
-			msg = { type: "input", player: "right", direction: "stop" };
-		}
-
-		if (msg) socket.send(JSON.stringify(msg));
-	});
-
-	// Pause button
-	if (pauseBtn) {
-		pauseBtn.addEventListener("click", () => {
-			socket.send(JSON.stringify({ type: "control", action: "pause" }));
-			showOverlay("Paused", [
-				{
-					text: "Resume",
-					onClick: () =>
-						socket.send(JSON.stringify({ type: "control", action: "resume" })),
-				},
-				{
-					text: "Restart",
-					onClick: () =>
-						socket.send(JSON.stringify({ type: "control", action: "restart" })),
-				},
-			]);
-		});
-	}
-
-	// Settings button → just pauses for now
-	if (settingsBtn) {
-		settingsBtn.addEventListener("click", () => {
-			socket.send(JSON.stringify({ type: "control", action: "pause" }));
-			showOverlay("Settings paused", [
-				{
-					text: "Resume",
-					onClick: () =>
-						socket.send(JSON.stringify({ type: "control", action: "resume" })),
-				},
-			]);
-		});
-	}
-}
-
-// -------------------- UI Overlays --------------------
-function showOverlay
-(
-	message: string,
-	buttons: { text: string; onClick: () => void }[]
+function showOverlay(
+  message: string,
+  buttons: { text: string; onClick: () => void }[] = []
 ) {
-	const overlay = document.getElementById("overlay");
-	if (!overlay) return;
+  const overlay = document.getElementById("game-overlay");
+  const msg = document.getElementById("game-message");
+  const btns = document.getElementById("overlay-buttons");
 
-	overlay.innerHTML = `<p style="font-size:24px;margin-bottom:12px;">${message}</p>`;
-	buttons.forEach((btn) => {
-		const buttonEl = document.createElement("button");
-		buttonEl.innerText = btn.text;
-		buttonEl.onclick = btn.onClick;
-		buttonEl.className =
-			"px-4 py-2 m-2 rounded bg-yellow-400 hover:bg-yellow-300 transition";
-		overlay.appendChild(buttonEl);
-	});
+  if (!overlay || !msg || !btns) {
+    console.warn("Overlay elements not found in DOM");
+    alert(message);
+    return;
+  }
 
-	overlay.style.display = "flex";
+  msg.textContent = message;
+  btns.innerHTML = "";
+
+  buttons.forEach((b) => {
+    const el = document.createElement("button");
+    el.textContent = b.text;
+    el.className =
+      "px-4 py-2 m-2 rounded bg-[#F5CB5C] text-[#1C39BB] font-semibold";
+    el.onclick = b.onClick;
+    btns.appendChild(el);
+  });
+
+  overlay.style.display = "flex";
 }
 
-function hideOverlay() 
-{
-	const overlay = document.getElementById("overlay");
-	if (overlay) overlay.style.display = "none";
+function hideOverlay() {
+  const overlay = document.getElementById("game-overlay");
+  if (overlay) overlay.style.display = "none";
 }
+
+/* -------------------------- initClientPong ----------------------------- */
+
+export function initClientPong(
+  socket: WebSocket,
+  initialRole?: "left" | "right" | "spectator",
+  opponentName?: string
+): void {
+  const { canvas, context } = getCanvasAndContext();
+  if (!canvas || !context) {
+    console.error("initClientPong: missing canvas/context");
+    return;
+  }
+
+  let playerRole: "left" | "right" | "spectator" = initialRole ?? "spectator";
+  let currentGameState: GameStateType = GameState.START; // ✅ fixed typing
+
+  // initial overlay
+  if (playerRole !== "spectator") {
+    showOverlay(`Matched vs ${opponentName ?? "player"}`, [
+      {
+        text: "Start",
+        onClick: () => {
+          socket.send(JSON.stringify({ type: "control", action: "start" }));
+          hideOverlay();
+        },
+      },
+    ]);
+  } else {
+    showOverlay("Searching for opponent...", []);
+  }
+
+  /* ----------------------- Socket listeners ----------------------- */
+
+  socket.addEventListener("message", (ev) => {
+    let msg: any;
+    try {
+      msg = JSON.parse(ev.data);
+    } catch {
+      console.warn("Invalid message:", ev.data);
+      return;
+    }
+
+    switch (msg.type) {
+      case "role":
+        playerRole = msg.role;
+		stopSearchingOverlay();
+        if (playerRole !== "spectator") {
+          showOverlay(`You are ${playerRole.toUpperCase()}`, [
+            {
+              text: "Start",
+              onClick: () => {
+                socket.send(JSON.stringify({ type: "control", action: "start" }));
+                hideOverlay();
+              },
+            },
+          ]);
+        } else {
+          showOverlay("Spectator mode", []);
+        }
+        break;
+
+      case "waiting":
+        showOverlay(msg.message ?? "Waiting for opponent...", []);
+        break;
+
+      case "matchFound":
+        playerRole = msg.role;
+		stopSearchingOverlay();
+        hideOverlay();
+        break;
+
+      case "state": {
+        const state = msg as StateMessage;
+        const net = { x: canvas.width / 2 - 1, y: 0, width: 2, height: 10 };
+        render(canvas, context, state.paddles.left, state.paddles.right, state.ball, net);
+
+        currentGameState = state.gameState; // ✅ now properly typed
+
+        if (state.gameState === GameState.GAME_OVER) {
+          showOverlay("Game Over", [
+            {
+              text: "Restart",
+              onClick: () => {
+                socket.send(JSON.stringify({ type: "control", action: "restart" }));
+                hideOverlay();
+              },
+            },
+          ]);
+        }
+        break;
+      }
+
+      case "invite":
+        showOverlay(`${msg.from} invited you to play`, [
+          {
+            text: "Accept",
+            onClick: () => {
+              socket.send(JSON.stringify({ type: "acceptInvite", from: msg.from }));
+              hideOverlay();
+            },
+          },
+          { text: "Decline", onClick: () => hideOverlay() },
+        ]);
+        break;
+
+      case "matchEnded":
+      case "opponentDisconnected":
+        showOverlay("Match ended", [
+          {
+            text: "Back",
+            onClick: () => window.location.reload(),
+          },
+        ]);
+        break;
+    }
+  });
+
+  socket.addEventListener("close", () => {
+    showOverlay("Disconnected from server", [
+      { text: "Reload", onClick: () => window.location.reload() },
+    ]);
+  });
+
+  socket.addEventListener("error", () => {
+    showOverlay("WebSocket error", [
+      { text: "Reload", onClick: () => window.location.reload() },
+    ]);
+  });
+
+  /* ------------------------ Input handling ------------------------ */
+
+  function sendInput(player: "left" | "right", direction: "up" | "down" | "stop") {
+    const msg: InputMessage = { type: "input", player, direction };
+    socket.send(JSON.stringify(msg));
+  }
+
+  window.addEventListener("keydown", (e) => {
+    if (playerRole === "spectator") return;
+    if (currentGameState !== GameState.PLAYING) return; // ✅ now valid comparison
+
+    if (["KeyW", "ArrowUp"].includes(e.code)) sendInput(playerRole, "up");
+    else if (["KeyS", "ArrowDown"].includes(e.code)) sendInput(playerRole, "down");
+
+    if (e.code === "Space") {
+      const action =
+        currentGameState === GameState.PLAYING ? "pause" : "resume";
+      socket.send(JSON.stringify({ type: "control", action }));
+    }
+  });
+
+  window.addEventListener("keyup", (e) => {
+    if (playerRole === "spectator") return;
+    if (["KeyW", "KeyS", "ArrowUp", "ArrowDown"].includes(e.code))
+      sendInput(playerRole, "stop");
+  });
+
+  const pauseBtn = document.getElementById("pause-btn");
+  if (pauseBtn) {
+    pauseBtn.addEventListener("click", () => {
+      socket.send(JSON.stringify({ type: "control", action: "pause" }));
+      showOverlay("Paused", [
+        {
+          text: "Resume",
+          onClick: () => {
+            socket.send(JSON.stringify({ type: "control", action: "resume" }));
+            hideOverlay();
+          },
+        },
+      ]);
+    });
+  }
+
+  console.log("✅ initClientPong initialized. Role:", playerRole);
+}
+
 

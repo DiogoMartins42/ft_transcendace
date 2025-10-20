@@ -17,7 +17,8 @@ import { initWebSocket } from './logic/ws'
 import { verifyStoredSession } from './logic/session'
 import { setupChat } from './logic/chat'
 
-import { initClientPong } from './logic/pong_client'
+// import { initClientPong } from './logic/pong_client'
+import { setupPong } from "./logic/setupPong";
 import { setupControlPanel } from './logic/controlPanel'
 
 import { setupStatsPage } from './logic/stats';
@@ -147,7 +148,7 @@ async function renderPage(pageHtml: string) {
 
   setupChat()
 
-  initClientPong()
+  setupPong()
   setupControlPanel()
 
   setupStatsPage()

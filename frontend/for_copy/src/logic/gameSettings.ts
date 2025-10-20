@@ -1,7 +1,7 @@
 export let gameSettings: {difficulty: number, resetSpeed: boolean, 
 	multiplayer: boolean, mouse: boolean, paddleSpeed: number, ballSpeed: number, 
-	scoreLimit: number, bgColor: string, itemsColor: string, default: boolean} =
-{
+	scoreLimit: number, bgColor: string, itemsColor: string, default: boolean, 
+	canvasWidth: number, canvasHeight: number} = {
 	//Defalut settings
 
 	//Single player settings (should be disabled when multiplayer is true)
@@ -19,6 +19,8 @@ export let gameSettings: {difficulty: number, resetSpeed: boolean,
 	bgColor: '#1C39BB', //input: color
 	itemsColor: '#F5CB5C', //input: color
 	default: false, //input: button that if clicked will reset all settings except modes to their default state
+    canvasWidth: 800,
+    canvasHeight: 600,
 }
 
 export function setupControlPanel() {
