@@ -20,11 +20,20 @@ const schema = {
     },
     DB_FILE: {
       type: "string",
-      default: "./blog.db",
+      default: "./pongpong.db",
     },
     JWT_SECRET: { 
       type: "string" 
     },
+    // OAuth Configuration (optional)
+    GOOGLE_CLIENT_ID: {
+      type: "string",
+      default: ""
+    },
+    GOOGLE_CLIENT_SECRET: {
+      type: "string",
+      default: ""
+    }
   },
 };
 
@@ -41,6 +50,8 @@ const envConfig = {
   nodeEnv: config.NODE_ENV,
   dbFile: config.DB_FILE,
   JWT_SECRET: config.JWT_SECRET,
+  GOOGLE_CLIENT_ID: config.GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET: config.GOOGLE_CLIENT_SECRET
 };
 
 export default envConfig;
