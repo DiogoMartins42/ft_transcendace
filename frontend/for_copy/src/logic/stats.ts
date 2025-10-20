@@ -1,4 +1,5 @@
 import { loadSession } from "./session";
+import { sharedState } from "../main";
 
 function getLoggedInUsername(){
   //First, try to get username from stored session
@@ -170,7 +171,7 @@ export function setupStatsPage() {
 } */
 
 export async function save_match(p1_score: number, p2_score: number, multiplayer: boolean) {
-  const username = getLoggedInUsername();
+  const username = sharedState.username;
 
   var winner : string;
   var loser : string;
