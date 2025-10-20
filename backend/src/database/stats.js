@@ -126,7 +126,7 @@ export default async function statsRoutes(fastify, options) {
   });
 
   // Get list of a user’s friends
-  fastify.get("/api/friends/:username", async (request, reply) => {
+  /* fastify.get("/api/friends/:username", async (request, reply) => {
     const { username } = request.params;
     const db = new Database(env.dbFile);
 
@@ -142,6 +142,38 @@ export default async function statsRoutes(fastify, options) {
       `).all(user.id);
 
       return reply.send({ username, friends: friends.map(f => f.username) });
+    } catch (err) {
+      return reply.code(500).send({ error: err.message });
+    } finally {
+      db.close();
+    }
+  }); */
+  // Get list of a user’s friends with online status
+  fastify.get("/api/friends/:username", async (request, reply) => {
+    const { username } = request.params;
+    const db = new Database(env.dbFile);
+
+    try {
+      const user = db.prepare("SELECT id FROM users WHERE username = ?").get(username);
+      if (!user) return reply.code(404).send({ error: `User '${username}' not found` });
+
+      const friends = db.prepare(`
+        SELECT u.username
+        FROM friends f
+        JOIN users u ON f.friend_id = u.id
+        WHERE f.user_id = ?
+      `).all(user.id);
+
+      // Add online status (temporary - all offline until we fix clients access)
+      const friendsWithStatus = friends.map(friend => ({
+        username: friend.username,
+        status: 'offline'
+      }));
+
+      return reply.send({ 
+        username, 
+        friends: friendsWithStatus 
+      });
     } catch (err) {
       return reply.code(500).send({ error: err.message });
     } finally {

@@ -98,12 +98,6 @@
             font-size: 0.9rem;
         }
 
-        .status-filter {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
         .filter-btn {
             padding: 8px 15px;
             background: #e9ecef;
@@ -260,6 +254,60 @@
                 justify-content: center;
             }
         }
+
+        #friendsErrorMessage {
+          color: #d32f2f;
+          background-color: #ffebee;
+          border: 1px solid #ffcdd2;
+          border-radius: 4px;
+          padding: 12px;
+          margin: 10px 0;
+          font-size: 14px;
+          display: none;
+        }
+
+        .friend-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 10px;
+        }
+
+        .status-indicator {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+        }
+
+        .status-indicator.online {
+          background-color: #4CAF50;
+          box-shadow: 0 0 5px #4CAF50;
+        }
+
+        .status-indicator.offline {
+          background-color: #f44336;
+        }
+
+        .status-indicator.away {
+          background-color: #ff9800;
+        }
+
+        .friend-name {
+          font-weight: bold;
+        }
+
+        .friend-status {
+          color: #666;
+          font-size: 0.9em;
+        }
+
+        .no-friends-message {
+          color: #666;
+          font-style: italic;
+          text-align: center;
+          padding: 20px;
+          list-style: none;
+        }
     </style>
 </head>
 <body>
@@ -286,12 +334,6 @@
                 <span class="friends-count" id="friendsCount">0</span>
             </h2>
             
-            <div class="status-filter">
-                <button class="filter-btn active" data-status="all">All</button>
-                <button class="filter-btn" data-status="online">Online</button>
-                <button class="filter-btn" data-status="offline">Offline</button>
-            </div>
-            
             <div class="friends-list" id="friendsList">
                 <div class="no-friends">No friends added yet. Start by adding some friends!</div>
             </div>
@@ -303,7 +345,6 @@
         class FriendsManager {
             constructor() {
                 this.friends = [];
-                this.currentFilter = 'all';
                 this.initializeElements();
                 this.setupEventListeners();
             }
@@ -314,7 +355,6 @@
                 this.friendsMsg = document.getElementById('friendsMsg');
                 this.friendsList = document.getElementById('friendsList');
                 this.friendsCount = document.getElementById('friendsCount');
-                this.filterBtns = document.querySelectorAll('.filter-btn');
 
                 if (!this.friendInput || !this.addFriendBtn || !this.friendsList) {
                     console.error("Friends page elements not found");
@@ -327,15 +367,6 @@
                 
                 this.friendInput.addEventListener('keypress', (e) => {
                     if (e.key === 'Enter') this.addFriend();
-                });
-                
-                this.filterBtns.forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        this.filterBtns.forEach(b => b.classList.remove('active'));
-                        btn.classList.add('active');
-                        this.currentFilter = btn.dataset.status || 'all';
-                        this.renderFriendsList();
-                    });
                 });
             }
 
@@ -411,11 +442,7 @@
                 return statuses[Math.floor(Math.random() * statuses.length)];
             }
 
-            renderFriendsList() {
-                const filteredFriends = this.currentFilter === 'all' 
-                    ? this.friends 
-                    : this.friends.filter(friend => friend.status === this.currentFilter);
-                
+            renderFriendsList() {       
                 this.friendsCount.textContent = filteredFriends.length.toString();
                 
                 if (filteredFriends.length === 0) {
