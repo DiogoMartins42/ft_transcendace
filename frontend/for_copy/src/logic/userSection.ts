@@ -83,7 +83,7 @@ export async function setupUserSection() {
                 const el = document.getElementById(id) as HTMLImageElement | null;
                 const def = document.getElementById(id.replace("user-avatar", "default-avatar")) as SVGElement | null;
                 if (el) {
-                  el.src = `${base}/uploads/avatars/${sharedState.username}.png?${timestamp}`;
+                  el.src = `${base}/uploads/avatars/${sharedState.username}?${timestamp}`;
                   el.classList.remove("hidden");
                 }
                 if (def) def.classList.add("hidden");

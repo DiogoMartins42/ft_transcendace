@@ -9,7 +9,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const avatarsDir = path.join(__dirname, "./avatars");
 
-
 // If path exists, serve the image requested to the server, otherwise send default.png
 const SUPPORTED_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
 
@@ -17,6 +16,11 @@ export default async function uploadsRoutes(fastify, options) {
   fastify.get("/avatars/:username", async (request, reply) => {
     const { username } = request.params;
 
+    const avatarsDir = path.join("/app/src/uploads/avatars");
+    console.log("🔄 Avatars directory:", avatarsDir);
+    console.log("🔄 Directory exists?", fs.existsSync(avatarsDir));
+
+    
     // Try each supported extension until one exists
     let filePath = null;
     for (const ext of SUPPORTED_EXTENSIONS) {
@@ -66,6 +70,9 @@ export default async function uploadsRoutes(fastify, options) {
       await fs.promises.mkdir(avatarsDir, { recursive: true });
       await fs.promises.writeFile(filePath, fileData);
 
+      // In the POST handler:
+      console.log("📁 Saving to:", filePath);
+      console.log("📁 Parent dir exists?", fs.existsSync(path.dirname(filePath)));
       return reply.send({ message: "Avatar uploaded successfully" });
     }
   );

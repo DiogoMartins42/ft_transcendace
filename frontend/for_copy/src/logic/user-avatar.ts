@@ -1,7 +1,7 @@
 export function setUserAvatar(username: string, elementId = "user-avatar") {
   const img = document.getElementById(elementId) as HTMLImageElement | null;
   if (!img) return;
-  img.src = `${import.meta.env.VITE_API_URL}/uploads/avatars/${username}.png?${Date.now()}`;
+  img.src = `${import.meta.env.VITE_API_URL}/uploads/avatars/${username}?${Date.now()}`;
 }
 
 export async function uploadAvatar(file: File, username: string) {
