@@ -76,7 +76,7 @@ export async function setupUserSection() {
             if (file && sharedState.username) {
               await uploadAvatar(file, sharedState.username);
             
-              // 🔁 Refresh both avatars immediately (main + modal)
+              // Refresh avatar immediately
               const timestamp = Date.now();
               const base = import.meta.env.VITE_API_URL;
               ["user-avatar", "user-avatar-modal"].forEach(id => {

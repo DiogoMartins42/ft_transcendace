@@ -39,6 +39,7 @@ export default async function statsRoutes(fastify, options) {
       const matches = db.prepare(`
         SELECT 
           m.id,
+          m.created_at,
           w.username AS winner,
           l.username AS loser,
           m.winner_points,
