@@ -3,7 +3,7 @@ import navLoggedinHtml from '../components/navLoggedin.html?raw'
 import { setupLoginForm } from './login_handler'
 import { setupSignupForm } from './signup_handler'
 import { setupUserSettings } from "./UpdateUserInformation";
-import { setUserAvatar } from './user-avatar';
+import { uploadAvatar, setUserAvatar } from './user-avatar';
 import { sharedState } from '../main'
 
 export async function setupUserSection() {
@@ -67,9 +67,37 @@ export async function setupUserSection() {
           }
         });
         
+        const avatarInput = document.getElementById("avatar-upload") as HTMLInputElement | null;
+        if (avatarInput) {
+          avatarInput.addEventListener("change", async (ev) => {
+            ev.stopPropagation();
+            ev.preventDefault(); // Prevent modal refresh
+            const file = avatarInput.files?.[0];
+            if (file && sharedState.username) {
+              await uploadAvatar(file, sharedState.username);
+            
+              // 🔁 Refresh both avatars immediately (main + modal)
+              const timestamp = Date.now();
+              const base = import.meta.env.VITE_API_URL;
+              ["user-avatar", "user-avatar-modal"].forEach(id => {
+                const el = document.getElementById(id) as HTMLImageElement | null;
+                const def = document.getElementById(id.replace("user-avatar", "default-avatar")) as SVGElement | null;
+                if (el) {
+                  el.src = `${base}/uploads/avatars/${sharedState.username}.png?${timestamp}`;
+                  el.classList.remove("hidden");
+                }
+                if (def) def.classList.add("hidden");
+              });
+            
+              console.log("✅ Avatar refreshed successfully");
+            }
+          });
+        }
+
+        
+        
       }
-      // Update the information from the logged in user
-      setupUserSettings(settingsModal)
+
 
     } else {
       userSection!.innerHTML = navLoggedoutHtml
