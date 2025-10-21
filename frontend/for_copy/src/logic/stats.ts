@@ -234,6 +234,14 @@ export function setupStatsPage() {
   export async function save_match(p1_score: number, p2_score: number, multiplayer: boolean) {
   // Get the current logged-in username directly from session
   const session = loadSession();
+  if (!session) {
+    console.log("Match not saved: No user logged in");
+    return;
+  }
+  if (!session.user.username) {
+    console.log("Match not saved: No user logged in");
+    return;
+  }
   const sessionUsername = session.user.username;
   const sharedUsername = sharedState.username;
   
