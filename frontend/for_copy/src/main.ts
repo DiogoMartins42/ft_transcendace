@@ -2,6 +2,7 @@ import './style.css'
 import homeHtml from './pages/home.html?raw'
 import navbarHtml from './components/navbar.html?raw'
 import aboutHtml from './pages/about.html?raw'
+import tournamentHtml from './pages/tournament.html?raw'
 import chatHtml from './pages/chat.html?raw'
 import contactHtml from './pages/contact.html?raw'
 import statsHtml from './pages/stats.html?raw'
@@ -10,18 +11,28 @@ import loginModalHtml from './components/login-modal.html?raw'
 import signupModalHtml from './components/signup-modal.html?raw'
 import sidebarHtml from './components/sidebar.html?raw'
 import controlPanelHtml from './components/controlPanel-modal.html?raw'
+import friendsHtml from './pages/friend_list.html?raw'
 
+// import { setupModalEvents } from './logic/simulatedModals'
+// import { setupUserSection } from './logic/simulatedUserSection'
+// import { setupModalEvents } from './logic/modals'
 import { setupUserSection } from './logic/userSection'
-import { setupSidebarEvents } from './logic/sidebar'
-import { initWebSocket } from './logic/ws'
-import { verifyStoredSession } from './logic/session'
-import { setupChat } from './logic/chat'
 
+// import { setupLoginForm } from './logic/login_handler'
+
+import { setupSidebarEvents } from './logic/sidebar'
+import { initWebSocket, disconnectWebSocket } from './logic/ws'
+import { verifyStoredSession } from './logic/session'
 // import { initClientPong } from './logic/pong_client'
 import { setupPong } from "./logic/setupPong";
+import { setupChat, handleIncomingMessage } from './logic/chat'
+import { setPong } from './logic/pong'
 import { setupControlPanel } from './logic/controlPanel'
-
-import { setupStatsPage } from './logic/stats';
+import { initFriendsPage } from './logic/friend_list';
+import { setupStatsPage } from './logic/stats'
+import { setupLoginForm } from './logic/login_handler'
+import { setupSignupForm } from './logic/signup_handler'
+import { setupOAuth, handleOAuthCallback, initOAuthUI } from './logic/oauth'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -48,6 +59,8 @@ class SharedState {
   }
 
   setState(partial: Partial<{ isLoggedIn: boolean; username?: string; avatarUrl?: string }>) {
+    const wasLoggedIn = this._isLoggedIn
+    
     let changed = false
     if (partial.isLoggedIn !== undefined && partial.isLoggedIn !== this._isLoggedIn) {
       this._isLoggedIn = partial.isLoggedIn
@@ -61,7 +74,13 @@ class SharedState {
       this._avatarUrl = partial.avatarUrl
       changed = true
     }
-    if (changed) this.listeners.forEach(fn => fn())
+    
+    if (changed) {
+      if (wasLoggedIn !== this._isLoggedIn) {
+        handleAuthStateChange(this._isLoggedIn)
+      }
+      this.listeners.forEach(fn => fn())
+    }
   }
 
   subscribe(fn: StateListener) {
@@ -69,7 +88,19 @@ class SharedState {
   }
 }
 
-export const sharedState = new SharedState()
+// --- Auth State Management ---
+export function handleAuthStateChange(isLoggedIn: boolean) {
+  if (isLoggedIn) {
+    console.log('🔌 Initializing WebSocket for logged-in user...')
+    initWebSocket((msg: any) => {
+      console.log('📥 WebSocket message received in main:', msg)
+      handleIncomingMessage(msg)
+    })
+  } else {
+    console.log('🔌 Disconnecting WebSocket - user logged out')
+    disconnectWebSocket()
+  }
+}
 
 // --- Persistent Login Setup ---
 interface StoredUser {
@@ -78,17 +109,39 @@ interface StoredUser {
   token: string
 }
 
-export function saveSession(token: string, user: { username: string; avatarUrl?: string }) {
-  localStorage.setItem("userSession", JSON.stringify({ token, ...user }));
-}
-
-export function loadUserSession() {
-  const data = localStorage.getItem("userSession");
-  return data ? JSON.parse(data) : null;
-}
+// Shared state instance and helpers
+export const sharedState = new SharedState()
 
 export function setSharedState(partial: Partial<{ isLoggedIn: boolean; username?: string; avatarUrl?: string }>) {
   sharedState.setState(partial)
+}
+
+export function saveSession(token: string, userData: any) {
+  const stored: StoredUser = {
+    username: userData.username,
+    avatarUrl: userData.avatarUrl,
+    token
+  }
+  localStorage.setItem('userSession', JSON.stringify(stored))
+}
+
+// Login/Logout functions for use in other modules
+export async function handleLogin(token: string, userData: any) {
+  saveSession(token, userData)
+  setSharedState({
+    isLoggedIn: true,
+    username: userData.username,
+    avatarUrl: userData.avatarUrl
+  })
+}
+
+export function handleLogout() {
+  localStorage.removeItem("userSession")
+  setSharedState({
+    isLoggedIn: false,
+    username: undefined,
+    avatarUrl: undefined
+  })
 }
 
 async function renderPage(pageHtml: string) {
@@ -105,82 +158,92 @@ async function renderPage(pageHtml: string) {
 
   setupUserSection()
   setupSidebarEvents()
-
-  // --- SAFE websocket message handling (this is the changed part) ---
-  initWebSocket((msg: unknown) => {
-    const chatMessages = document.getElementById('chat-messages')
-    if (!chatMessages) return
-
-    const div = document.createElement('div')
-
-    // helper to convert unknown msg into a display string
-    const msgToText = (m: unknown): string => {
-      if (m === null || m === undefined) return ''
-
-      // string payload (maybe JSON string)
-      if (typeof m === 'string') {
-        // try to parse JSON string. If it fails, show the raw string.
-        try {
-          const parsed = JSON.parse(m) as any
-          if (parsed && typeof parsed === 'object') {
-            return String(parsed.chat ?? parsed.message ?? JSON.stringify(parsed))
-          }
-          return String(parsed)
-        } catch {
-          return m
-        }
-      }
-
-      // object payload
-      if (typeof m === 'object') {
-        const o = m as Record<string, any>
-        return String(o.chat ?? o.message ?? JSON.stringify(o))
-      }
-
-      // number/boolean/other
-      return String(m)
-    }
-
-    div.textContent = msgToText(msg)
-    chatMessages.appendChild(div)
-    chatMessages.scrollTop = chatMessages.scrollHeight
-  })
-
   setupChat()
 
   setupPong()
+  setPong()
   setupControlPanel()
-
   setupStatsPage()
+  setupLoginForm()   
+  setupSignupForm()
+  setupOAuth()
+  setupStatsPage()
+  initFriendsPage()
 }
 
-async function handleRoute() {
-  const route = window.location.hash.slice(1) || 'home'
+function handleRoute()
+{
+	const route = window.location.hash.slice(1) || 'home';
 
-  switch (route) {
-    case 'about':
-      await renderPage(aboutHtml)
+	switch (route) {
+		case 'about':
+			renderPage(aboutHtml)
+			break
+		case 'tournament':
+			renderPage(tournamentHtml)
+			break  
+		case 'chat':
+			renderPage(chatHtml)
+			break
+		case 'contact':
+			renderPage(contactHtml)
+			break
+		case 'stats':
+			renderPage(statsHtml)
+			break
+		case 'userSettings':
+			renderPage(userSettingsHtml)
+			break
+    case 'friends':
+      renderPage(friendsHtml)
       break
-    case 'chat':
-      await renderPage(chatHtml)
-      break
-    case 'contact':
-      await renderPage(contactHtml)
-      break
-    case 'stats':
-      await renderPage(statsHtml)
-      break
-    case 'userSettings':
-      await renderPage(userSettingsHtml)
-      break
-    default:
-      await renderPage(homeHtml)
-  }
-  sidebarState.sidebarOpen = false
+		default:
+			renderPage(homeHtml)
+	}
+	sidebarState.sidebarOpen = false;
 }
+
+window.addEventListener('error', (event) => {
+  console.error('🛑 Global error caught:', event.error);
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('🛑 Unhandled promise rejection:', event.reason);
+});
 
 window.addEventListener('DOMContentLoaded', async () => {
-  await verifyStoredSession()  // ✅ restores session state first
-  await handleRoute()          // ✅ then render the page (setupUserSection will use the restored state)
+  console.log('🚀 App initializing...')
+
+  // process OAuth return (if any) BEFORE checking stored session
+  try {
+    await handleOAuthCallback()
+  } catch (err) {
+    console.error('OAuth callback handling failed:', err)
+  }
+
+  // init OAuth UI (show/hide Google button) early
+  try {
+    await initOAuthUI()
+  } catch (err) {
+    console.warn('initOAuthUI failed:', err)
+  }
+
+  // 1. Verify session after possible OAuth login
+  const hasValidSession = await verifyStoredSession()
+
+  // 2. Initialize WebSocket only if user is logged in
+  if (hasValidSession) {
+    console.log('🔌 Initializing WebSocket for authenticated user...')
+    initWebSocket((msg: any) => {
+      console.log('📥 WebSocket message received in main:', msg)
+      handleIncomingMessage(msg)
+    })
+  } else {
+    console.log('🚫 No valid session, skipping WebSocket initialization')
+  }
+  
+  // 3. Render initial page
+  await handleRoute()
 })
+
 window.addEventListener('hashchange', handleRoute)

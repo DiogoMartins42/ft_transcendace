@@ -1,9 +1,27 @@
 <div id="login-modal" class="fixed inset-0 flex flex-col items-end justify-start mt-22 mr-4 h-screen hidden">
   <div class="w-full max-w-md bg-[#0E172B] border-1 border-[#F5CB5C] rounded-lg shadow-md p-6">
-    <h2 class="text-2xl font-bold text-[#F5CB5C] mb-4 ">Login</h2>
+    <h2 class="text-2xl font-bold text-[#F5CB5C] mb-4">Login</h2>
+    
+    <!-- Google OAuth Button - SIMPLIFIED -->
+    <button id="google-login-btn" 
+            class="w-full bg-white text-gray-800 py-3 px-4 rounded-md font-semibold mb-4 flex items-center justify-center gap-3 hover:bg-gray-100 transition-colors border border-gray-300">
+      <!-- Simple Google "G" logo using text -->
+      <div class="w-5 h-5 bg-white rounded-full flex items-center justify-center border border-gray-300">
+        <span class="text-blue-500 font-bold text-xs">G</span>
+      </div>
+      Continue with Google
+    </button>
+
+    <!-- Divider -->
+    <div class="flex items-center my-4">
+      <div class="flex-1 border-t border-gray-600"></div>
+      <span class="px-3 text-gray-400 text-sm">OR</span>
+      <div class="flex-1 border-t border-gray-600"></div>
+    </div>
+
     <form id="login-form" class="flex flex-col">
-      <input id="login-email" type="email" class="bg-[#0E172B] text-white border-1 border-[#F5CB5C] rounded-md p-2 mb-4 focus:outline-none focus:ring-1 focus:ring-white transition ease-in-out duration-150" placeholder="Email address">
-      <input id="login-password" type="password" class="bg-[#0E172B] text-white border-1 border-[#F5CB5C] rounded-md p-2 mb-4 focus:outline-none focus:ring-1 focus:ring-white transition ease-in-out duration-150" placeholder="Password">
+      <input id="login-email" type="email" class="bg-[#0E172B] text-white border-1 border-[#F5CB5C] rounded-md p-2 mb-4 focus:outline-none focus:ring-1 focus:ring-white transition ease-in-out duration-150" placeholder="Email address" required>
+      <input id="login-password" type="password" class="bg-[#0E172B] text-white border-1 border-[#F5CB5C] rounded-md p-2 mb-4 focus:outline-none focus:ring-1 focus:ring-white transition ease-in-out duration-150" placeholder="Password" required>
       <div class="flex items-center justify-between flex-wrap">
         <label for="remember-me" class="text-sm text-white flex items-center gap-2">
           <input
@@ -16,9 +34,9 @@
                    flex items-center justify-center cursor-pointer"/>
             Remember me
         </label>
-        <button type="button" id="forgotPass"  class="text-sm text-[#F5CB5C] hover:underline mb-0.5 cursor-pointer">Forgot password?</button>
-        <p class="text-white mt-4"> Don't have an account? 
-          <button id="open-signup" type="button" class="text-sm text-[#F5CB5C] -200 hover:underline mt-4 cursor-pointer">
+        <button type="button" id="forgotPass" class="text-sm text-[#F5CB5C] hover:underline mb-0.5 cursor-pointer">Forgot password?</button>
+        <p class="text-white mt-4 w-full"> Don't have an account? 
+          <button id="open-signup" type="button" class="text-sm text-[#F5CB5C] hover:underline cursor-pointer">
             Signup
           </button>
         </p>

@@ -27,8 +27,12 @@ export default async function routes(fastify, opts) {
     `);
     const result = stmt.run(username, email, hashedPassword);
 
-    // ✅ Automatically issue JWT
-    const token = fastify.jwt.sign({ userId: result.lastInsertRowid });
+    // ✅ Fix: Use consistent field name "id" instead of "userId"
+    const token = fastify.jwt.sign({ 
+      id: result.lastInsertRowid,  // ← Change from userId to id
+      username: username,          // ← Also include username for better debugging
+      email: email
+    });
 
     return reply.status(201).send({
       token,
@@ -61,7 +65,12 @@ export default async function routes(fastify, opts) {
       return reply.status(401).send({ error: "Invalid email or password!" });
     }
 
-    const token = fastify.jwt.sign({ userId: user.id });
+    // ✅ Fix: Use consistent field name "id" instead of "userId"
+    const token = fastify.jwt.sign({ 
+      id: user.id,           // ← Change from userId to id
+      username: user.username, // ← Include username
+      email: user.email
+    });
 
     return reply.send({
       token,
@@ -78,7 +87,8 @@ export default async function routes(fastify, opts) {
     "/me",
     { preValidation: [fastify.authenticate] },
     async (request, reply) => {
-      const { userId } = request.user;
+      // ✅ Fix: Now use request.user.id instead of request.user.userId
+      const userId = request.user.id;
 
       const user = db
         .prepare("SELECT id, username, email FROM users WHERE id = ?")

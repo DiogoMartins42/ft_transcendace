@@ -4,15 +4,29 @@ import loading from '../components/loading.html?raw'
 const BACKEND_LOGIN_URL = `${import.meta.env.VITE_API_URL}/auth/login`;
 
 export function setupLoginForm() {
-  const loginModal = document.getElementById('login-modal') as HTMLElement | null
-  const signupModal = document.getElementById('signup-modal') as HTMLElement | null
-  const openBtnLogin = document.getElementById('open-login') as HTMLButtonElement | null
-  const openBtnSignup = document.getElementById('open-signup') as HTMLElement | null
-  const loginForm = document.getElementById('login-form') as HTMLFormElement | null
-  const emailInput = document.getElementById('login-email') as HTMLInputElement | null
-  const passwordInput = document.getElementById('login-password') as HTMLInputElement | null
-  const loginSubmit = document.getElementById('login-submit') as HTMLButtonElement | null
-  const loginMessage = document.getElementById('login-message') as HTMLElement | null
+  console.log("🔄 setupLoginForm() called");
+  
+  const loginModal = document.getElementById("login-modal");
+  const openBtnLogin = document.getElementById("open-login");
+  const loginForm = document.getElementById("login-form");
+  const emailInput = document.getElementById("login-email") as HTMLInputElement;
+  const passwordInput = document.getElementById("login-password") as HTMLInputElement;
+  const loginSubmit = document.getElementById("login-submit") as HTMLButtonElement;
+  const loginMessage = document.getElementById("login-message");
+  
+  // 🔹 SIGNUP ELEMENTS
+  const openBtnSignup = document.getElementById("open-signup");
+  const signupModal = document.getElementById("signup-modal");
+  const googleLoginBtn = document.getElementById("google-login-btn");
+
+  console.log("🔍 All elements found:", {
+    loginModal: !!loginModal,
+    openBtnLogin: !!openBtnLogin,
+    loginForm: !!loginForm,
+    openBtnSignup: !!openBtnSignup, // This is the key one!
+    signupModal: !!signupModal,
+    googleLoginBtn: !!googleLoginBtn
+  });
 
   if (!loginModal || !openBtnLogin || !loginForm || !emailInput || !passwordInput || !loginSubmit) {
     console.warn("Login modal setup failed: missing elements.")
@@ -36,26 +50,70 @@ export function setupLoginForm() {
   }
 
   function validateInputs() {
-    loginSubmit!.disabled = !(emailInput!.value.trim() && passwordInput!.value.trim())
+    const isValid = emailInput.value.trim() && passwordInput.value.trim();
+    loginSubmit.disabled = !isValid;
   }
 
-  emailInput.addEventListener('input', validateInputs)
-  passwordInput.addEventListener('input', validateInputs)
+  emailInput.addEventListener("input", validateInputs);
+  passwordInput.addEventListener("input", validateInputs);
+  validateInputs();
 
-  function showMessage(msg: string) {
-    if (!loginMessage) return
-    loginMessage.textContent = msg
-    loginMessage.classList.remove('hidden')
-    loginMessage.classList.add('text-red-500')
+  // 🔹 Modal open/close logic
+  openBtnLogin.addEventListener("click", () => {
+    console.log("✅ Login button clicked - opening login modal");
+    loginModal.classList.remove("hidden");
+  });
+
+  loginModal.addEventListener("click", (e) => {
+    if (e.target === loginModal) {
+      console.log("✅ Login modal background clicked - closing");
+      loginModal.classList.add("hidden");
+    }
+  });
+
+  // 🔹 Google OAuth button handler
+  if (googleLoginBtn) {
+    googleLoginBtn.addEventListener("click", () => {
+      console.log("✅ Google login clicked");
+      window.location.href = `${import.meta.env.VITE_API_URL}/oauth/google`;
+    });
   }
 
-  function clearMessage() {
-    if (loginMessage) loginMessage.classList.add('hidden')
+  // 🔹 SIGNUP BUTTON HANDLER - Enhanced debugging
+  if (openBtnSignup) {
+    console.log("✅ Found open-signup button, adding event listener");
+    openBtnSignup.addEventListener("click", (e) => {
+      e.preventDefault();
+      console.log("✅ Signup button clicked in login modal");
+      console.log("   - Closing login modal");
+      loginModal.classList.add("hidden");
+      
+      if (signupModal) {
+        console.log("   - Opening signup modal");
+        signupModal.classList.remove("hidden");
+      } else {
+        console.error("❌ Signup modal not found!");
+      }
+    });
+  } else {
+    console.error("❌ open-signup button not found in DOM!");
+    
+    // Debug: Check what buttons exist in login modal
+    const loginModalButtons = loginModal.querySelectorAll('button');
+    console.log("🔍 Buttons in login modal:", loginModalButtons.length);
+    loginModalButtons.forEach(btn => {
+      console.log("   - Button:", {
+        id: btn.id,
+        text: btn.textContent,
+        type: btn.type
+      });
+    });
   }
 
-  loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault()
-    clearMessage()
+  // 🔹 Handle login submission
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!emailInput.value || !passwordInput.value) return;
 
     const originalText = loginSubmit.innerHTML
     loginSubmit.innerHTML = loading
@@ -110,5 +168,7 @@ export function setupLoginForm() {
       loginSubmit.innerHTML = originalText
       loginSubmit.disabled = true
     }
-  })
+  });
+
+  console.log("✅ Login form setup complete");
 }
