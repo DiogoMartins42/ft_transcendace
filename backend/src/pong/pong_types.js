@@ -1,5 +1,3 @@
-// pong_types.js
-
 // Game state constants
 export const GameState = {
   START: "start",
@@ -7,9 +5,6 @@ export const GameState = {
   PAUSED: "paused",
   GAME_OVER: "game_over",
 };
-
-// Example: use simple object shape references for docs
-// (not enforced at runtime, but shows structure clearly)
 
 /**
  * @typedef {Object} Player

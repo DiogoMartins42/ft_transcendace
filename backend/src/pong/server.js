@@ -1,4 +1,3 @@
-// backend/src/server.ts
 import Fastify from "fastify";
 import websocket from "@fastify/websocket";
 import WebSocket from "ws";

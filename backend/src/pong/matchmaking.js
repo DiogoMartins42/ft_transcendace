@@ -1,4 +1,3 @@
-// backend/src/matchmaking.ts
 import { GameEngine } from "./gameEngine.js";
 
 export class Matchmaking {
