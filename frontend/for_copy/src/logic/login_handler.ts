@@ -1,4 +1,4 @@
-import { setSharedState } from "../main";
+import { setSharedState, sharedState } from "../main";
 import { saveSession } from "./session";
 import loading from "../components/loading.html?raw";
 
@@ -138,6 +138,11 @@ export function setupLoginForm() {
           avatarUrl: "/default-avatar.png",
         });
       }
+      await fetch("/stats/api/friends/online", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: data.user.username}),
+      });
 
       loginModal.classList.add("hidden");
       emailInput.value = "";

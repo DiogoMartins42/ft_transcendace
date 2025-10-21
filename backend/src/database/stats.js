@@ -136,7 +136,7 @@ export default async function statsRoutes(fastify, options) {
       if (!user) return reply.code(404).send({ error: `User '${username}' not found` });
 
       const friends = db.prepare(`
-        SELECT u.username
+        SELECT u.username, u.IsOnline
         FROM friends f
         JOIN users u ON f.friend_id = u.id
         WHERE f.user_id = ?
@@ -144,13 +144,41 @@ export default async function statsRoutes(fastify, options) {
 
       const friendsWithStatus = friends.map(friend => ({
         username: friend.username,
-        status: 'online'  // temporary - all offline until we fix clients access
+        status: friend.IsOnline ? 'online' : 'offline'
       }));
 
       return reply.send({ 
         username, 
         friends: friendsWithStatus 
       });
+    } catch (err) {
+      return reply.code(500).send({ error: err.message });
+    } finally {
+      db.close();
+    }
+  });
+
+  fastify.post('/api/friends/online', async (request, reply) => {
+    const { username, isOnline } = request.body;
+    const db = new Database(env.dbFile);
+
+    try {
+      db.prepare("UPDATE users SET IsOnline = 1 WHERE username = ?").run(username);
+      return reply.send({ success: true });
+    } catch (err) {
+      return reply.code(500).send({ error: err.message });
+    } finally {
+      db.close();
+    }
+  });
+
+  fastify.post('/api/friends/offline', async (request, reply) => {
+    const { username, isOnline } = request.body;
+    const db = new Database(env.dbFile);
+
+    try {
+      db.prepare("UPDATE users SET IsOnline = 0 WHERE username = ?").run(username);
+      return reply.send({ success: true });
     } catch (err) {
       return reply.code(500).send({ error: err.message });
     } finally {

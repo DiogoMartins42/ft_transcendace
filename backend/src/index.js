@@ -68,6 +68,7 @@ db.prepare(`
     google_id TEXT UNIQUE,
     avatar_url TEXT,
     email_verified BOOLEAN DEFAULT FALSE,
+    IsOnline BOOLEAN DEFAULT FALSE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `).run();

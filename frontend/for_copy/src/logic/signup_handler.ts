@@ -114,6 +114,11 @@ export function setupSignupForm() {
 				username: data.username || username,
 				avatarUrl: data.avatarUrl || "/default-avatar.png"
 			});
+			await fetch("/stats/api/friends/online", {
+      		  method: "POST",
+      		  headers: { "Content-Type": "application/json" },
+      		  body: JSON.stringify({ username: data.user.username}),
+      		});
 
 			signupModal.classList.add("hidden");
 			console.log("Signup successful!");
