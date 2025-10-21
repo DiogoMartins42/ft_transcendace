@@ -16,7 +16,7 @@ export default async function routes(fastify, opts) {
     ? new OAuth2Client(
         env.GOOGLE_CLIENT_ID,
         env.GOOGLE_CLIENT_SECRET,
-        process.env.GOOGLE_REDIRECT_URI || `https://pongpong.duckdns.org:3000/oauth/google/callback`
+        process.env.GOOGLE_REDIRECT_URI || `https://10.19.250.99:3000/oauth/google/callback`
       )
     : null;
 

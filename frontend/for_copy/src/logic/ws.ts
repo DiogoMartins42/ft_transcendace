@@ -55,7 +55,7 @@ export function initWebSocket(onMessage?: (msg: unknown) => void) {
   // For production, use the domain directly
   // For development, use window.location.host
   const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  const wsHost = isDev ? window.location.host : 'pongpong.duckdns.org:3000'
+  const wsHost = isDev ? window.location.host : '10.19.250.99:3000'
   
   const wsBase = `${wsProtocol}//${wsHost}/ws`
   const wsUrl = token ? `${wsBase}?token=${token}` : wsBase

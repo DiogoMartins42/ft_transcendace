@@ -52,7 +52,7 @@ const fastify = Fastify({
 
 import fastifyCors from '@fastify/cors';
 fastify.register(fastifyCors, {
-  origin: ['https://pongpong.duckdns.org', 'https://localhost:3000', 'http://localhost:5173'],
+  origin: ['https://10.19.250.99', 'https://localhost:3000', 'https://localhost:5173'],
   credentials: true,
 });
 
@@ -175,7 +175,7 @@ fastify.register(fastifyWebsocket, {
 // Helper to extract and verify JWT token from WebSocket URL
 async function extractUserFromToken(url, jwtSecret) {
   try {
-    const urlObj = new URL(url, 'http://localhost');
+    const urlObj = new URL(url, 'https://localhost');
     const token = urlObj.searchParams.get('token');
     if (!token) return null;
     
@@ -430,14 +430,14 @@ const start = async () => {
       console.log(`🌐 Listening on: ${protocol}://${address}`);
     } else if (address) {
       console.log(`🌐 Listening on: ${protocol}://${address.address}:${address.port}`);
-      console.log(`🌍 External URL: ${protocol}://pongpong.duckdns.org:${address.port}`);
+      console.log(`🌍 External URL: ${protocol}://10.19.250.99:${address.port}`);
     }
     
     console.log(`🔒 HTTPS: ${httpsOptions ? "Enabled ✅" : "Disabled ❌"}`);
     console.log(`🔌 WebSocket: ${fastify.websocketServer ? "Enabled ✅" : "Disabled ❌"}`);
     
     if (fastify.websocketServer) {
-      console.log(`📡 WebSocket URL: ${wsProtocol}://pongpong.duckdns.org:3000/ws`);
+      console.log(`📡 WebSocket URL: ${wsProtocol}://10.19.250.99:3000/ws`);
       console.log(`📡 Local WebSocket: ${wsProtocol}://localhost:3000/ws`);
     } else {
       console.log(`⚠️  WARNING: WebSocket server not initialized!`);

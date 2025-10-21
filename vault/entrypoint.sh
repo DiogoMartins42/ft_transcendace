@@ -142,7 +142,7 @@ get_vault_addr () {
 	export VAULT_ADDR
 	# If api address is not set, try to get an address from the tcp listener
 	[ -n "$VAULT_ADDR" ] || {
-		VAULT_ADDR=$(grep -o 'Listener 1: tcp ([^)]\+)' "$vault_stdout_file" | grep -o '\<addr: "[^"]\+"' | sed 's/addr: "/http:\/\//;s/"$//')
+		VAULT_ADDR=$(grep -o 'Listener 1: tcp ([^)]\+)' "$vault_stdout_file" | grep -o '\<addr: "[^"]\+"' | sed 's/addr: "/https:\/\//;s/"$//')
 		export VAULT_ADDR
 	}
 }

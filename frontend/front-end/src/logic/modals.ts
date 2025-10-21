@@ -18,7 +18,7 @@ export function setupModalEvents()
 	const signupPasswordInput = document.getElementById('signup-password') as HTMLInputElement;
 	const signupEmailInput = document.getElementById('signup-email') as HTMLInputElement;
 
-	const API_BASE = 'http://localhost:3000'; // change if you deploy elsewhere
+	const API_BASE = 'https://localhost:3000'; // change if you deploy elsewhere
 
 	
 	// -------- LOGIN --------

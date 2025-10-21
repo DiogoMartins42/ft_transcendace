@@ -1,4 +1,4 @@
-#api_addr      = "http://127.0.0.1:${VAULT_API_PORT}"
+#api_addr      = "https://127.0.0.1:${VAULT_API_PORT}"
 #disable_mlock = true
 
 storage "file" {
