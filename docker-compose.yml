@@ -48,37 +48,9 @@ services:
     stdin_open: true
     tty: true
 
-  waf:
-    build: ./waf
-    container_name: transcendence_waf
-    ports:
-      - "8080:80"
-    networks:
-      - transcendence
-    restart: unless-stopped
-
-  vault:
-    build:
-      context: "./vault/"
-      args:
-        VAULT_API_PORT: "${VAULT_API_PORT:-8200}"
-    container_name: vault
-    restart: no
-    ports:
-      - "${VAULT_ROOT_TOKEN_EXCHANGE_PORT:-4141}:${VAULT_ROOT_TOKEN_EXCHANGE_PORT:-4141}"
-    networks:
-      - transcendence
-    cap_add:
-      - IPC_LOCK
-    volumes:
-      - vault-volume:/vault/file/
-      - vault-volume:/vault/secret/
-      - vault-volume:/vault/logs/
-
 volumes:
   sqlite_database:
   backend_data:
-  vault-volume:
   frontend_dist:
 
 networks:

@@ -9,7 +9,7 @@ const dbPath = path.join(__dirname, "sqlite.db");
 import env from "../config/env.js";
 //const db = new Database(env.dbFile);
 
-export function addMatchResult(username_winner, username_loser, winner_points, loser_points) {
+/* export function addMatchResult(username_winner, username_loser, winner_points, loser_points) {
   //const db = new Database(dbPath);
   const db = new Database(env.dbFile);
   try {
@@ -40,6 +40,54 @@ export function addMatchResult(username_winner, username_loser, winner_points, l
     `).run(winner.id, loser.id, winner_points, loser_points);
 
     return { message: "Match saved successfully" };
+  } finally {
+    db.close();
+  }
+} */
+
+export function addMatchResult(username_winner, username_loser, winner_points, loser_points) {
+  const db = new Database(env.dbFile);
+  try {
+    let winner = db.prepare("SELECT id FROM users WHERE username = ?").get(username_winner);
+    let loser = db.prepare("SELECT id FROM users WHERE username = ?").get(username_loser);
+
+    if (!winner && !loser) {
+      throw new Error(`Usernames: '${username_winner}' and '${username_loser}' not found`);
+    }
+
+    if (!winner || !loser) {
+      const bot = db.prepare("SELECT id FROM users WHERE username = 'bot'").get();
+      if (!bot) throw new Error("Bot user not initialized in DB");
+      if (!winner) winner = bot;
+      else loser = bot;
+    }
+
+    if (username_winner === 'bot' && username_loser === 'bot'){
+      return { message: "Match not saved. User isn't logged in." };
+    }
+    if (winner.id === loser.id){
+      return { message: "Match not saved. User isn't logged in" };
+    }
+
+    // Insert and return the created_at timestamp
+    const result = db.prepare(`
+      INSERT INTO match_history (id_winner, id_loser, winner_points, loser_points)
+      VALUES (?, ?, ?, ?)
+    `).run(winner.id, loser.id, winner_points, loser_points);
+
+    // Get the inserted row with created_at
+    const insertedMatch = db.prepare(`
+      SELECT m.*, w.username as winner_username, l.username as loser_username
+      FROM match_history m
+      JOIN users w ON m.id_winner = w.id
+      JOIN users l ON m.id_loser = l.id
+      WHERE m.id = ?
+    `).get(result.lastInsertRowid);
+
+    return { 
+      message: "Match saved successfully",
+      match: insertedMatch 
+    };
   } finally {
     db.close();
   }

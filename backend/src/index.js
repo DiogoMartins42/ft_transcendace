@@ -6,54 +6,81 @@ import path from "path";
 import fs from "fs";
 import fastifyJWT from "@fastify/jwt";
 import fastifyWebsocket from "@fastify/websocket";
+import fastifyCors from "@fastify/cors";
+import Database from "better-sqlite3";
+import { fileURLToPath } from "url";
+import crypto from "crypto";
+
+
+import { Matchmaking } from "./pong/matchmaking.js";
+const matchmaking = new Matchmaking();
+
+// --- Routes ---
 import authRoutes from "./routes/auth.js";
 import lobbyRoutes from "./routes/lobby.js";
-import { fileURLToPath } from "url";
+import blockRoutes from "./routes/block.js";
+import oauthRoutes from "./routes/oauth.js";
+import uploadsRoutes from "./uploads/uploads.js";
 import statsRoutes from "./database/stats.js";
 import { initDB } from "./database/init.js";
-import Database from "better-sqlite3";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// --- Optional HTTPS setup ---
+// --- HTTPS setup ---
 let httpsOptions = undefined;
 try {
   const certDir = "/app/certs";
   const keyPath = path.join(certDir, "key.pem");
   const certPath = path.join(certDir, "cert.pem");
-
   if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
     httpsOptions = {
       key: fs.readFileSync(keyPath),
-      cert: fs.readFileSync(certPath)
+      cert: fs.readFileSync(certPath),
     };
     console.log("✅ HTTPS certificates loaded successfully");
   } else {
-    console.warn("⚠️ HTTPS certs not found (certs/key.pem, certs/cert.pem). Running in HTTP mode.");
+    console.warn("⚠️ HTTPS certs not found. Running in HTTP mode.");
   }
 } catch (err) {
-  console.warn("⚠️ Error loading HTTPS certificates, defaulting to HTTP:", err);
+  console.warn("⚠️ HTTPS setup failed:", err);
 }
 
-// --- Create Fastify instance (with HTTPS if available) ---
+// --- Create Fastify instance ---
 const fastify = Fastify({
   logger: loggerOptions,
-  https: httpsOptions
+  https: httpsOptions,
+  trustProxy: true,
+  connectionTimeout: 0,
+  keepAliveTimeout: 0,
+});
+
+// --- CORS ---
+fastify.register(fastifyCors, {
+  origin: [
+    "https://pongpong.duckdns.org",
+    "https://localhost:3000",
+    "http://localhost:5173",
+  ],
+  credentials: true,
 });
 
 // --- SQLite setup ---
 const db = new Database(env.dbFile);
-
 db.prepare(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
+    google_id TEXT UNIQUE,
+    avatar_url TEXT,
+    email_verified BOOLEAN DEFAULT FALSE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
+  )
+`).run();
 
+db.prepare(`
   CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     sender_id INTEGER NOT NULL,
@@ -61,28 +88,35 @@ db.prepare(`
     content TEXT,
     type TEXT DEFAULT 'text',
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
+  )
+`).run();
 
+db.prepare(`
   CREATE TABLE IF NOT EXISTS blocked_users (
     user_id INTEGER NOT NULL,
     blocked_user_id INTEGER NOT NULL,
-    PRIMARY KEY (user_id, blocked_user_id)
-  );
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, blocked_user_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (blocked_user_id) REFERENCES users(id) ON DELETE CASCADE
+  )
+`).run();
 
+db.prepare(`
   CREATE TABLE IF NOT EXISTS notifications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     type TEXT,
     message TEXT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
+  )
 `).run();
 
 db.prepare(`
   INSERT OR IGNORE INTO users (username, email, password)
   VALUES 
-    ('bot', 'bot@gmail.com', 'kdakwunda#^!@#HDJDOAPDKAW_D)AW*DANWDKAD><WAODWAD?DAIDAWdwad'),
-    ('guest_multiplayer', 'guest_multiplayer@gmail.com', 'iuhduiawHd7&!(1u831dhwuhd*@!&!@(dwadawd')
+    ('bot', 'bot@gmail.com', 'placeholderpass'),
+    ('guest_multiplayer', 'guest_multiplayer@gmail.com', 'placeholderpass')
 `).run();
 
 db.prepare(`
@@ -92,8 +126,18 @@ db.prepare(`
     id_loser INTEGER NOT NULL,
     winner_points INTEGER DEFAULT 0,
     loser_points INTEGER DEFAULT 0,
-    FOREIGN KEY (id_winner) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (id_loser) REFERENCES users(id) ON DELETE CASCADE
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`).run();
+
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS friends (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    friend_id INTEGER NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY(friend_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(user_id, friend_id)
   )
 `).run();
 
@@ -101,8 +145,6 @@ fastify.decorate("db", db);
 
 // --- JWT setup ---
 fastify.register(fastifyJWT, { secret: env.JWT_SECRET });
-
-// Auth decorator
 fastify.decorate("authenticate", async function (request, reply) {
   try {
     await request.jwtVerify();
@@ -114,51 +156,151 @@ fastify.decorate("authenticate", async function (request, reply) {
 // --- Routes ---
 fastify.register(authRoutes, { prefix: "/auth" });
 fastify.register(lobbyRoutes, { prefix: "/lobby" });
+fastify.register(blockRoutes, { prefix: "/block" });
 fastify.register(statsRoutes, { prefix: "/stats" });
+fastify.register(oauthRoutes, { prefix: "/oauth" });
+fastify.register(uploadsRoutes, { prefix: "/uploads" });
 
 // --- WebSocket setup ---
-fastify.register(fastifyWebsocket);
-const clients = new Set();
+fastify.register(fastifyWebsocket, {
+  options: {
+    maxPayload: 1048576,
+    verifyClient: (info, next) => {
+      console.log("🔍 WebSocket upgrade attempt:", {
+        origin: info.origin,
+        secure: info.secure,
+        url: info.req.url,
+      });
+      next(true);
+    },
+  },
+});
+
+const wsClients = new Set();
 
 fastify.register(async function (fastify) {
   fastify.get("/ws", { websocket: true }, (connection, req) => {
-    console.log("Client connected!");
-
     const socket = connection.socket || connection;
-    clients.add(socket);
-    socket.username = null;
+    const client = { socket, username: null, id: null };
+    wsClients.add(client);
+    fastify.log.info("➕ WS client connected, total:", wsClients.size);
 
-    socket.on("message", (message) => {
-      let messageData;
+    socket.send(
+      JSON.stringify({
+        type: "system",
+        text: "Connected to WebSocket server",
+      })
+    );
+
+    socket.on("message", (raw) => {
+      let data;
       try {
-        messageData = JSON.parse(message.toString());
+        data = JSON.parse(raw.toString());
       } catch {
-        messageData = { type: "chat", text: message.toString() };
+        fastify.log.warn("⚠️ Invalid WS JSON:", raw.toString());
+        return;
       }
 
-      if (!socket.username) {
-        socket.username = messageData.username || "Anonymous" + Math.floor(1000 + Math.random() * 9000);
-      }
-
-      if (messageData.type === "chat") {
-        messageData.username = socket.username;
-        for (const client of clients) {
-          if (client.readyState === 1) client.send(JSON.stringify(messageData));
+      // --- Username setup ---
+      if (data.type === "setUsername" && typeof data.username === "string") {
+        client.username = data.username.trim();
+        if (!matchmaking.rejoinPlayer(socket, client.username)) {
+          const player = matchmaking.addPlayer(socket, client.username);
+          client.id = player.id;
         }
-      } else if (messageData.type === "connection") {
-        console.log("Client connected with message:", messageData.text);
+        socket.send(
+          JSON.stringify({
+            type: "system",
+            text: `Username set to ${client.username}`,
+          })
+        );
+        return;
+      }
+
+      // --- Auto matchmaking ---
+      if (data.type === "findMatch") {
+        if (!client.id) {
+          const player = matchmaking.addPlayer(socket, client.username);
+          client.id = player.id;
+        }
+        const player = matchmaking.players.get(client.id);
+        matchmaking.findMatch(player);
+        return;
+      }
+
+      // --- Invitation ---
+      if (data.type === "invite") {
+        const success = matchmaking.createInvite(client.id, data.to);
+        if (!success) {
+          socket.send(
+            JSON.stringify({
+              type: "error",
+              message: "Invite failed: user not found",
+            })
+          );
+        }
+        return;
+      }
+
+      // --- Accept invitation ---
+      if (data.type === "acceptInvite") {
+        const success = matchmaking.acceptInvite(client.id, data.from);
+        if (!success) {
+          socket.send(
+            JSON.stringify({
+              type: "error",
+              message: "Failed to accept invite",
+            })
+          );
+        }
+        return;
+      }
+
+      // --- Fallback: direct messaging (optional) ---
+      if (data.type === "direct" && data.to && data.text) {
+        for (const c of wsClients) {
+          if (c.username === data.to && c.socket.readyState === 1) {
+            c.socket.send(
+              JSON.stringify({
+                type: "direct",
+                from: client.username,
+                text: data.text,
+              })
+            );
+          }
+        }
       }
     });
+
+    socket.on("close", () => {
+      if (client.id) matchmaking.removePlayer(client.id);
+      wsClients.delete(client);
+      fastify.log.info("➖ WS client disconnected", {
+        username: client.username,
+        total: wsClients.size,
+      });
+    });
+
+    socket.on("error", (err) =>
+      fastify.log.error("❌ WS error:", err.message)
+    );
   });
+});
+
+// --- Diagnostic endpoint ---
+fastify.get("/ws-test", async (request, reply) => {
+  return {
+    activeConnections: wsClients.size,
+    matchmaking: {
+      waiting: matchmaking.waiting.map((p) => p.username),
+      matches: Array.from(matchmaking.matches.keys()),
+    },
+  };
 });
 
 // --- Static frontend ---
 const frontendPath = "/app/frontend";
-fastify.register(FastifyStatic, {
-  root: frontendPath,
-  prefix: "/"
-});
-
+fastify.register(FastifyStatic, { root: frontendPath, prefix: "/" });
 fastify.get("/", (req, reply) => reply.sendFile("index.html"));
 
 fastify.setNotFoundHandler((req, reply) => {
@@ -175,14 +317,16 @@ const start = async () => {
     await fastify.listen({ port: 3000, host: "0.0.0.0" });
     const address = fastify.server.address();
     const protocol = httpsOptions ? "https" : "http";
-    if (typeof address === "string") {
-      console.log(`🚀 Server running at ${protocol}://${address}`);
-    } else {
-      console.log(`🚀 Server running at ${protocol}://${address.address}:${address.port}`);
-    }
+    const wsProtocol = httpsOptions ? "wss" : "ws";
+
+    console.log("🚀 SERVER STARTED SUCCESSFULLY");
+    console.log(`🌍 ${protocol}://pongpong.duckdns.org:${address.port}`);
+    console.log(`📡 WebSocket URL: ${wsProtocol}://pongpong.duckdns.org:3000/ws`);
+    console.log(`👥 Connected clients: ${wsClients.size}`);
   } catch (err) {
-    fastify.log.error(err);
+    console.error("❌ SERVER STARTUP FAILED:", err);
     process.exit(1);
   }
 };
+
 start();
