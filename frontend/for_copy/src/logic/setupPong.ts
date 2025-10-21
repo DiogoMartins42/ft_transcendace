@@ -2,6 +2,7 @@
 import { setPong } from "./pong";
 import { initClientPong } from "./pong_client";
 import { GameState } from "./pong_types";
+import { submitForm } from "./tournament";
 
 /* ---------------- Overlay helpers (same style as yours) ---------------- */
 
@@ -77,6 +78,13 @@ export function setupPong() {
 				onClick: () => {
 					hideOverlay();
 					startMultiplayer();
+				},
+			},
+			{
+				text: "Local Tournament",
+				onClick: () => {
+					hideOverlay();
+					submitForm();
 				},
 			},
 		],
@@ -197,6 +205,7 @@ export function stopSearchingOverlay() {
 	if (intervalId) clearInterval(intervalId);
 	console.log("🛑 Searching overlay stopped");
 }
+
 
 
 
