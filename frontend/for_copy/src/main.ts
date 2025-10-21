@@ -23,6 +23,8 @@ import { setupUserSection } from './logic/userSection'
 import { setupSidebarEvents } from './logic/sidebar'
 import { initWebSocket, disconnectWebSocket } from './logic/ws'
 import { verifyStoredSession } from './logic/session'
+// import { initClientPong } from './logic/pong_client'
+import { setupPong } from "./logic/setupPong";
 import { setupChat, handleIncomingMessage } from './logic/chat'
 import { setPong } from './logic/pong'
 import { setupControlPanel } from './logic/controlPanel'
@@ -157,6 +159,8 @@ async function renderPage(pageHtml: string) {
   setupUserSection()
   setupSidebarEvents()
   setupChat()
+
+  setupPong()
   setPong()
   setupControlPanel()
   setupStatsPage()

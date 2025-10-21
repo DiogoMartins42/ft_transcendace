@@ -5,7 +5,6 @@ import { setupSignupForm } from './signup_handler'
 import { setupUserSettings } from "./UpdateUserInformation";
 import { uploadAvatar, setUserAvatar } from './user-avatar';
 import { sharedState } from '../main'
-import { clearSession } from './session'
 
 export async function setupUserSection() {
   const userSection = document.getElementById('user-section') as HTMLDivElement | null
@@ -39,7 +38,6 @@ export async function setupUserSection() {
       const logoutBtn = document.getElementById("logout-btn") as HTMLButtonElement | null
       if (logoutBtn) {
         logoutBtn.addEventListener("click", () => {
-          clearSession()
           sharedState.setState({ isLoggedIn: false, username: undefined, avatarUrl: undefined })
         })
       }
@@ -113,5 +111,4 @@ export async function setupUserSection() {
   // auto re-render on state change
   sharedState.subscribe(render)
 }
-
 

@@ -1,6 +1,5 @@
-import { setSharedState } from "../main";
-import { saveSession } from "./session";
-import loading from "../components/loading.html?raw";
+import { setSharedState } from '../main'
+import loading from '../components/loading.html?raw'
 
 const BACKEND_LOGIN_URL = `${import.meta.env.VITE_API_URL}/auth/login`;
 
@@ -30,11 +29,26 @@ export function setupLoginForm() {
   });
 
   if (!loginModal || !openBtnLogin || !loginForm || !emailInput || !passwordInput || !loginSubmit) {
-    console.warn("Login modal setup failed: missing elements.");
-    return;
+    console.warn("Login modal setup failed: missing elements.")
+    return
   }
 
-  // 🔹 Enable/disable button based on input fields
+  // open / close modal
+  openBtnLogin.addEventListener('click', () => {
+    loginModal.classList.toggle('hidden')
+  })
+
+  loginModal.addEventListener('click', (e) => {
+    if (e.target === loginModal) loginModal.classList.add('hidden')
+  })
+
+  if (openBtnSignup && signupModal) {
+    openBtnSignup.addEventListener('click', () => {
+      loginModal.classList.add('hidden')
+      signupModal.classList.remove('hidden')
+    })
+  }
+
   function validateInputs() {
     const isValid = emailInput.value.trim() && passwordInput.value.trim();
     loginSubmit.disabled = !isValid;
@@ -101,11 +115,12 @@ export function setupLoginForm() {
     e.preventDefault();
     if (!emailInput.value || !passwordInput.value) return;
 
-    if (loginMessage) loginMessage.textContent = "";
+    const originalText = loginSubmit.innerHTML
+    loginSubmit.innerHTML = loading
+    loginSubmit.disabled = true
 
-    const originalText = loginSubmit.innerHTML;
-    loginSubmit.innerHTML = loading;
-    loginSubmit.disabled = true;
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 15000)
 
     try {
       const response = await fetch(BACKEND_LOGIN_URL, {
@@ -113,42 +128,45 @@ export function setupLoginForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: emailInput.value,
-          password: passwordInput.value,
+          password: passwordInput.value
         }),
-      });
+        signal: controller.signal
+      })
+
+      clearTimeout(timeoutId)
 
       if (!response.ok) {
-        if (loginMessage) loginMessage.textContent = "Invalid email or password";
-        loginSubmit.innerHTML = originalText;
-        loginSubmit.disabled = false;
-        return;
+        showMessage("Invalid email or password")
+        passwordInput.value = ""
+        validateInputs()
+        loginSubmit.innerHTML = originalText
+        loginSubmit.disabled = false
+        return
       }
 
-      const data = await response.json();
+      const data = await response.json()
 
-      if (data.token && data.user) {
-        saveSession(data.token, {
-          username: data.user.username,
-          avatarUrl: "/default-avatar.png",
-        });
+      // ✅ Update reactive shared state
+      setSharedState({
+        isLoggedIn: true,
+        username: data.username,
+        avatarUrl: data.avatarUrl
+      })
 
-        setSharedState({
-          isLoggedIn: true,
-          username: data.user.username,
-          avatarUrl: "/default-avatar.png",
-        });
-      }
+      loginModal.classList.add('hidden')
+      emailInput.value = ""
+      passwordInput.value = ""
+      loginSubmit.innerHTML = originalText
+      loginSubmit.disabled = true
 
-      loginModal.classList.add("hidden");
-      emailInput.value = "";
-      passwordInput.value = "";
-      validateInputs();
     } catch (err) {
-      console.error("Login error:", err);
-      if (loginMessage) loginMessage.textContent = "An error occurred. Please try again.";
-    } finally {
-      loginSubmit.innerHTML = originalText;
-      validateInputs();
+      if (controller.signal.aborted) {
+        showMessage("Login request timed out. Please try again.")
+      } else {
+        showMessage("An error occurred. Please try again.")
+      }
+      loginSubmit.innerHTML = originalText
+      loginSubmit.disabled = true
     }
   });
 
