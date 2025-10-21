@@ -86,11 +86,6 @@ class SharedState {
   }
 }
 
-class SharedState 
-{
-	private _isLoggedIn = false;
-	private listeners: (() => void)[] = [];
-
 // --- Auth State Management ---
 export function handleAuthStateChange(isLoggedIn: boolean) {
   if (isLoggedIn) {
@@ -112,18 +107,20 @@ interface StoredUser {
   token: string
 }
 
-	get isLoggedIn() {
-		return this._isLoggedIn;
-	}
+// Shared state instance and helpers
+export const sharedState = new SharedState()
 
-	set isLoggedIn(val: boolean) {
-		this._isLoggedIn = val;
-		this.listeners.forEach(fn => fn()); // trigger re-render
-	}
+export function setSharedState(partial: Partial<{ isLoggedIn: boolean; username?: string; avatarUrl?: string }>) {
+  sharedState.setState(partial)
+}
 
-	subscribe(fn: () => void) {
-		this.listeners.push(fn);
-	}
+export function saveSession(token: string, userData: any) {
+  const stored: StoredUser = {
+    username: userData.username,
+    avatarUrl: userData.avatarUrl,
+    token
+  }
+  localStorage.setItem('userSession', JSON.stringify(stored))
 }
 
 // Login/Logout functions for use in other modules

@@ -155,6 +155,7 @@ fastify.register(lobbyRoutes, { prefix: "/lobby" });
 fastify.register(blockRoutes, { prefix: "/block" });
 fastify.register(statsRoutes, { prefix: "/stats" });
 fastify.register(oauthRoutes, { prefix: "/oauth" });
+fastify.register(uploadsRoutes, { prefix: "/uploads" });
 // Register websocket plugin with options
 fastify.register(fastifyWebsocket, {
   options: {
@@ -391,13 +392,6 @@ fastify.register(FastifyStatic, {
 });
 
 fastify.get("/", (req, reply) => reply.sendFile("index.html"));
-
-//fastify.register(statsRoutes);
-fastify.register(statsRoutes, { prefix: "/stats" });
-
-//fastify.register photos uploads
-fastify.register(uploadsRoutes, { prefix: "/uploads" });
-
 
 fastify.setNotFoundHandler((req, reply) => {
   if (req.raw.url.startsWith("/api") || req.raw.url.startsWith("/auth")) {
