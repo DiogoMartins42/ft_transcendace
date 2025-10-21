@@ -2,7 +2,7 @@
 
 import { InputMessage, StateMessage, GameState, GameStateType } from "./pong_types";
 import { gameSettings } from "./gameSettings";
-import { stopSearchingOverlay } from "./setupPong";
+import { stopSearchingOverlay, setupPong } from "./setupPong";
 
 
 /* -------------------------- Canvas & Rendering -------------------------- */
@@ -141,54 +141,65 @@ export function initClientPong(
     }
 
     switch (msg.type) {
-      case "role":
-        playerRole = msg.role;
-		stopSearchingOverlay();
-        if (playerRole !== "spectator") {
-          showOverlay(`You are ${playerRole.toUpperCase()}`, [
-            {
-              text: "Start",
-              onClick: () => {
-                socket.send(JSON.stringify({ type: "control", action: "start" }));
-                hideOverlay();
-              },
-            },
-          ]);
-        } else {
-          showOverlay("Spectator mode", []);
-        }
-        break;
+      	case "role":
+        	playerRole = msg.role;
+			stopSearchingOverlay();
+        	if (playerRole !== "spectator") {
+         		showOverlay(`You are ${playerRole.toUpperCase()}`, [
+          		{
+          	    	text: "Start",
+              		onClick: () => {
+                		socket.send(JSON.stringify({ type: "control", action: "start" }));
+                		hideOverlay();
+              		},
+            	},
+          	]);
+        	} else {
+          		showOverlay("Spectator mode", []);
+        	}
+        	break;
+    	case "waiting":
+        	showOverlay(msg.message ?? "Waiting for opponent...", []);
+        	break;
+    	case "matchFound":
+        	playerRole = msg.role;
+			stopSearchingOverlay();
+        	hideOverlay();
+        	break;
+		case "state": {
+			const state = msg;
+			const net = { x: canvas.width / 2 - 1, y: 0, width: 2, height: 10 };
+			render(canvas, context, state.paddles.left, state.paddles.right, state.ball, net);
 
-      case "waiting":
-        showOverlay(msg.message ?? "Waiting for opponent...", []);
-        break;
+			currentGameState = state.gameState;			
+			if (state.gameState === GameState.GAME_OVER) {
+				showOverlay("🏁 Game Over", [
+			    	{
+			    		text: "🔁 Rematch",
+			    		onClick: () => {
+			    			socket.send(JSON.stringify({ type: "rematchRequest" }));
+			    			showOverlay("⌛ Waiting for opponent to accept rematch...", []);
+			    		},
+			    	},
+			    	{
+			    		text: "🎯 New Opponent",
+			    		onClick: () => {
+			    			socket.send(JSON.stringify({ type: "findMatch" }));
+			    			showOverlay("🔍 Searching for opponent...", []);
+			    		},
+			    	},
+			    	{
+			    		text: "🏠 Menu",
+			    		onClick: () => {
+			    			hideOverlay();
+			    			setupPong();
+			    		},
+			    	},
+			  	]);
+			}
+			break;
+}
 
-      case "matchFound":
-        playerRole = msg.role;
-		stopSearchingOverlay();
-        hideOverlay();
-        break;
-
-      case "state": {
-        const state = msg as StateMessage;
-        const net = { x: canvas.width / 2 - 1, y: 0, width: 2, height: 10 };
-        render(canvas, context, state.paddles.left, state.paddles.right, state.ball, net);
-
-        currentGameState = state.gameState; // ✅ now properly typed
-
-        if (state.gameState === GameState.GAME_OVER) {
-          showOverlay("Game Over", [
-            {
-              text: "Restart",
-              onClick: () => {
-                socket.send(JSON.stringify({ type: "control", action: "restart" }));
-                hideOverlay();
-              },
-            },
-          ]);
-        }
-        break;
-      }
 
       case "invite":
         showOverlay(`${msg.from} invited you to play`, [

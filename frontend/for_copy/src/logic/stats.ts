@@ -1,14 +1,3 @@
-import { loadSession } from "./session";
-import { sharedState } from "../main";
-
-function getLoggedInUsername(){
-  //First, try to get username from stored session
-  const session = loadSession();
-  if (session?.user?.username){
-    return session?.user.username;
-  }
-}
-
 export function setupStatsPage() {
     const statsContainer = document.getElementById('stats-container');
 	if (!statsContainer) return; // not on stats page → do nothing
@@ -72,23 +61,11 @@ export function setupStatsPage() {
       grid.innerHTML = `<p>No matches yet</p>`;
       return;
     }
-    
     matches.matches.forEach((m: any) => {
       const card = document.createElement("div");
       card.classList.add("match-card");
-      
-      // Format the date nicely
-      const matchDate = new Date(m.created_at).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-      
       card.innerHTML = `
         <h3>Match #${m.id}</h3>
-        <div class="match-date">${matchDate}</div>
         <div class="match-details">
           <span class="winner">${m.winner} (${m.winner_points})</span>
           <span class="vs">VS</span>
@@ -110,9 +87,8 @@ export function setupStatsPage() {
 }
 
 // Save match if the user is logged in
-/* export async function save_match(p1_score: number, p2_score: number, multiplayer: boolean) {
-  const username = getLoggedInUsername();
-
+export async function save_match(p1_score: number, p2_score: number, multiplayer: boolean) {
+  // TO-DO: replace with actual logged-in players once you have auth
   var winner : string;
   var loser : string;
   var winner_points : number;
@@ -126,7 +102,6 @@ export function setupStatsPage() {
     loser_points = p2_score;
   
     winner = "nome";
-    //winner = username;
     if(multiplayer) {loser = "guest_multiplayer";}
     else {loser = "bot";}
   }
@@ -136,7 +111,6 @@ export function setupStatsPage() {
     loser_points = p1_score;
   
     loser = "nome";
-    //loser = username;
     if(multiplayer) {winner = "guest_multiplayer";}
     else {winner = "bot";}
   }
@@ -166,137 +140,6 @@ export function setupStatsPage() {
     return data;
   }
   catch (err){
-    console.error("Error saving match:", err);
-  }
-} */
-
-/* export async function save_match(p1_score: number, p2_score: number, multiplayer: boolean) {
-  const username = sharedState.username;
-
-  var winner : string;
-  var loser : string;
-  var winner_points : number;
-  var loser_points : number;
-
-  if(p1_score > p2_score){
-    winner_points = p1_score;
-    loser_points = p2_score;
-  
-    winner = username || "nome"; // change to actual username
-    if(multiplayer) {loser = "guest_multiplayer";}
-    else {loser = "bot";}
-  }
-  else{
-    winner_points = p2_score;
-    loser_points = p1_score;
-  
-    loser = username || "nome"; // change to actual username
-    if(multiplayer) {winner = "guest_multiplayer";}
-    else {winner = "bot";}
-  }
-
-  // Don't save if user isn't logged in (both players are bots/guests)
-  if ((winner === "bot" || winner === "guest_multiplayer") && 
-      (loser === "bot" || loser === "guest_multiplayer")) {
-    console.log("Match not saved: No logged-in user");
-    return;
-  }
-
-  try {
-    const res = await fetch("/stats/api/match", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        winner,
-        loser,
-        winner_points,
-        loser_points,
-      }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json();
-      console.error("Failed to save match:", err);
-      return;
-    }
-
-    const data = await res.json();
-    console.log("Match saved with timestamp:", data);
-    return data;
-  }
-  catch (err){
-    console.error("Error saving match:", err);
-  }
-} */
-
-  export async function save_match(p1_score: number, p2_score: number, multiplayer: boolean) {
-  // Get the current logged-in username directly from session
-  const session = loadSession();
-  const sessionUsername = session.user.username;
-  const sharedUsername = sharedState.username;
-  
-  console.log("Debug - Session username:", sessionUsername);
-  console.log("Debug - SharedState username:", sharedUsername);
-  console.log("Debug - Full session:", session);
-  
-  // Use whichever username is available
-  const username = sessionUsername ;
-  
-  console.log("Debug - Final username to use:", username);
-
-  // If no user is logged in, don't save the match
-  if (!username) {
-    console.log("Match not saved: No user logged in");
-    return;
-  }
-
-  var winner: string;
-  var loser: string;
-  var winner_points: number;
-  var loser_points: number;
-
-  if (p1_score > p2_score) {
-    winner_points = p1_score;
-    loser_points = p2_score;
-    winner = username;
-    if (multiplayer) { loser = "guest_multiplayer"; }
-    else { loser = "bot"; }
-  }
-  else {
-    winner_points = p2_score;
-    loser_points = p1_score;
-    loser = username;
-    if (multiplayer) { winner = "guest_multiplayer"; }
-    else { winner = "bot"; }
-  }
-
-  try {
-    const res = await fetch("/stats/api/match", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        winner,
-        loser,
-        winner_points,
-        loser_points,
-      }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json();
-      console.error("Failed to save match:", err);
-      return;
-    }
-
-    const data = await res.json();
-    console.log("Match saved for user:", username);
-    return data;
-  }
-  catch (err) {
     console.error("Error saving match:", err);
   }
 }

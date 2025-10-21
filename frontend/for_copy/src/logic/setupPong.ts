@@ -73,7 +73,7 @@ export function setupPong() {
 				},
 			},
 			{
-				text: "🌐 Multiplayer",
+				text: "🌐 Online Multiplayer",
 				onClick: () => {
 					hideOverlay();
 					startMultiplayer();

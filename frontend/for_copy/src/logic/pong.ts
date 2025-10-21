@@ -1,4 +1,5 @@
 import { gameSettings } from './controlPanel';
+import { setupPong } from "./setupPong.js";
 
 let verifyStart: boolean = false;
 let verifyFirstCollision: boolean = false;
@@ -163,6 +164,7 @@ export function setPong()
 				showOverlay(2, [
 					{ text: "Resume", onClick: () => { gameState = GameState.PLAYING; hideOverlay(); } },
 					{ text: "Restart", onClick: () => { restartGame(canvas, player1, player2, ball); } },
+					{ text: "Menu", onClick: () => { gameState = GameState.GAME_OVER; hideOverlay(); setupPong(); } },
 				]);
 			}
 		});
@@ -175,6 +177,7 @@ export function setPong()
 				showOverlay(2, [
 					{ text: "Resume", onClick: () => { gameState = GameState.PLAYING; hideOverlay(); } },
 					{ text: "Restart", onClick: () => { restartGame(canvas, player1, player2, ball); } },
+					{ text: "Menu", onClick: () => { gameState = GameState.GAME_OVER; hideOverlay(); setupPong(); } },
 				]);
 			}
 		});
@@ -188,6 +191,7 @@ export function setPong()
 				showOverlay(2, [
 					{ text: "Resume", onClick: () => { gameState = GameState.PLAYING; hideOverlay(); } },
 					{ text: "Restart", onClick: () => { restartGame(canvas, player1, player2, ball); } },
+					{ text: "Menu", onClick: () => { gameState = GameState.GAME_OVER; hideOverlay(); setupPong(); } },
 				]);
 			} else if (gameState === GameState.PAUSED) {
 				gameState = GameState.PLAYING;
@@ -411,6 +415,7 @@ function update(cvs: HTMLCanvasElement, player1: Player, player2: Player, ball: 
 		else message = "PLAYER 1 LOSES!!!";
 		showOverlay(1, [
 			{ text: "Restart", onClick: () => { restartGame(cvs, player1, player2, ball); } },
+			{ text: "Menu", onClick: () => { gameState = GameState.GAME_OVER; hideOverlay(); setupPong(); } },
 		]);
 		showOverlay_message(message);
 	}
