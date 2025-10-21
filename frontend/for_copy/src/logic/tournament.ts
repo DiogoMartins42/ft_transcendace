@@ -17,12 +17,15 @@ let players: Player[] = [];
 let matches: Match[] = [];
 let currentMatchIndex = 0;
 
-export function initTournament() {
+export function submitForm() {
+
   const form = document.getElementById('tournament-form') as HTMLFormElement;
   if (!form) return;
 
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
+  form.addEventListener('submit', initTournament);
+}
+
+export function initTournament() {
 
     // Collect player names
     players = [
@@ -31,16 +34,10 @@ export function initTournament() {
       { name: (document.getElementById('p3') as HTMLInputElement).value.trim(), score: 0 },
       { name: (document.getElementById('p4') as HTMLInputElement).value.trim(), score: 0 },
     ];
-
-    // Game settings
-    gameSettings.scoreLimit = parseInt((document.getElementById('scoreLimit') as HTMLInputElement).value);
-    gameSettings.ballSpeed = parseFloat((document.getElementById('ballSpeed') as HTMLInputElement).value);
-    gameSettings.paddleSpeed = parseFloat((document.getElementById('paddleSpeed') as HTMLInputElement).value);
     gameSettings.multiplayer = true;
 
     setupMatches();
     startNextMatch();
-  });
 }
 
 function setupMatches() {
