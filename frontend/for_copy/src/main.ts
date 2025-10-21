@@ -11,6 +11,7 @@ import loginModalHtml from './components/login-modal.html?raw'
 import signupModalHtml from './components/signup-modal.html?raw'
 import sidebarHtml from './components/sidebar.html?raw'
 import controlPanelHtml from './components/controlPanel-modal.html?raw'
+import friendsHtml from './pages/friend_list.html?raw'
 
 // import { setupModalEvents } from './logic/simulatedModals'
 // import { setupUserSection } from './logic/simulatedUserSection'
@@ -25,6 +26,7 @@ import { verifyStoredSession } from './logic/session'
 import { setupChat, handleIncomingMessage } from './logic/chat'
 import { setPong } from './logic/pong'
 import { setupControlPanel } from './logic/controlPanel'
+import { initFriendsPage } from './logic/friend_list';
 import { setupStatsPage } from './logic/stats'
 import { setupLoginForm } from './logic/login_handler'
 import { setupSignupForm } from './logic/signup_handler'
@@ -161,9 +163,11 @@ async function renderPage(pageHtml: string) {
   setPong()
   setupControlPanel()
   setupStatsPage()
-  setupLoginForm()    // ADD THIS
-  setupSignupForm()   // ADD THIS
-  setupOAuth()        // ADD THIS - Initialize OAuth buttons
+  setupLoginForm()   
+  setupSignupForm()
+  setupOAuth()
+  setupStatsPage()
+  initFriendsPage()
 }
 
 function handleRoute()
@@ -189,6 +193,9 @@ function handleRoute()
 		case 'userSettings':
 			renderPage(userSettingsHtml)
 			break
+    case 'friends':
+      renderPage(friendsHtml)
+      break
 		default:
 			renderPage(homeHtml)
 	}
