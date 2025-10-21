@@ -13,20 +13,12 @@ import sidebarHtml from './components/sidebar.html?raw'
 import controlPanelHtml from './components/controlPanel-modal.html?raw'
 import friendsHtml from './pages/friend_list.html?raw'
 
-// import { setupModalEvents } from './logic/simulatedModals'
-// import { setupUserSection } from './logic/simulatedUserSection'
-// import { setupModalEvents } from './logic/modals'
 import { setupUserSection } from './logic/userSection'
-
-// import { setupLoginForm } from './logic/login_handler'
-
 import { setupSidebarEvents } from './logic/sidebar'
-import { initWebSocket, disconnectWebSocket } from './logic/ws'
+import { initWebSocket, disconnectWebSocket, sendMessage } from './logic/ws'
 import { verifyStoredSession } from './logic/session'
-// import { initClientPong } from './logic/pong_client'
 import { setupPong } from "./logic/setupPong";
 import { setupChat, handleIncomingMessage } from './logic/chat'
-import { setPong } from './logic/pong'
 import { setupControlPanel } from './logic/controlPanel'
 import { initFriendsPage } from './logic/friend_list';
 import { setupStatsPage } from './logic/stats'
@@ -144,6 +136,14 @@ export function handleLogout() {
   })
 }
 
+// Expose WebSocket functions globally for other modules
+function exposeWebSocketFunctions() {
+  (window as any).initWebSocket = initWebSocket;
+  (window as any).sendMessage = sendMessage;
+  (window as any).disconnectWebSocket = disconnectWebSocket;
+  console.log('🔌 WebSocket functions exposed globally');
+}
+
 async function renderPage(pageHtml: string) {
   app.innerHTML = `
     ${navbarHtml}
@@ -156,12 +156,13 @@ async function renderPage(pageHtml: string) {
     ${controlPanelHtml}
   `
 
+  // Always expose WebSocket functions, even if user is not logged in
+  exposeWebSocketFunctions();
+  
   setupUserSection()
   setupSidebarEvents()
   setupChat()
-
   setupPong()
-  setPong()
   setupControlPanel()
   setupStatsPage()
   setupLoginForm()   
@@ -214,14 +215,14 @@ window.addEventListener('unhandledrejection', (event) => {
 window.addEventListener('DOMContentLoaded', async () => {
   console.log('🚀 App initializing...')
 
-  // process OAuth return (if any) BEFORE checking stored session
+  // Process OAuth return (if any) BEFORE checking stored session
   try {
     await handleOAuthCallback()
   } catch (err) {
     console.error('OAuth callback handling failed:', err)
   }
 
-  // init OAuth UI (show/hide Google button) early
+  // Init OAuth UI (show/hide Google button) early
   try {
     await initOAuthUI()
   } catch (err) {
@@ -242,7 +243,10 @@ window.addEventListener('DOMContentLoaded', async () => {
     console.log('🚫 No valid session, skipping WebSocket initialization')
   }
   
-  // 3. Render initial page
+  // 3. Always expose WebSocket functions globally for other modules
+  exposeWebSocketFunctions();
+  
+  // 4. Render initial page
   await handleRoute()
 })
 

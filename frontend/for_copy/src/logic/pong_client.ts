@@ -1,8 +1,9 @@
 // Multiplayer Pong client logic
 
-import { InputMessage, StateMessage, GameState, GameStateType } from "./pong_types";
+//import { GameState } from "./pong_types";
+//import type { InputMessage, StateMessage, GameStateType } from "./pong_types";
 import { gameSettings } from "./gameSettings";
-import { stopSearchingOverlay } from "./setupPong";
+import { stopSearchingOverlay, setupPong } from "./setupPong";
 
 
 /* -------------------------- Canvas & Rendering -------------------------- */
@@ -100,177 +101,124 @@ function hideOverlay() {
 
 /* -------------------------- initClientPong ----------------------------- */
 
-export function initClientPong(
-  socket: WebSocket,
-  initialRole?: "left" | "right" | "spectator",
-  opponentName?: string
-): void {
-  const { canvas, context } = getCanvasAndContext();
-  if (!canvas || !context) {
-    console.error("initClientPong: missing canvas/context");
-    return;
-  }
-
-  let playerRole: "left" | "right" | "spectator" = initialRole ?? "spectator";
-  let currentGameState: GameStateType = GameState.START; // ✅ fixed typing
-
-  // initial overlay
-  if (playerRole !== "spectator") {
-    showOverlay(`Matched vs ${opponentName ?? "player"}`, [
-      {
-        text: "Start",
-        onClick: () => {
-          socket.send(JSON.stringify({ type: "control", action: "start" }));
-          hideOverlay();
-        },
-      },
-    ]);
-  } else {
-    showOverlay("Searching for opponent...", []);
-  }
-
-  /* ----------------------- Socket listeners ----------------------- */
+export function initClientPong(socket: WebSocket) {
+  console.log("✅ initClientPong initialized. attaching WS handlers");
 
   socket.addEventListener("message", (ev) => {
-    let msg: any;
-    try {
-      msg = JSON.parse(ev.data);
-    } catch {
-      console.warn("Invalid message:", ev.data);
+    let data: any = null;
+    try { data = JSON.parse(ev.data.toString()); }
+    catch (err) {
+      console.debug("pong_client: received non-json message:", ev.data);
       return;
     }
 
-    switch (msg.type) {
-      case "role":
-        playerRole = msg.role;
-		stopSearchingOverlay();
-        if (playerRole !== "spectator") {
-          showOverlay(`You are ${playerRole.toUpperCase()}`, [
-            {
-              text: "Start",
-              onClick: () => {
-                socket.send(JSON.stringify({ type: "control", action: "start" }));
-                hideOverlay();
-              },
-            },
-          ]);
-        } else {
-          showOverlay("Spectator mode", []);
+    console.debug("pong_client: incoming message:", data);
+
+    // Add queue status handling
+    if (data.type === "queueStatus" || data.type === "waitingForOpponent") {
+      console.info("📊 Queue status:", data);
+      // Update the searching overlay with queue position
+      const msgElement = document.getElementById("game-message");
+      if (msgElement) {
+        const position = data.position || data.playersInQueue;
+        if (position) {
+          msgElement.textContent = `🔍 Searching for opponent... (Position: ${position})`;
         }
-        break;
+      }
+      return;
+    }
 
-      case "waiting":
-        showOverlay(msg.message ?? "Waiting for opponent...", []);
-        break;
+    // Add matchmaking error handling
+    if (data.type === "matchmakingError" || data.type === "error") {
+      console.error("Matchmaking error:", data);
+      if (typeof stopSearchingOverlay === "function") {
+        stopSearchingOverlay();
+      }
+      showOverlay(
+        data.message || "Matchmaking failed",
+        [
+          { text: "Retry", onClick: () => { 
+            hideOverlay();
+            socket.send(JSON.stringify({ type: "joinQueue" }));
+          }},
+          { text: "Back", onClick: () => { 
+            hideOverlay();
+            if (typeof setupPong === "function") {
+              setupPong();
+            }
+          }}
+        ]
+      );
+      return;
+    }
 
-      case "matchFound":
-        playerRole = msg.role;
-		stopSearchingOverlay();
-        hideOverlay();
-        break;
+    // role / assignment messages
+    if (data.type === "role" || data.type === "assignRole") {
+      const role = data.role || data.value || data.payload;
+      (window as any).playerRole = role;
+      console.info("🍀 assigned role:", role);
 
-      case "state": {
-        const state = msg as StateMessage;
-        const net = { x: canvas.width / 2 - 1, y: 0, width: 2, height: 10 };
-        render(canvas, context, state.paddles.left, state.paddles.right, state.ball, net);
-
-        currentGameState = state.gameState; // ✅ now properly typed
-
-        if (state.gameState === GameState.GAME_OVER) {
-          showOverlay("Game Over", [
-            {
-              text: "Restart",
-              onClick: () => {
-                socket.send(JSON.stringify({ type: "control", action: "restart" }));
-                hideOverlay();
-              },
-            },
-          ]);
-        }
-        break;
+      // stop searching UI if available
+      if (typeof stopSearchingOverlay === "function") {
+        try { stopSearchingOverlay(); } catch (_) {}
       }
 
-      case "invite":
-        showOverlay(`${msg.from} invited you to play`, [
-          {
-            text: "Accept",
-            onClick: () => {
-              socket.send(JSON.stringify({ type: "acceptInvite", from: msg.from }));
-              hideOverlay();
-            },
-          },
-          { text: "Decline", onClick: () => hideOverlay() },
-        ]);
-        break;
+      // if your app has a function to start the game for players, call it safely
+      if (role === "player" || role === "owner") {
+        (window as any).gameRole = "player";
+        if (typeof (window as any).startPong === "function") {
+          try { (window as any).startPong(); } catch (_) {}
+        } else if (typeof (window as any).setPong === "function") {
+          try { (window as any).setPong(); } catch (_) {}
+        }
+      } else {
+        (window as any).gameRole = "spectator";
+      }
+      return;
+    }
 
-      case "matchEnded":
-      case "opponentDisconnected":
-        showOverlay("Match ended", [
-          {
-            text: "Back",
-            onClick: () => window.location.reload(),
-          },
-        ]);
-        break;
+    // match found
+    if (data.type === "matchFound" || data.type === "match") {
+      console.info("🔔 match found:", data);
+      if (typeof stopSearchingOverlay === "function") {
+        try { stopSearchingOverlay(); } catch (_) {}
+      }
+      // if server sent initial state, try to call your initializer if present
+      if (data.start && typeof (window as any).initGameFromServer === "function") {
+        try { (window as any).initGameFromServer(data); } catch (_) {}
+      }
+      return;
+    }
+
+    // gameplay / state messages
+    if (data.type === "gameState" || data.type === "state") {
+      if (typeof (window as any).handleServerGameState === "function") {
+        try { (window as any).handleServerGameState(data); } catch (e) { console.warn("handleServerGameState error", e); }
+      } else {
+        // fallback: log state for debugging
+        console.debug("game state:", data);
+      }
+      return;
+    }
+
+    // fallback debug
+    console.debug("pong_client: unhandled message:", data);
+  });
+
+  socket.addEventListener("close", (ev) => {
+    console.warn("Pong socket closed", ev.code, ev.reason);
+    if (typeof stopSearchingOverlay === "function") {
+      try { stopSearchingOverlay(); } catch (_) {}
     }
   });
 
-  socket.addEventListener("close", () => {
-    showOverlay("Disconnected from server", [
-      { text: "Reload", onClick: () => window.location.reload() },
-    ]);
-  });
-
-  socket.addEventListener("error", () => {
-    showOverlay("WebSocket error", [
-      { text: "Reload", onClick: () => window.location.reload() },
-    ]);
-  });
-
-  /* ------------------------ Input handling ------------------------ */
-
-  function sendInput(player: "left" | "right", direction: "up" | "down" | "stop") {
-    const msg: InputMessage = { type: "input", player, direction };
-    socket.send(JSON.stringify(msg));
-  }
-
-  window.addEventListener("keydown", (e) => {
-    if (playerRole === "spectator") return;
-    if (currentGameState !== GameState.PLAYING) return; // ✅ now valid comparison
-
-    if (["KeyW", "ArrowUp"].includes(e.code)) sendInput(playerRole, "up");
-    else if (["KeyS", "ArrowDown"].includes(e.code)) sendInput(playerRole, "down");
-
-    if (e.code === "Space") {
-      const action =
-        currentGameState === GameState.PLAYING ? "pause" : "resume";
-      socket.send(JSON.stringify({ type: "control", action }));
+  socket.addEventListener("error", (err) => {
+    console.error("Pong socket error", err);
+    if (typeof stopSearchingOverlay === "function") {
+      try { stopSearchingOverlay(); } catch (_) {}
     }
   });
 
-  window.addEventListener("keyup", (e) => {
-    if (playerRole === "spectator") return;
-    if (["KeyW", "KeyS", "ArrowUp", "ArrowDown"].includes(e.code))
-      sendInput(playerRole, "stop");
-  });
-
-  const pauseBtn = document.getElementById("pause-btn");
-  if (pauseBtn) {
-    pauseBtn.addEventListener("click", () => {
-      socket.send(JSON.stringify({ type: "control", action: "pause" }));
-      showOverlay("Paused", [
-        {
-          text: "Resume",
-          onClick: () => {
-            socket.send(JSON.stringify({ type: "control", action: "resume" }));
-            hideOverlay();
-          },
-        },
-      ]);
-    });
-  }
-
-  console.log("✅ initClientPong initialized. Role:", playerRole);
+  // keep reference if other modules need it
+  (window as any).pongSocket = socket;
 }
-
-

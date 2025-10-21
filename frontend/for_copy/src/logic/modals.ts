@@ -49,9 +49,9 @@ export function setupModalEvents()
         	}
 
 			localStorage.setItem('token', data.token);
-			sharedState.isLoggedIn = true;
-			sharedState.username = data.username;
-			sharedState.avatarUrl = data.avatarUrl || '';
+			(sharedState as any).isLoggedIn = true;
+			(sharedState as any).username = data.username;
+			(sharedState as any).avatarUrl = data.avatarUrl || '';
 			loginModal?.classList.add('hidden');
 			loginForm.reset();
 			await setupUserSection();

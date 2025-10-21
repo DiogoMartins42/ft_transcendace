@@ -3,6 +3,20 @@ import loading from '../components/loading.html?raw'
 
 const BACKEND_LOGIN_URL = `${import.meta.env.VITE_API_URL}/auth/login`;
 
+/**
+ * Simple user-visible message helper.
+ * Replace this with your app's notification/toast API if available.
+ */
+function showMessage(message: string): void {
+  // Prefer a non-blocking UI notification if you have one; fallback to alert().
+  try {
+    alert(message);
+  } catch (err) {
+    // If alert is unavailable, log to console as a fallback.
+    console.warn("showMessage fallback:", message, err);
+  }
+}
+
 export function setupLoginForm() {
   console.log("🔄 setupLoginForm() called");
   
@@ -12,7 +26,7 @@ export function setupLoginForm() {
   const emailInput = document.getElementById("login-email") as HTMLInputElement;
   const passwordInput = document.getElementById("login-password") as HTMLInputElement;
   const loginSubmit = document.getElementById("login-submit") as HTMLButtonElement;
-  const loginMessage = document.getElementById("login-message");
+  
   
   // 🔹 SIGNUP ELEMENTS
   const openBtnSignup = document.getElementById("open-signup");
