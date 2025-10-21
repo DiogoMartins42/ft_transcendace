@@ -1,7 +1,7 @@
 import Fastify, { FastifyInstance, FastifyRequest } from "fastify";
 import websocket, { SocketStream } from "@fastify/websocket";
 import { GameEngine } from "./gameEngine";
-import { InputMessage, ControlMessage, StateMessage, GameState } from "./pong_types";
+import { type InputMessage, type ControlMessage, type StateMessage, GameState } from "./pong_types";
 import { gameSettings } from "./gameSettings";
 
 // -------------------- Server Setup --------------------

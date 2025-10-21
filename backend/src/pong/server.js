@@ -1,218 +1,230 @@
 import Fastify from "fastify";
 import websocket from "@fastify/websocket";
-import WebSocket from "ws";
-import { GameEngine } from "./gameEngine.js";
+import { Matchmaking } from "./matchmaking.js";
 import { gameSettings } from "./gameSettings.js";
-import { GameState } from "./pong_types.js";
 
 const fastify = Fastify();
 fastify.register(websocket);
 
-const players = new Map();
-const usernameToId = new Map();
-const waitingQueue = [];
-const matches = new Map();
-
-const canvasWidth = 800;
-const canvasHeight = 600;
-
-function mkId(prefix = "p") {
-  return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function createMatch(leftId, rightId) {
-  const matchId = mkId("m");
-  const game = new GameEngine(canvasWidth, canvasHeight);
-  const match = {
-    id: matchId,
-    leftId,
-    rightId,
-    game,
-    paddleVelocities: { left: 0, right: 0 },
-  };
-  matches.set(matchId, match);
-
-  const left = players.get(leftId);
-  const right = players.get(rightId);
-  left.matchId = matchId;
-  right.matchId = matchId;
-
-  left.conn.socket.send(
-    JSON.stringify({
-      type: "matchFound",
-      role: "left",
-      opponent: right.username || right.id,
-      matchId,
-    })
-  );
-  right.conn.socket.send(
-    JSON.stringify({
-      type: "matchFound",
-      role: "right",
-      opponent: left.username || left.id,
-      matchId,
-    })
-  );
-
-  return match;
-}
-
-function tryMatchFromQueue(playerId) {
-  while (waitingQueue.length) {
-    const otherId = waitingQueue.shift();
-    if (otherId === playerId) continue;
-    if (!players.has(otherId)) continue;
-    return createMatch(otherId, playerId);
-  }
-  waitingQueue.push(playerId);
-  const p = players.get(playerId);
-  p.conn.socket.send(
-    JSON.stringify({ type: "waiting", message: "Waiting for an opponent..." })
-  );
-  return null;
-}
+// Create matchmaking instance
+const matchmaking = new Matchmaking();
 
 // WebSocket route
 fastify.get("/ws", { websocket: true }, (connection, req) => {
   const url = new URL(req.url || "", `http://${req.headers.host}`);
-  const usernameQuery = url.searchParams.get("username") || undefined;
+  const username = url.searchParams.get("username") || undefined;
 
-  const playerId = mkId("p");
-  const playerInfo = {
-    id: playerId,
-    username: usernameQuery,
-    conn: connection,
-    matchId: undefined,
-  };
-  players.set(playerId, playerInfo);
-  if (playerInfo.username) usernameToId.set(playerInfo.username, playerId);
+  console.log(`🔗 New connection from ${username || 'anonymous'}`);
+
+  // Add player to matchmaking system
+  const player = matchmaking.addPlayer(connection, username);
 
   connection.socket.send(
     JSON.stringify({
       type: "connected",
-      id: playerId,
-      username: playerInfo.username || null,
+      id: player.id,
+      username: player.username,
     })
   );
 
   connection.socket.on("message", (raw) => {
     try {
       const msg = JSON.parse(raw.toString());
+      console.log(`📨 Message from ${player.username}:`, msg.type);
 
-      if (msg.type === "findMatch") {
-        if (playerInfo.matchId) {
-          const match = matches.get(playerInfo.matchId);
-          if (match) {
-            const opponentId =
-              match.leftId === playerId ? match.rightId : match.leftId;
-            const opponent = players.get(opponentId);
-            connection.socket.send(
-              JSON.stringify({
-                type: "matchFound",
-                role: match.leftId === playerId ? "left" : "right",
-                opponent: opponent.username || opponent.id,
-                matchId: match.id,
-              })
-            );
-            return;
+      switch (msg.type) {
+        case "findMatch":
+          matchmaking.findMatch(player);
+          break;
+
+        case "control":
+          handleGameControl(player, msg);
+          break;
+
+        case "input":
+          handlePlayerInput(player, msg);
+          break;
+
+        case "rejoin":
+          // Rejoin logic is handled in matchmaking.rejoinPlayer
+          break;
+
+        case "invite":
+          if (msg.to) {
+            const success = matchmaking.createInvite(player.id, msg.to);
+            if (!success) {
+              connection.socket.send(JSON.stringify({
+                type: "error",
+                message: "Player not found or unavailable"
+              }));
+            }
           }
-        }
-        tryMatchFromQueue(playerId);
-        return;
-      }
+          break;
 
-      if (msg.type === "control") {
-        const match = matches.get(playerInfo.matchId);
-        if (!match) return;
+        case "acceptInvite":
+          if (msg.from) {
+            const success = matchmaking.acceptInvite(player.id, msg.from);
+            if (!success) {
+              connection.socket.send(JSON.stringify({
+                type: "error", 
+                message: "Could not accept invite"
+              }));
+            }
+          }
+          break;
 
-        if (msg.action === "start") {
-          match.game.gameState = GameState.PLAYING;
-          match.game.launchBall();
-        } else if (msg.action === "pause") {
-          match.game.gameState = GameState.PAUSED;
-        } else if (msg.action === "resume") {
-          match.game.gameState = GameState.PLAYING;
-        } else if (msg.action === "restart") {
-          match.game.restart(canvasWidth, canvasHeight);
-          match.paddleVelocities.left = 0;
-          match.paddleVelocities.right = 0;
-        }
-        return;
-      }
-
-      if (msg.type === "input") {
-        const match = matches.get(playerInfo.matchId);
-        if (!match) return;
-        const senderRole = match.leftId === playerId ? "left" : "right";
-        if (msg.player !== senderRole) return;
-
-        const vel = match.paddleVelocities;
-        if (msg.player === "left") {
-          if (msg.direction === "up") vel.left = -gameSettings.paddleSpeed;
-          else if (msg.direction === "down") vel.left = gameSettings.paddleSpeed;
-          else if (msg.direction === "stop") vel.left = 0;
-        } else {
-          if (msg.direction === "up") vel.right = -gameSettings.paddleSpeed;
-          else if (msg.direction === "down") vel.right = gameSettings.paddleSpeed;
-          else if (msg.direction === "stop") vel.right = 0;
-        }
+        default:
+          console.warn("Unknown message type:", msg.type);
       }
     } catch (e) {
-      console.error("Invalid message:", e);
+      console.error("Invalid message:", e, raw.toString());
     }
   });
 
   connection.socket.on("close", () => {
-    if (playerInfo.username) usernameToId.delete(playerInfo.username);
-    players.delete(playerId);
-    const idx = waitingQueue.indexOf(playerId);
-    if (idx >= 0) waitingQueue.splice(idx, 1);
+    console.log(`🔌 ${player.username} disconnected`);
+    matchmaking.removePlayer(player.id);
+  });
 
-    if (playerInfo.matchId) {
-      const matchId = playerInfo.matchId;
-      const match = matches.get(matchId);
-      if (match) {
-        const opponentId =
-          match.leftId === playerId ? match.rightId : match.leftId;
-        const opponent = players.get(opponentId);
-        if (opponent)
-          opponent.conn.socket.send(
-            JSON.stringify({ type: "opponentDisconnected" })
-          );
-        matches.delete(matchId);
-      }
-    }
+  connection.socket.on("error", (err) => {
+    console.error(`❌ WebSocket error for ${player.username}:`, err);
   });
 });
 
-// Main loop for all matches
-setInterval(() => {
-  for (const [matchId, match] of matches.entries()) {
-    const g = match.game;
-    g.player1.y += match.paddleVelocities.left;
-    g.player2.y += match.paddleVelocities.right;
+function handleGameControl(player, msg) {
+  const match = matchmaking.matches.get(player.gameId);
+  if (!match) return;
 
-    g.player1.y = Math.max(0, Math.min(canvasHeight - g.player1.height, g.player1.y));
-    g.player2.y = Math.max(0, Math.min(canvasHeight - g.player2.height, g.player2.y));
+  const game = match.game;
 
-    g.update(canvasWidth, canvasHeight);
+  switch (msg.action) {
+    case "start":
+      if (game.gameState === "start") {
+        game.gameState = "playing";
+        game.launchBall();
+        broadcastGameState(match);
+      }
+      break;
 
-    const state = {
-      type: "state",
-      gameState: g.gameState,
-      ball: g.ball,
-      paddles: { left: g.player1, right: g.player2 },
-      score: { left: g.player1.score, right: g.player2.score },
-    };
+    case "pause":
+      game.gameState = "paused";
+      broadcastGameState(match);
+      break;
 
-    const payload = JSON.stringify(state);
+    case "resume":
+      game.gameState = "playing";
+      broadcastGameState(match);
+      break;
 
-    const leftPlayer = players.get(match.leftId);
-    const rightPlayer = players.get(match.rightId);
-    if (leftPlayer) try { leftPlayer.conn.socket.send(payload); } catch {}
-    if (rightPlayer) try { rightPlayer.conn.socket.send(payload); } catch {}
+    case "restart":
+      game.restart(game.canvasWidth, game.canvasHeight);
+      broadcastGameState(match);
+      break;
   }
-}, 1000 / 30);
+}
+
+function handlePlayerInput(player, msg) {
+  const match = matchmaking.matches.get(player.gameId);
+  if (!match) return;
+
+  // Store input for game update loop
+  if (!match.inputs) match.inputs = {};
+  
+  const isPlayer1 = match.player1.id === player.id;
+  const playerKey = isPlayer1 ? "player1" : "player2";
+  
+  match.inputs[playerKey] = msg.direction; // "up", "down", or "stop"
+}
+
+function broadcastGameState(match) {
+  const state = {
+    type: "state",
+    gameState: match.game.gameState,
+    ball: match.game.ball,
+    paddles: {
+      left: match.game.player1,
+      right: match.game.player2
+    },
+    score: {
+      left: match.game.player1.score,
+      right: match.game.player2.score
+    }
+  };
+
+  const payload = JSON.stringify(state);
+
+  [match.player1, match.player2].forEach(player => {
+    if (player?.socket?.readyState === 1) {
+      try {
+        player.socket.send(payload);
+      } catch (err) {
+        console.error("Failed to send to player:", player.username, err);
+      }
+    }
+  });
+}
+
+// Game update loop
+setInterval(() => {
+  for (const [matchId, match] of matchmaking.matches.entries()) {
+    const game = match.game;
+    
+    // Only update if game is playing
+    if (game.gameState !== "playing") {
+      continue;
+    }
+
+    // Apply player inputs
+    if (match.inputs) {
+      // Player 1 (left paddle)
+      if (match.inputs.player1 === "up") {
+        game.player1.y -= gameSettings.paddleSpeed;
+      } else if (match.inputs.player1 === "down") {
+        game.player1.y += gameSettings.paddleSpeed;
+      }
+
+      // Player 2 (right paddle)  
+      if (match.inputs.player2 === "up") {
+        game.player2.y -= gameSettings.paddleSpeed;
+      } else if (match.inputs.player2 === "down") {
+        game.player2.y += gameSettings.paddleSpeed;
+      }
+
+      // Keep paddles in bounds
+      game.player1.y = Math.max(0, Math.min(game.canvasHeight - game.player1.height, game.player1.y));
+      game.player2.y = Math.max(0, Math.min(game.canvasHeight - game.player2.height, game.player2.y));
+    }
+
+    // Update game state
+    game.update(game.canvasWidth, game.canvasHeight);
+
+    // Broadcast updated state
+    broadcastGameState(match);
+
+    // Check for game over
+    if (game.gameState === "game_over") {
+      const winner = game.player1.score >= gameSettings.scoreLimit ? match.player1.username : match.player2.username;
+      
+      [match.player1, match.player2].forEach(player => {
+        if (player?.socket?.readyState === 1) {
+          player.socket.send(JSON.stringify({
+            type: "gameOver",
+            winner: winner,
+            score: {
+              left: game.player1.score,
+              right: game.player2.score
+            }
+          }));
+        }
+      });
+
+      // End match after game over
+      setTimeout(() => {
+        matchmaking.endMatch(matchId);
+      }, 5000);
+    }
+  }
+}, 1000 / 60); // 60 FPS
 
 fastify
   .listen({ port: 3000, host: "0.0.0.0" })
@@ -221,6 +233,3 @@ fastify
     console.error(err);
     process.exit(1);
   });
-
-
-
