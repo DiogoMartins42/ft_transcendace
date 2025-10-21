@@ -1,4 +1,4 @@
-// Multiplayer Pong client logic (FIXED with rendering loop)
+// Multiplayer Pong client logic (FIXED with proper rendering)
 
 import { gameSettings } from "./gameSettings";
 
@@ -12,10 +12,38 @@ export function getCanvasAndContext(): {
   canvas: HTMLCanvasElement | null;
   context: CanvasRenderingContext2D | null;
 } {
-  const canvas = document.getElementById("pong") as HTMLCanvasElement | null;
+  let canvas = document.getElementById("pong") as HTMLCanvasElement | null;
   if (!canvas) {
-    console.error("Canvas element #pong not found");
-    return { canvas: null, context: null };
+    // Try to create a minimal game container + canvas so rendering can proceed for debugging.
+    try {
+      console.warn("#pong canvas not found — creating temporary canvas for debug");
+      const app = document.getElementById("app") || document.body;
+      const container = document.createElement("div");
+      container.id = "pong-container";
+      container.style.position = "relative";
+      container.style.width = "100%";
+      container.style.height = "480px";
+      container.style.zIndex = "9999";
+      container.style.display = "flex";
+      container.style.justifyContent = "center";
+      container.style.alignItems = "center";
+
+      canvas = document.createElement("canvas");
+      canvas.id = "pong";
+      canvas.width = Math.min(960, window.innerWidth - 40);
+      canvas.height = 480;
+      canvas.style.width = `${canvas.width}px`;
+      canvas.style.height = `${canvas.height}px`;
+      canvas.style.background = "#000";
+      canvas.style.border = "1px solid #444";
+
+      container.appendChild(canvas);
+      (app as HTMLElement).appendChild(container);
+      console.info("Temporary #pong canvas appended to DOM for debug");
+    } catch (err) {
+      console.error("Failed to create debug canvas:", err);
+      return { canvas: null, context: null };
+    }
   }
   const context = canvas.getContext("2d");
   if (!context) {
@@ -34,7 +62,7 @@ export function render(
   net: { x: number; y: number; width: number; height: number }
 ) {
   // Clear canvas
-  context.fillStyle = gameSettings.bgColor || "#1C39BB";
+  context.fillStyle = gameSettings.bgColor || "#000";
   context.fillRect(0, 0, canvas.width, canvas.height);
 
   // Draw net
@@ -67,15 +95,21 @@ export function render(
   context.fillStyle = gameSettings.itemsColor || "#F5CB5C";
   context.fill();
 
-  // Draw overlays for game states
-  const gs = (window as any).currentGameState;
-  if (gs === "start") drawStartScreen(context, canvas);
-  else if (gs === "paused") drawPausedScreen(context, canvas);
-  else if (gs === "game_over") drawGameOverScreen(context, canvas);
+  // ONLY draw overlays for specific states - FIXED!
+  const currentGameState = (window as any).currentGameState;
+  
+  if (currentGameState === "start") {
+    drawStartScreen(context, canvas);
+  } else if (currentGameState === "paused") {
+    drawPausedScreen(context, canvas);
+  } else if (currentGameState === "game_over") {
+    drawGameOverScreen(context, canvas);
+  }
+  // NO overlay for "playing" state - this lets the actual game show through!
 }
 
 function drawStartScreen(context: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
-  context.fillStyle = "rgba(0, 0, 0, 0.5)";
+  context.fillStyle = "rgba(0, 0, 0, 0.7)";
   context.fillRect(0, 0, canvas.width, canvas.height);
   context.fillStyle = "#fff";
   context.font = "36px sans-serif";
@@ -92,7 +126,7 @@ function drawStartScreen(context: CanvasRenderingContext2D, canvas: HTMLCanvasEl
 }
 
 function drawPausedScreen(context: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
-  context.fillStyle = "rgba(0, 0, 0, 0.5)";
+  context.fillStyle = "rgba(0, 0, 0, 0.7)";
   context.fillRect(0, 0, canvas.width, canvas.height);
   context.fillStyle = "#fff";
   context.font = "36px sans-serif";
@@ -101,7 +135,7 @@ function drawPausedScreen(context: CanvasRenderingContext2D, canvas: HTMLCanvasE
 }
 
 function drawGameOverScreen(context: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
-  context.fillStyle = "rgba(0, 0, 0, 0.7)";
+  context.fillStyle = "rgba(0, 0, 0, 0.8)";
   context.fillRect(0, 0, canvas.width, canvas.height);
   context.fillStyle = "#fff";
   context.font = "48px sans-serif";
@@ -180,7 +214,10 @@ function showOverlay(message: string, buttons: { text: string; onClick: () => vo
 
 function hideOverlay() {
   const overlay = document.getElementById("game-overlay");
-  if (overlay) overlay.classList.add("hidden");
+  if (overlay) {
+    overlay.classList.add("hidden");
+    console.log("✅ HTML overlay hidden");
+  }
 }
 
 /* -------------------------- Input Setup -------------------------- */
@@ -237,75 +274,93 @@ function setupInputListeners() {
 /* -------------------------- Match Event Handlers -------------------------- */
 
 function handleMatchFound(matchData: any) {
-  console.log("🎯 Match found! Setting up game...", matchData);
+  console.log("🎯 Starting game with match data:", matchData);
   
-  // Stop any searching overlays
   if (typeof (window as any).stopSearchingOverlay === "function") {
     try { (window as any).stopSearchingOverlay(); } catch (_) {}
   }
-
-  // Set game state
+  
+  console.debug("handleMatchFound: calling setupPong/init and ensuring canvas exists");
   (window as any).matchId = matchData.matchId;
   (window as any).playerRole = matchData.role;
   (window as any).opponent = matchData.opponent;
-  (window as any).currentGameState = "start";
   gameSettings.multiplayer = true;
-
-  // Ensure canvas exists
-  const { canvas, context } = getCanvasAndContext();
-  if (!canvas || !context) {
-    console.error("❌ Canvas not found! Make sure #pong canvas exists in DOM");
-    showOverlay(
-      "Error: Game canvas not found. Please refresh the page.",
-      [{ text: "Refresh", onClick: () => window.location.reload() }]
-    );
-    return;
-  }
-
-  // Setup input listeners
-  setupInputListeners();
-
-  // Apply initial state if provided
-  const initialState = matchData.initialState || matchData.state || matchData.startState;
-  if (initialState) {
-    lastGameState = initialState;
-    (window as any).currentGameState = initialState.gameState || "start";
-  } else {
-    // Set default state
-    lastGameState = {
-      gameState: "start",
-      ball: { x: canvas.width / 2, y: canvas.height / 2, radius: 10 },
-      paddles: {
-        left: { x: 30, y: canvas.height / 2 - 50, width: 10, height: 100, score: 0 },
-        right: { x: canvas.width - 40, y: canvas.height / 2 - 50, width: 10, height: 100, score: 0 }
+  
+  // Ensure UI initialized (call setupPong if present or import)
+  (async () => {
+    if (typeof (window as any).setupPong === "function") {
+      try {
+        console.log("🛠️ Calling setupPong()");
+        (window as any).setupPong();
+      } catch (e) {
+        console.error("setupPong() error:", e);
       }
-    };
-  }
+    } else {
+      console.warn("setupPong function not found, UI may not be initialized");
+    }
 
-  // Start rendering loop
-  startRenderLoop();
+    const { canvas, context } = getCanvasAndContext();
+    if (!canvas || !context) {
+      console.warn("Canvas not available after setupPong(); match will not render");
+      return;
+    }
 
-  // Show match found overlay
-  showOverlay(
-    `Match found! Opponent: ${matchData.opponent}\nYou are ${String(matchData.role).toUpperCase()} player`,
-    [
-      {
-        text: "Start Game",
-        onClick: () => {
-          hideOverlay();
-          sendGameControl("start");
+    // Apply initial state if provided
+    const initialState = matchData.initialState || matchData.state || matchData.startState;
+    if (initialState) {
+      lastGameState = initialState;
+      (window as any).currentGameState = initialState.gameState || "start";
+    } else {
+      // Set default state
+      lastGameState = {
+        gameState: "start",
+        ball: { x: canvas.width / 2, y: canvas.height / 2, radius: 10 },
+        paddles: {
+          left: { x: 30, y: canvas.height / 2 - 50, width: 10, height: 100, score: 0 },
+          right: { x: canvas.width - 40, y: canvas.height / 2 - 50, width: 10, height: 100, score: 0 }
         }
-      }
-    ]
-  );
+      };
+    }
 
-  console.log("✅ Game initialized and rendering");
+    // Setup input listeners for this match
+    setupInputListeners();
+
+    // Start rendering loop
+    startRenderLoop();
+
+    // Show match found overlay
+    showOverlay(
+      `Match found! Opponent: ${matchData.opponent}\nYou are ${String(matchData.role).toUpperCase()} player`,
+      [
+        {
+          text: "Start Game",
+          onClick: () => {
+            hideOverlay();
+            sendGameControl("start");
+          }
+        }
+      ]
+    );
+
+    console.log("✅ Game initialized and rendering");
+  })();
 }
 
 function handleGameState(stateData: any) {
+  console.log(`🔄 Game state update: ${stateData.gameState}`, {
+    ballMoving: stateData.ball.velocityX !== 0 || stateData.ball.velocityY !== 0,
+    ballPos: { x: stateData.ball.x, y: stateData.ball.y }
+  });
+  
   // Update last game state for rendering loop
   lastGameState = stateData;
   (window as any).currentGameState = stateData.gameState;
+
+  // CRITICAL: Hide overlay when game starts playing
+  if (stateData.gameState === "playing") {
+    hideOverlay();
+    console.log("✅ Game playing - overlay hidden");
+  }
 }
 
 function handleGameOver(data: any) {
@@ -446,6 +501,9 @@ export function sendGameControl(action: "start" | "pause" | "resume" | "restart"
     console.warn("Cannot send control: WebSocket not connected");
     return;
   }
+  
+  console.log(`🎮 Sending control: ${action}, matchId: ${(window as any).matchId}`);
+  
   const controlMessage = { type: "control", action };
   try { 
     socket.send(JSON.stringify(controlMessage)); 
@@ -559,7 +617,7 @@ export function initClientPong(socket: WebSocket, initialMatchData?: any) {
   
   // If we received match data before handlers were set up, process it now
   if (initialMatchData && initialMatchData.type === "matchFound") {
-    console.log("🎯 Processing initial match data...");
-    setTimeout(() => handleMatchFound(initialMatchData), 100);
+    console.log("📦 Processing initial match data in initClientPong");
+    handleMatchFound(initialMatchData);
   }
 }

@@ -98,39 +98,45 @@ export class Matchmaking {
       player.opponentId = opponent.id;
       opponent.gameId = player.gameId = matchId;
 
-      // Obtain an initial state from the GameEngine with safe fallbacks.
-      let initialState = null;
+      // --- NEW: start game engine safely if available ---
       try {
-        if (typeof game.getInitialState === "function") {
-          initialState = game.getInitialState();
-        } else if (typeof game.getState === "function") {
-          initialState = game.getState();
-        } else if (typeof game.serialize === "function") {
-          initialState = game.serialize();
+        if (match.game && typeof match.game.start === "function") {
+          match.game.start();
+          console.info("[matchmaking] started game engine for match", matchId);
         } else {
-          // Best-effort: attempt to read common properties, otherwise leave null
-          initialState = (typeof game.getSnapshot === "function") ? game.getSnapshot() : null;
+          console.info("[matchmaking] game.start not available for match", matchId);
         }
-      } catch (err) {
-        console.warn("Could not obtain initialState from GameEngine:", err);
-        initialState = null;
-      }
- 
-      // prepare payloads for each participant (assign left/right or player roles)
-      const payloadA = {
-        type: 'matchFound',
-        matchId,
-        role: 'left',
-        opponent: player.username,
-        ...(initialState ? { initialState } : {})
-      };
-      const payloadB = {
-        type: 'matchFound',
-        matchId,
-        role: 'right',
-        opponent: opponent.username,
-        ...(initialState ? { initialState } : {})
-      };
+} catch (err) {
+  console.warn("[matchmaking] error starting game engine:", err);
+}
+
+// derive an initialState safely if the game engine provides one
+let initialState = null;
+try {
+  if (match.game && typeof match.game.getState === "function") {
+    initialState = match.game.getState();
+  } else if (match.game && typeof match.game.serialize === "function") {
+    initialState = match.game.serialize();
+  }
+} catch (err) {
+  console.warn("[matchmaking] failed to obtain initialState for match", matchId, err);
+}
+
+// prepare payloads for each participant (assign left/right or player roles)
+const payloadA = {
+  type: 'matchFound',
+  matchId,
+  role: 'left',
+  opponent: player.username,
+  ...(initialState ? { initialState } : {})
+};
+const payloadB = {
+  type: 'matchFound',
+  matchId,
+  role: 'right',
+  opponent: opponent.username,
+  ...(initialState ? { initialState } : {})
+};
 
       try {
         console.info('[WS SEND] ->', opponent.username, JSON.stringify(payloadB));
@@ -296,7 +302,11 @@ export class Matchmaking {
   endMatch(matchId) {
     const match = this.matches.get(matchId);
     if (!match) return;
-    
+    if (match._stateInterval) {
+      clearInterval(match._stateInterval);
+      match._stateInterval = null;
+      console.info('[matchmaking] cleared state broadcaster for match', matchId);
+    }
     // Clear game IDs from players
     if (match.player1) match.player1.gameId = null;
     if (match.player2) match.player2.gameId = null;

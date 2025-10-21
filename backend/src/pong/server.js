@@ -93,31 +93,57 @@ fastify.get("/ws", { websocket: true }, (connection, req) => {
 
 function handleGameControl(player, msg) {
   const match = matchmaking.matches.get(player.gameId);
-  if (!match) return;
+  if (!match) {
+    console.log(`❌ No match found for player ${player.username}, ignoring control`);
+    return;
+  }
 
   const game = match.game;
+  console.log(`🎮 Control from ${player.username}: ${msg.action}, current state: ${game.gameState}`);
 
   switch (msg.action) {
     case "start":
+      // Only allow starting from "start" state
       if (game.gameState === "start") {
         game.gameState = "playing";
         game.launchBall();
+        console.log(`🚀 Game STARTED for match ${player.gameId} by ${player.username}`);
         broadcastGameState(match);
+        
+        // Notify both players that game started
+        [match.player1, match.player2].forEach(p => {
+          if (p?.socket?.readyState === 1) {
+            p.socket.send(JSON.stringify({
+              type: "gameStarted",
+              message: "Game is now playing!",
+              startedBy: player.username
+            }));
+          }
+        });
+      } else {
+        console.log(`⚠️ Cannot start game: current state is ${game.gameState}`);
       }
       break;
 
     case "pause":
-      game.gameState = "paused";
-      broadcastGameState(match);
+      if (game.gameState === "playing") {
+        game.gameState = "paused";
+        console.log(`⏸️ Game PAUSED for match ${player.gameId}`);
+        broadcastGameState(match);
+      }
       break;
 
     case "resume":
-      game.gameState = "playing";
-      broadcastGameState(match);
+      if (game.gameState === "paused") {
+        game.gameState = "playing";
+        console.log(`▶️ Game RESUMED for match ${player.gameId}`);
+        broadcastGameState(match);
+      }
       break;
 
     case "restart":
       game.restart(game.canvasWidth, game.canvasHeight);
+      console.log(`🔄 Game RESTARTED for match ${player.gameId}`);
       broadcastGameState(match);
       break;
   }
