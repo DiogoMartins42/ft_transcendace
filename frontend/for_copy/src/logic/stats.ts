@@ -170,7 +170,7 @@ export function setupStatsPage() {
   }
 } */
 
-export async function save_match(p1_score: number, p2_score: number, multiplayer: boolean) {
+/* export async function save_match(p1_score: number, p2_score: number, multiplayer: boolean) {
   const username = sharedState.username;
 
   var winner : string;
@@ -227,6 +227,76 @@ export async function save_match(p1_score: number, p2_score: number, multiplayer
     return data;
   }
   catch (err){
+    console.error("Error saving match:", err);
+  }
+} */
+
+  export async function save_match(p1_score: number, p2_score: number, multiplayer: boolean) {
+  // Get the current logged-in username directly from session
+  const session = loadSession();
+  const sessionUsername = session.user.username;
+  const sharedUsername = sharedState.username;
+  
+  console.log("Debug - Session username:", sessionUsername);
+  console.log("Debug - SharedState username:", sharedUsername);
+  console.log("Debug - Full session:", session);
+  
+  // Use whichever username is available
+  const username = sessionUsername ;
+  
+  console.log("Debug - Final username to use:", username);
+
+  // If no user is logged in, don't save the match
+  if (!username) {
+    console.log("Match not saved: No user logged in");
+    return;
+  }
+
+  var winner: string;
+  var loser: string;
+  var winner_points: number;
+  var loser_points: number;
+
+  if (p1_score > p2_score) {
+    winner_points = p1_score;
+    loser_points = p2_score;
+    winner = username;
+    if (multiplayer) { loser = "guest_multiplayer"; }
+    else { loser = "bot"; }
+  }
+  else {
+    winner_points = p2_score;
+    loser_points = p1_score;
+    loser = username;
+    if (multiplayer) { winner = "guest_multiplayer"; }
+    else { winner = "bot"; }
+  }
+
+  try {
+    const res = await fetch("/stats/api/match", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        winner,
+        loser,
+        winner_points,
+        loser_points,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      console.error("Failed to save match:", err);
+      return;
+    }
+
+    const data = await res.json();
+    console.log("Match saved for user:", username);
+    return data;
+  }
+  catch (err) {
     console.error("Error saving match:", err);
   }
 }
