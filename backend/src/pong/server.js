@@ -121,6 +121,43 @@ fastify.get("/ws", { websocket: true }, (connection, req) => {
         return;
       }
 
+      // ---- Handle rematch requests ----
+      if (msg.type === "rematchRequest") {
+        const player = players.get(playerId);
+        if (!player || !player.matchId) return;
+      
+        const match = matches.get(player.matchId);
+        if (!match) return;
+      
+        if (!match.rematchRequests) match.rematchRequests = new Set();
+        match.rematchRequests.add(playerId);
+      
+        const bothAccepted =
+          match.rematchRequests.has(match.leftId) &&
+          match.rematchRequests.has(match.rightId);
+      
+        if (bothAccepted) {
+          // Reset match
+          match.game.restart(canvasWidth, canvasHeight);
+          match.paddleVelocities.left = 0;
+          match.paddleVelocities.right = 0;
+          match.rematchRequests.clear();
+        
+          // Notify both
+          players.get(match.leftId)?.conn.socket.send(
+            JSON.stringify({ type: "rematchAccepted" })
+          );
+          players.get(match.rightId)?.conn.socket.send(
+            JSON.stringify({ type: "rematchAccepted" })
+          );
+        } else {
+          // Waiting for other player
+          player.conn.socket.send(JSON.stringify({ type: "rematchPending" }));
+        }
+        return;
+      }
+
+
       if (msg.type === "control") {
         const match = matches.get(playerInfo.matchId);
         if (!match) return;
