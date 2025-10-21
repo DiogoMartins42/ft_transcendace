@@ -310,7 +310,7 @@ function drawCircle(ctx: CanvasRenderingContext2D, x: number, y: number, r: numb
 function drawText(ctx: CanvasRenderingContext2D, text: number, x: number, y: number, color: string)
 {
 	ctx.fillStyle = color;
-	ctx.font = "45px fantasy";
+	ctx.font = "45px font-lucky";
 	ctx.fillText(text.toString(), x, y);
 }
 
