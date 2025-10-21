@@ -1,7 +1,7 @@
 // Multiplayer Pong client logic
 
-//import { GameState } from "./pong_types";
-//import type { InputMessage, StateMessage, GameStateType } from "./pong_types";
+import { GameState } from "./pong_types";
+import type { InputMessage, StateMessage, GameStateType } from "./pong_types";
 import { gameSettings } from "./gameSettings";
 import { stopSearchingOverlay, setupPong } from "./setupPong";
 
@@ -99,105 +99,75 @@ function hideOverlay() {
   if (overlay) overlay.style.display = "none";
 }
 
-/* -------------------------- initClientPong ----------------------------- */
+/* -------------------------- Matchmaking Handler -------------------------- */
 
-export function initClientPong(socket: WebSocket) {
-  console.log("✅ initClientPong initialized. attaching WS handlers");
-
+export function setupMatchmakingHandler(socket: WebSocket) {
   socket.addEventListener("message", (ev) => {
     let data: any = null;
-    try { data = JSON.parse(ev.data.toString()); }
-    catch (err) {
+    try { 
+      data = JSON.parse(ev.data.toString()); 
+    } catch (err) {
       console.debug("pong_client: received non-json message:", ev.data);
       return;
     }
 
     console.debug("pong_client: incoming message:", data);
 
-    // Add queue status handling
-    if (data.type === "queueStatus" || data.type === "waitingForOpponent") {
-      console.info("📊 Queue status:", data);
-      // Update the searching overlay with queue position
+    // Handle connection established
+    if (data.type === "connected") {
+      console.log("✅ Connected to game server:", data);
+      (window as any).playerId = data.id;
+      (window as any).gameUsername = data.username;
+      return;
+    }
+
+    // Handle waiting for opponent
+    if (data.type === "waiting") {
+      console.log("⏳ Waiting for opponent:", data.message);
       const msgElement = document.getElementById("game-message");
       if (msgElement) {
-        const position = data.position || data.playersInQueue;
-        if (position) {
-          msgElement.textContent = `🔍 Searching for opponent... (Position: ${position})`;
-        }
+        msgElement.textContent = data.message;
       }
       return;
     }
 
-    // Add matchmaking error handling
-    if (data.type === "matchmakingError" || data.type === "error") {
-      console.error("Matchmaking error:", data);
-      if (typeof stopSearchingOverlay === "function") {
-        stopSearchingOverlay();
-      }
-      showOverlay(
-        data.message || "Matchmaking failed",
-        [
-          { text: "Retry", onClick: () => { 
-            hideOverlay();
-            socket.send(JSON.stringify({ type: "joinQueue" }));
-          }},
-          { text: "Back", onClick: () => { 
-            hideOverlay();
-            if (typeof setupPong === "function") {
-              setupPong();
-            }
-          }}
-        ]
-      );
+    // Handle match found
+    if (data.type === "matchFound") {
+      console.log("🎉 Match found!", data);
+      handleMatchFound(data);
       return;
     }
 
-    // role / assignment messages
-    if (data.type === "role" || data.type === "assignRole") {
-      const role = data.role || data.value || data.payload;
-      (window as any).playerRole = role;
-      console.info("🍀 assigned role:", role);
-
-      // stop searching UI if available
-      if (typeof stopSearchingOverlay === "function") {
-        try { stopSearchingOverlay(); } catch (_) {}
-      }
-
-      // if your app has a function to start the game for players, call it safely
-      if (role === "player" || role === "owner") {
-        (window as any).gameRole = "player";
-        if (typeof (window as any).startPong === "function") {
-          try { (window as any).startPong(); } catch (_) {}
-        } else if (typeof (window as any).setPong === "function") {
-          try { (window as any).setPong(); } catch (_) {}
-        }
-      } else {
-        (window as any).gameRole = "spectator";
-      }
+    // Handle game state updates
+    if (data.type === "state") {
+      handleGameState(data);
       return;
     }
 
-    // match found
-    if (data.type === "matchFound" || data.type === "match") {
-      console.info("🔔 match found:", data);
-      if (typeof stopSearchingOverlay === "function") {
-        try { stopSearchingOverlay(); } catch (_) {}
-      }
-      // if server sent initial state, try to call your initializer if present
-      if (data.start && typeof (window as any).initGameFromServer === "function") {
-        try { (window as any).initGameFromServer(data); } catch (_) {}
-      }
+    // Handle opponent disconnect
+    if (data.type === "opponentDisconnected") {
+      console.warn("⚠️ Opponent disconnected");
+      handleOpponentDisconnected();
       return;
     }
 
-    // gameplay / state messages
-    if (data.type === "gameState" || data.type === "state") {
-      if (typeof (window as any).handleServerGameState === "function") {
-        try { (window as any).handleServerGameState(data); } catch (e) { console.warn("handleServerGameState error", e); }
-      } else {
-        // fallback: log state for debugging
-        console.debug("game state:", data);
-      }
+    // Handle match ended
+    if (data.type === "matchEnded") {
+      console.log("🏁 Match ended:", data.reason);
+      handleMatchEnded(data.reason);
+      return;
+    }
+
+    // Handle errors
+    if (data.type === "error") {
+      console.error("❌ Server error:", data);
+      handleMatchmakingError(data.message || "Server error");
+      return;
+    }
+
+    // Handle server stats (for debugging)
+    if (data.type === "serverStats") {
+      console.log("📈 Server stats:", data);
       return;
     }
 
@@ -210,6 +180,23 @@ export function initClientPong(socket: WebSocket) {
     if (typeof stopSearchingOverlay === "function") {
       try { stopSearchingOverlay(); } catch (_) {}
     }
+    
+    // Show reconnection option if not a normal closure
+    if (ev.code !== 1000 && !ev.reason?.includes("User stopped")) {
+      showOverlay(
+        "Connection lost",
+        [
+          { text: "Reconnect", onClick: () => { 
+            hideOverlay();
+            if (typeof setupPong === "function") setupPong();
+          }},
+          { text: "Main Menu", onClick: () => { 
+            hideOverlay();
+            if (typeof setupPong === "function") setupPong();
+          }}
+        ]
+      );
+    }
   });
 
   socket.addEventListener("error", (err) => {
@@ -221,4 +208,194 @@ export function initClientPong(socket: WebSocket) {
 
   // keep reference if other modules need it
   (window as any).pongSocket = socket;
+}
+
+/* -------------------------- Match Event Handlers -------------------------- */
+
+function handleMatchFound(matchData: any) {
+  console.log("🎯 Starting game with match data:", matchData);
+  
+  // Stop searching overlay
+  if (typeof stopSearchingOverlay === "function") {
+    stopSearchingOverlay();
+  }
+  
+  // Store match info globally
+  (window as any).matchId = matchData.matchId;
+  (window as any).playerRole = matchData.role;
+  (window as any).opponent = matchData.opponent;
+  
+  // Set multiplayer mode
+  gameSettings.multiplayer = true;
+  
+  console.log(`🎮 Player role: ${matchData.role}, Opponent: ${matchData.opponent}`);
+  
+  // Start the game - try different possible game start functions
+  if (typeof (window as any).startPong === "function") {
+    try { 
+      (window as any).startPong(); 
+      console.log("✅ Game started via startPong");
+    } catch (e) { 
+      console.warn("startPong failed, trying setPong:", e);
+      startGameFallback();
+    }
+  } else {
+    startGameFallback();
+  }
+}
+
+function startGameFallback() {
+  if (typeof (window as any).setPong === "function") {
+    try { 
+      (window as any).setPong(); 
+      console.log("✅ Game started via setPong");
+    } catch (e) { 
+      console.error("setPong also failed:", e);
+      showOverlay(
+        "Failed to start game",
+        [
+          { text: "Retry", onClick: () => { 
+            hideOverlay();
+            if (typeof setupPong === "function") setupPong();
+          }}
+        ]
+      );
+    }
+  } else {
+    console.error("No game start function available");
+    showOverlay(
+      "Game start function not found",
+      [
+        { text: "Back to Menu", onClick: () => { 
+          hideOverlay();
+          if (typeof setupPong === "function") setupPong();
+        }}
+      ]
+    );
+  }
+}
+
+function handleGameState(stateData: any) {
+  console.debug("🔄 Game state update:", stateData);
+  
+  // Forward to game engine if available
+  if (typeof (window as any).handleServerGameState === "function") {
+    try { 
+      (window as any).handleServerGameState(stateData); 
+    } catch (e) { 
+      console.warn("handleServerGameState error", e); 
+    }
+  } else {
+    // Fallback: log state for debugging
+    console.debug("Game state (no handler):", stateData);
+  }
+}
+
+function handleOpponentDisconnected() {
+  console.warn("👤 Opponent disconnected");
+  showOverlay(
+    "Opponent disconnected",
+    [
+      { text: "Back to Menu", onClick: () => { 
+        hideOverlay();
+        if (typeof setupPong === "function") setupPong();
+      }}
+    ]
+  );
+}
+
+function handleMatchEnded(reason: string) {
+  console.log("🏁 Match ended:", reason);
+  showOverlay(
+    `Match ended: ${reason}`,
+    [
+      { text: "Play Again", onClick: () => { 
+        hideOverlay();
+        if (typeof setupPong === "function") setupPong();
+      }},
+      { text: "Main Menu", onClick: () => { 
+        hideOverlay();
+        if (typeof setupPong === "function") setupPong();
+      }}
+    ]
+  );
+}
+
+function handleMatchmakingError(errorMessage: string) {
+  console.error("❌ Matchmaking error:", errorMessage);
+  if (typeof stopSearchingOverlay === "function") {
+    stopSearchingOverlay();
+  }
+  
+  showOverlay(
+    errorMessage,
+    [
+      { text: "Retry", onClick: () => { 
+        hideOverlay();
+        if (typeof setupPong === "function") setupPong();
+      }},
+      { text: "Back", onClick: () => { 
+        hideOverlay();
+        if (typeof setupPong === "function") setupPong();
+      }}
+    ]
+  );
+}
+
+/* -------------------------- Input Handling -------------------------- */
+
+export function sendGameInput(direction: "up" | "down" | "stop") {
+  const socket = (window as any).pongSocket;
+  const playerRole = (window as any).playerRole;
+  
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    console.warn("Cannot send input: WebSocket not connected");
+    return;
+  }
+  
+  if (!playerRole) {
+    console.warn("Cannot send input: player role not set");
+    return;
+  }
+  
+  const inputMessage = {
+    type: "input",
+    player: playerRole === "left" ? "left" : "right",
+    direction: direction
+  };
+  
+  try {
+    socket.send(JSON.stringify(inputMessage));
+    console.debug("🎮 Sent input:", inputMessage);
+  } catch (err) {
+    console.error("Failed to send input:", err);
+  }
+}
+
+export function sendGameControl(action: "start" | "pause" | "resume" | "restart") {
+  const socket = (window as any).pongSocket;
+  
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    console.warn("Cannot send control: WebSocket not connected");
+    return;
+  }
+  
+  const controlMessage = {
+    type: "control",
+    action: action
+  };
+  
+  try {
+    socket.send(JSON.stringify(controlMessage));
+    console.debug("🎮 Sent control:", controlMessage);
+  } catch (err) {
+    console.error("Failed to send control:", err);
+  }
+}
+
+/* -------------------------- initClientPong ----------------------------- */
+
+export function initClientPong(socket: WebSocket) {
+  console.log("✅ initClientPong initialized. attaching WS handlers");
+  setupMatchmakingHandler(socket);
 }

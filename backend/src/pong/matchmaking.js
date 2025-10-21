@@ -1,4 +1,5 @@
 import { GameEngine } from "./gameEngine.js";
+import crypto from "crypto";
 
 export class Matchmaking {
   constructor() {
@@ -21,12 +22,36 @@ export class Matchmaking {
   removePlayer(id) {
     const player = this.players.get(id);
     if (!player) return;
+
     this.players.delete(id);
     this.waiting = this.waiting.filter((p) => p.id !== id);
-    if (player.gameId) this.endMatch(player.gameId);
+
+    if (player.gameId) {
+      const match = this.matches.get(player.gameId);
+      if (!match) return;
+
+      const opponent = match.player1.id === id ? match.player2 : match.player1;
+      if (opponent?.socket?.readyState === 1) {
+        opponent.socket.send(
+          JSON.stringify({
+            type: "opponentDisconnected",
+            message: "Opponent disconnected — waiting for reconnection...",
+          })
+        );
+      }
+
+      console.log(`⚠️ Player ${player.username} disconnected. Waiting 15s before ending match.`);
+      setTimeout(() => {
+        const stillMissing = !this.players.has(id);
+        if (stillMissing && this.matches.has(player.gameId)) {
+          this.endMatch(player.gameId);
+        } else {
+          console.log(`✅ Player ${player.username} rejoined before timeout.`);
+        }
+      }, 15000);
+    }
   }
 
-  /** Auto matchmaking: find another free player */
   findMatch(player) {
     if (this.waiting.length > 0) {
       const opponent = this.waiting.shift();
@@ -40,7 +65,6 @@ export class Matchmaking {
       player.opponentId = opponent.id;
       opponent.gameId = player.gameId = matchId;
 
-      // Notify both players
       opponent.socket.send(
         JSON.stringify({
           type: "matchFound",
@@ -65,7 +89,36 @@ export class Matchmaking {
     }
   }
 
-  /** Invitation-based matchmaking */
+  rejoinPlayer(socket, username) {
+    const existing = Array.from(this.matches.values()).find(
+      (m) =>
+        (m.player1.username === username && !this.players.has(m.player1.id)) ||
+        (m.player2.username === username && !this.players.has(m.player2.id))
+    );
+
+    if (existing) {
+      const player =
+        existing.player1.username === username ? existing.player1 : existing.player2;
+      player.socket = socket;
+      this.players.set(player.id, player);
+      console.log(`🔁 ${username} rejoined match ${existing.id}`);
+
+      player.socket.send(
+        JSON.stringify({ type: "rejoined", matchId: existing.id })
+      );
+
+      const opponent =
+        existing.player1.username === username ? existing.player2 : existing.player1;
+      if (opponent?.socket?.readyState === 1) {
+        opponent.socket.send(
+          JSON.stringify({ type: "opponentRejoined", username })
+        );
+      }
+      return true;
+    }
+    return false;
+  }
+
   createInvite(senderId, receiverUsername) {
     const sender = this.players.get(senderId);
     const receiver = Array.from(this.players.values()).find(
@@ -110,10 +163,6 @@ export class Matchmaking {
     );
 
     return true;
-  }
-
-  getMatch(id) {
-    return this.matches.get(id);
   }
 
   endMatch(id) {
