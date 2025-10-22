@@ -52,7 +52,7 @@ export function setupModalEvents()
 			sharedState.isLoggedIn = true;
 			loginModal?.classList.add('hidden');
 			loginForm.reset();
-			await setupUserSection({ username: data.username, avatarUrl: data.avatarUrl || '' });
+			await setupUserSection();
 			} catch (err) {
 				console.error(err);
 				alert('Failed to connect to the server.');

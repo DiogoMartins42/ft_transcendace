@@ -2,10 +2,8 @@ import navLoggedoutHtml from '../components/navLoggedout.html?raw'
 import navLoggedinHtml from '../components/navLoggedin.html?raw'
 import { setupLoginForm } from './login_handler'
 import { setupSignupForm } from './signup_handler'
-import { setupUserSettings } from "./UpdateUserInformation";
 import { uploadAvatar, setUserAvatar } from './user-avatar';
 import { sharedState } from '../main'
-import { clearSession } from './session'
 
 export async function setupUserSection() {
   const userSection = document.getElementById('user-section') as HTMLDivElement | null
@@ -122,5 +120,4 @@ export async function setupUserSection() {
   // auto re-render on state change
   sharedState.subscribe(render)
 }
-
 
