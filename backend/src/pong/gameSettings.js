@@ -11,7 +11,7 @@ export let gameSettings = {
 	//general settings
 	resetSpeed: true, 
 	paddleSpeed: 5, 
-	ballSpeed: 3,  
+	ballSpeed: 5,  
 	scoreLimit: 5, 
 	bgColor: '#1C39BB', 
 	itemsColor: '#F5CB5C', 

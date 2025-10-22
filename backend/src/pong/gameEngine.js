@@ -120,7 +120,7 @@ export class GameEngine
 			this.ball.velocityY = this.ball.speed * Math.sin(angleRad);
 			
 			// Increase speed slightly
-			this.ball.speed += 0.1;
+			this.ball.speed += 0.5;
 			
 			// Adjust position to prevent multiple collisions
 			if (direction === 1) {
