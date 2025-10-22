@@ -7,7 +7,7 @@ interface ChatMessage {
   from: string
   to?: string
   text: string
-  type: 'direct' | 'system' | 'invite' | 'tournament' | 'profile' | 'error'
+  type: 'direct' | 'system' | 'invite' | 'invite_accept' | 'tournament' | 'profile' | 'error'
   timestamp: string
 }
 
@@ -168,7 +168,7 @@ export function setupChat() {
         inviteBtn.className = 'p-2 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors duration-200'
         inviteBtn.onclick = (e) => {
           e.stopPropagation()
-          sendMessage({
+          sendMessage({ 
             type: 'invite',
             to: u.username,
             from: currentUser.username,
@@ -334,10 +334,40 @@ export function handleIncomingMessage(data: any) {
 
     case 'invite':
       if (data.to && data.to.toLowerCase() === currentUser.username.toLowerCase()) {
-        addSystemMessage(`🏓 ${data.from} invited you to a Pong game!`)
+        const accept = confirm(`🏓 ${data.from} invited you to a Pong match! Click OK to accept.`);
+        if (accept) {
+          // Generate a shared match ID
+          const matchId = crypto.randomUUID();
+        
+          // Send acceptance back to the inviter
+          sendMessage({
+            type: 'invite_accept',
+            to: data.from,
+            from: currentUser.username,
+            matchId,
+          });
+        
+          // Save own match info (acceptor plays on LEFT)
+          sessionStorage.setItem("matchId", matchId);
+          sessionStorage.setItem("role", "left");
+        
+          // Go to pong
+          window.location.hash = "pong";
+        }
       }
-      break
+      break;
+    case 'invite_accept':
+      if (data.to && data.to.toLowerCase() === currentUser.username.toLowerCase()) {
+        addSystemMessage(`${data.from} accepted your invite! Starting game...`);
 
+        // Save match info (inviter plays on RIGHT)
+        sessionStorage.setItem("matchId", data.matchId);
+        sessionStorage.setItem("role", "right");
+
+        // Redirect to pong
+        window.location.hash = "pong";
+      }
+      break;
     case 'tournament':
       addSystemMessage(`🏆 Tournament update: ${data.text}`)
       break

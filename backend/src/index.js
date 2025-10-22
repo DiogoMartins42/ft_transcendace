@@ -62,7 +62,7 @@ const db = new Database(env.dbFile);
 db.prepare(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT NOT NULL,
+    username TEXT UNIQUE NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     google_id TEXT UNIQUE,
@@ -267,7 +267,8 @@ fastify.register(async function (fastify) {
       }
 
       // Handle direct messages with block checking
-      if (data.type === 'direct' && data.to) {
+      if (
+        (data.type === 'direct' || data.type === 'invite' || data.type === 'invite_accept') && data.to) {
         const target = data.to.trim().toLowerCase();
         const sender = (client.username || 'Anonymous').trim();
         const timestamp = new Date().toISOString();
@@ -331,7 +332,8 @@ fastify.register(async function (fastify) {
                 from: sender,
                 to: data.to,
                 text: data.text,
-                type: 'direct',
+                type: data.type,
+                matchId: data.matchId || null,
                 timestamp,
               }));
               fastify.log.info(`✅ Sent to ${c.username || 'Anonymous'}`);
