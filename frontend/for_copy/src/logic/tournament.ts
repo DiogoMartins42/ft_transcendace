@@ -2,6 +2,7 @@ import { setPong } from './pong';
 import { showOverlay} from './setupPong'
 import { hideOverlay} from './setupPong'
 import { setupPong } from './setupPong'
+import { gameSettings } from './controlPanel';
 
 interface Player {
   name: string;
@@ -50,13 +51,13 @@ export async function startTournament() {
 
 function showTournamentOverlay(): Promise<string[]> {
   return new Promise((resolve) => {
-    const overlay = document.getElementById("game-overlay");
-    const msg = document.getElementById("game-message");
-    const btns = document.getElementById("overlay-buttons");
-    if (!overlay || !msg || !btns) return resolve([]);
+    const existing = document.getElementById("tournament-overlay");
+    if (existing) existing.remove(); // remove previous overlay if any
 
-    btns.innerHTML = "";
-    msg.innerHTML = `
+    const overlay = document.createElement("div");
+    overlay.id = "tournament-overlay";
+    overlay.className = "fixed inset-0 bg-black/90 flex flex-col items-center justify-center z-50 text-white";
+    overlay.innerHTML = `
       <h1 class="text-3xl font-lucky text-center mt-8 mb-6 text-[#F5CB5C]">
         PONG TOURNAMENT
       </h1>
@@ -80,25 +81,24 @@ function showTournamentOverlay(): Promise<string[]> {
       </form>
     `;
 
-    overlay.classList.remove("hidden");
-    btns.classList.add("hidden");
+    document.body.appendChild(overlay);
 
     const form = document.getElementById("tournament-form") as HTMLFormElement;
     form.addEventListener("submit", (e) => {
       e.preventDefault();
-
       const players = [
         (document.getElementById("p1") as HTMLInputElement).value.trim(),
         (document.getElementById("p2") as HTMLInputElement).value.trim(),
         (document.getElementById("p3") as HTMLInputElement).value.trim(),
         (document.getElementById("p4") as HTMLInputElement).value.trim(),
       ];
-
-      hideOverlay();
+      overlay.remove(); // destroy overlay instead of hiding
+      gameSettings.multiplayer = true;
       resolve(players);
     });
   });
 }
+
 
 function startNextMatch() {
   const match = matches[currentMatchIndex];
@@ -128,7 +128,7 @@ function launchPongMatch(match: Match) {
   const canvasWrap = document.getElementById('canvas-wrap');
   if (canvasWrap) {
     const label = document.createElement('div');
-    label.className = 'absolute top-2 left-1/2 -translate-x-1/2 text-white text-lg font-bold z-30';
+    label.className = 'absolute top-8 left-1/2 -translate-x-1/2 text-white text-lg font-bold z-30';
     label.id = 'match-label';
     label.textContent = `${match.p1.name} 🆚 ${match.p2.name}`;
     canvasWrap.appendChild(label);
