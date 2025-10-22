@@ -133,12 +133,24 @@ export class GameEngine
 		// Scoring
 		if (this.ball.x - this.ball.radius < 0) {
 			this.player2.score++;
+			this.ball.speed = (this.ball.speed || gameSettings.ballSpeed) + 1;
 			this.resetBall(canvasWidth, canvasHeight);
-			this.gameState = "start"; // Go back to start state after scoring
+			this.gameState = "scored";
+			this._scoreTimer && clearTimeout(this._scoreTimer);
+			// this._scoreTimer = setTimeout(() => {
+				this.gameState = "playing";
+				this.launchBall();
+			// }, 1500);
 		} else if (this.ball.x + this.ball.radius > canvasWidth) {
 			this.player1.score++;
+			this.ball.speed = (this.ball.speed || gameSettings.ballSpeed) + 1;
 			this.resetBall(canvasWidth, canvasHeight);
-			this.gameState = "start"; // Go back to start state after scoring
+			this.gameState = "scored";
+			this._scoreTimer && clearTimeout(this._scoreTimer);
+			// this._scoreTimer = setTimeout(() => {
+				this.gameState = "playing";
+				this.launchBall();
+			// }, 1500);
 		}
 
 		// Game over condition

@@ -16,7 +16,7 @@ export let gameSettings = {
 	bgColor: '#1C39BB', 
 	itemsColor: '#F5CB5C', 
 	default: false, 
-    canvasWidth: 800,
+    canvasWidth: 1000,
     canvasHeight: 600,
 }
 
