@@ -71,12 +71,13 @@ const db = new Database(env.dbFile);
 db.prepare(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT NOT NULL,
+    username TEXT UNIQUE NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     google_id TEXT UNIQUE,
     avatar_url TEXT,
     email_verified BOOLEAN DEFAULT FALSE,
+    IsOnline BOOLEAN DEFAULT FALSE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `).run();
@@ -177,6 +178,19 @@ fastify.register(fastifyWebsocket, {
   },
 });
 
+// Helper to extract and verify JWT token from WebSocket URL
+async function extractUserFromToken(url, jwtSecret) {
+  try {
+    const urlObj = new URL(url, 'https://localhost');
+    const token = urlObj.searchParams.get('token');
+    if (!token) return null;
+    
+    const jwt = await import('@fastify/jwt');
+    const decoded = jwt.default.verify(token, jwtSecret);
+    return decoded;
+  } catch (err) {
+    console.error('JWT verification failed:', err.message);
+    return null;
 const wsClients = new Set();
 
 // ========== HELPER FUNCTIONS FOR GAME CONTROL ==========
@@ -321,6 +335,14 @@ fastify.register(async function (fastify) {
         return;
       }
 
+      // Handle direct messages with block checking
+      if (
+        (data.type === 'direct' || data.type === 'invite' || data.type === 'invite_accept') && data.to) {
+        const target = data.to.trim().toLowerCase();
+        const sender = (client.username || 'Anonymous').trim();
+        const timestamp = new Date().toISOString();
+
+        fastify.log.info('💬 Direct message request:', { from: sender, to: target });
       // --- Auto matchmaking ---
       if (data.type === "findMatch") {
         if (!client.id) {
@@ -395,8 +417,14 @@ fastify.register(async function (fastify) {
                 type: "direct",
                 from: client.username,
                 text: data.text,
-              })
-            );
+                type: data.type,
+                matchId: data.matchId || null,
+                timestamp,
+              }));
+              fastify.log.info(`✅ Sent to ${c.username || 'Anonymous'}`);
+            } catch (err) {
+              fastify.log.error(`❌ Failed to send to ${c.username}:`, err.message);
+            }
           }
         }
       }
@@ -518,7 +546,6 @@ const start = async () => {
     const address = fastify.server.address();
     const protocol = httpsOptions ? "https" : "http";
     const wsProtocol = httpsOptions ? "wss" : "ws";
-
     console.log("🚀 SERVER STARTED SUCCESSFULLY");
     console.log(`🌐 ${protocol}://pongpong.duckdns.org:${address.port}`);
     console.log(`📡 WebSocket URL: ${wsProtocol}://pongpong.duckdns.org:3000/ws`);

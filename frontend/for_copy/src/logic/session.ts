@@ -87,7 +87,7 @@ export async function verifyStoredSession() {
     console.log("Found stored token, verifying...");
 
     // Use Vite environment variable
-    const API_URL = import.meta.env.VITE_API_URL || 'https://pongpong.duckdns.org:3000';
+    const API_URL = import.meta.env.VITE_API_URL || 'https://10.19.250.99:3000';
     
     const res = await fetch(`${API_URL}/auth/me`, {
       headers: {

@@ -27,7 +27,7 @@ export function initFriendsPage() {
   }
 
   if (!input || !button || !list) {
-    console.error("Friends page elements not found");
+    //console.error("Friends page elements not found");
     return;
   }
 

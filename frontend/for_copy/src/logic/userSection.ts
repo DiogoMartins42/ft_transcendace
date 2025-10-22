@@ -37,6 +37,16 @@ export async function setupUserSection() {
       const logoutBtn = document.getElementById("logout-btn") as HTMLButtonElement | null
       if (logoutBtn) {
         logoutBtn.addEventListener("click", () => {
+          if (sharedState.username) {
+            fetch("/stats/api/friends/offline", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ username: sharedState.username }),
+            })
+              .then(() => console.log("👋 User marked offline"))
+              .catch(err => console.error("❌ Failed to mark user offline:", err));
+          }
+          clearSession()
           sharedState.setState({ isLoggedIn: false, username: undefined, avatarUrl: undefined })
         })
       }
