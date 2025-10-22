@@ -1,7 +1,7 @@
 // logic/oauth.ts - OAuth 2.0 Google Login for SPA (Redirect Flow)
 import { handleLogin } from '../main';
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://10.19.250.99:3000';
+const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://pongpong.duckdns.org:3000';
 
 /**
  * Setup OAuth login buttons

@@ -37,8 +37,8 @@ RUN if [ ! -f /app/certs/cert.pem ]; then \
     -keyout /app/certs/key.pem \
     -out /app/certs/cert.pem \
     -days 365 -nodes \
-    -subj "/C=US/ST=State/L=City/O=Organization/CN=10.19.250.99" \
-    -addext "subjectAltName=DNS:10.19.250.99,DNS:localhost,IP:127.0.0.1"; \
+    -subj "/C=US/ST=State/L=City/O=Organization/CN=pongpong.duckdns.org:3000" \
+    -addext "subjectAltName=DNS:pongpong.duckdns.org,DNS:localhost,IP:127.0.0.1"; \
     echo "✅ Self-signed certificates generated"; \
     fi
 

@@ -55,7 +55,7 @@ export function setupChat() {
     return
   }
 
-  const API_URL = import.meta.env.VITE_API_URL || 'https://10.19.250.99:3000';
+  const API_URL = import.meta.env.VITE_API_URL || 'https://pongpong.duckdns.org:3000';
   
   fetch(`${API_URL}/api/users`, {
     headers: { Authorization: `Bearer ${token}` },

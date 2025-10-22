@@ -191,6 +191,9 @@ async function extractUserFromToken(url, jwtSecret) {
   } catch (err) {
     console.error('JWT verification failed:', err.message);
     return null;
+  }
+}
+
 const wsClients = new Set();
 
 // ========== HELPER FUNCTIONS FOR GAME CONTROL ==========
@@ -343,6 +346,8 @@ fastify.register(async function (fastify) {
         const timestamp = new Date().toISOString();
 
         fastify.log.info('💬 Direct message request:', { from: sender, to: target });
+      } // Added missing bracket here
+
       // --- Auto matchmaking ---
       if (data.type === "findMatch") {
         if (!client.id) {
@@ -412,15 +417,15 @@ fastify.register(async function (fastify) {
       if (data.type === "direct" && data.to && data.text) {
         for (const c of wsClients) {
           if (c.username === data.to && c.socket.readyState === 1) {
-            c.socket.send(
-              JSON.stringify({
-                type: "direct",
-                from: client.username,
-                text: data.text,
-                type: data.type,
-                matchId: data.matchId || null,
-                timestamp,
-              }));
+            try {
+              c.socket.send(
+                JSON.stringify({
+                  type: "direct",
+                  from: client.username,
+                  text: data.text,
+                  timestamp: new Date().toISOString(),
+                })
+              );
               fastify.log.info(`✅ Sent to ${c.username || 'Anonymous'}`);
             } catch (err) {
               fastify.log.error(`❌ Failed to send to ${c.username}:`, err.message);
