@@ -14,12 +14,18 @@ import controlPanelHtml from './components/controlPanel-modal.html?raw'
 import gameSettingsHtml from './components/gameSettings.html?raw'
 import friendsHtml from './pages/friend_list.html?raw'
 
+// import { setupModalEvents } from './logic/simulatedModals'
+// import { setupUserSection } from './logic/simulatedUserSection'
+// import { setupModalEvents } from './logic/modals'
 import { setupUserSection } from './logic/userSection'
+
+// import { setupLoginForm } from './logic/login_handler'
+
 import { setupSidebarEvents } from './logic/sidebar'
-import { initWebSocket, disconnectWebSocket, sendMessage } from './logic/ws'
+import { initWebSocket, disconnectWebSocket } from './logic/ws'
 import { verifyStoredSession } from './logic/session'
-import { setupPong } from "./logic/setupPong";
 import { setupChat, handleIncomingMessage } from './logic/chat'
+import { setPong } from './logic/pong'
 import { setupControlPanel } from './logic/controlPanel'
 // import { setupGameSettings } from './logic/gameSettings'
 import { initFriendsPage } from './logic/friend_list';
@@ -138,14 +144,6 @@ export function handleLogout() {
   })
 }
 
-// Expose WebSocket functions globally for other modules
-function exposeWebSocketFunctions() {
-  (window as any).initWebSocket = initWebSocket;
-  (window as any).sendMessage = sendMessage;
-  (window as any).disconnectWebSocket = disconnectWebSocket;
-  console.log('🔌 WebSocket functions exposed globally');
-}
-
 async function renderPage(pageHtml: string) {
   app.innerHTML = `
     ${navbarHtml}
@@ -159,13 +157,10 @@ async function renderPage(pageHtml: string) {
     ${gameSettingsHtml}
   `
 
-  // Always expose WebSocket functions, even if user is not logged in
-  exposeWebSocketFunctions();
-  
   setupUserSection()
   setupSidebarEvents()
   setupChat()
-  setupPong()
+  setPong()
   setupControlPanel()
   // setupGameSettings()
   setupStatsPage()
