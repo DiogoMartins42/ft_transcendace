@@ -1,6 +1,6 @@
 // Multiplayer Pong client logic (FIXED with proper rendering)
 
-import { gameSettings } from "./gameSettings";
+import { gameSettings, visualSettings } from "./gameSettings";
 
 /* -------------------------- Global State -------------------------- */
 let animationFrameId: number | null = null;
@@ -62,11 +62,11 @@ export function render(
   net: { x: number; y: number; width: number; height: number }
 ) {
   // Clear canvas
-  context.fillStyle = gameSettings.bgColor || "#000";
+  context.fillStyle = visualSettings.bgColor;
   context.fillRect(0, 0, canvas.width, canvas.height);
 
   // Draw net
-  context.fillStyle = gameSettings.itemsColor || "#F5CB5C";
+  context.fillStyle = visualSettings.itemsColor;
   const circleRadius = 30;
   context.beginPath();
   context.arc(net.x, 0, circleRadius, 0, Math.PI * 2);
@@ -77,14 +77,14 @@ export function render(
   }
 
   // Draw scores
-  context.fillStyle = gameSettings.itemsColor || "#F5CB5C";
+  context.fillStyle = visualSettings.itemsColor;
   context.font = "45px fantasy";
   context.textAlign = "center";
   context.fillText(String(player1?.score ?? 0), canvas.width / 4, canvas.height / 5);
   context.fillText(String(player2?.score ?? 0), (3 * canvas.width) / 4, canvas.height / 5);
 
   // Draw paddles
-  context.fillStyle = gameSettings.itemsColor || "#F5CB5C";
+  context.fillStyle = visualSettings.itemsColor;
   context.fillRect(player1.x, player1.y, player1.width, player1.height);
   context.fillRect(player2.x, player2.y, player2.width, player2.height);
 
@@ -92,59 +92,59 @@ export function render(
   context.beginPath();
   context.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
   context.closePath();
-  context.fillStyle = gameSettings.itemsColor || "#F5CB5C";
+  context.fillStyle = visualSettings.itemsColor;
   context.fill();
 
   // ONLY draw overlays for specific states - FIXED!
-  const currentGameState = (window as any).currentGameState;
+  // const currentGameState = (window as any).currentGameState;
   
-  if (currentGameState === "start") {
-    drawStartScreen(context, canvas);
-  } else if (currentGameState === "paused") {
-    drawPausedScreen(context, canvas);
-  } else if (currentGameState === "game_over") {
-    drawGameOverScreen(context, canvas);
-  }
+  // if (currentGameState === "start") {
+  //   // drawStartScreen(context, canvas);
+  // } else if (currentGameState === "paused") {
+  //   drawPausedScreen(context, canvas);
+  // } else if (currentGameState === "game_over") {
+  //   drawGameOverScreen(context, canvas);
+  // }
   // NO overlay for "playing" state - this lets the actual game show through!
 }
 
-function drawStartScreen(context: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
-  context.fillStyle = "rgba(0, 0, 0, 0.7)";
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = "#fff";
-  context.font = "36px sans-serif";
-  context.textAlign = "center";
-  context.fillText("READY TO PLAY", canvas.width / 2, canvas.height / 2 - 50);
-  context.font = "24px sans-serif";
-  context.fillText("Waiting to start...", canvas.width / 2, canvas.height / 2);
-  const playerRole = (window as any).playerRole;
-  context.fillText(
-    playerRole === "left" ? "You are LEFT player (W/S keys)" : "You are RIGHT player (↑/↓ keys)",
-    canvas.width / 2,
-    canvas.height / 2 + 50
-  );
-}
+// function drawStartScreen(context: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
+//   context.fillStyle = "rgba(0, 0, 0, 0.7)";
+//   context.fillRect(0, 0, canvas.width, canvas.height);
+//   context.fillStyle = "#fff";
+//   context.font = "36px sans-serif";
+//   context.textAlign = "center";
+//   context.fillText("READY TO PLAY", canvas.width / 2, canvas.height / 2 - 50);
+//   context.font = "24px sans-serif";
+//   context.fillText("Waiting to start...", canvas.width / 2, canvas.height / 2);
+//   const playerRole = (window as any).playerRole;
+//   context.fillText(
+//     playerRole === "left" ? "You are LEFT player (W/S keys)" : "You are RIGHT player (↑/↓ keys)",
+//     canvas.width / 2,
+//     canvas.height / 2 + 50
+//   );
+// }
 
-function drawPausedScreen(context: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
-  context.fillStyle = "rgba(0, 0, 0, 0.7)";
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = "#fff";
-  context.font = "36px sans-serif";
-  context.textAlign = "center";
-  context.fillText("GAME PAUSED", canvas.width / 2, canvas.height / 2);
-}
+// function drawPausedScreen(context: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
+//   context.fillStyle = "rgba(0, 0, 0, 0.7)";
+//   context.fillRect(0, 0, canvas.width, canvas.height);
+//   context.fillStyle = "#fff";
+//   context.font = "36px sans-serif";
+//   context.textAlign = "center";
+//   context.fillText("GAME PAUSED", canvas.width / 2, canvas.height / 2);
+// }
 
-function drawGameOverScreen(context: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
-  context.fillStyle = "rgba(0, 0, 0, 0.8)";
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = "#fff";
-  context.font = "48px sans-serif";
-  context.textAlign = "center";
-  const winner = (window as any).lastWinner;
-  context.fillText(winner ? `${winner} WINS!` : "GAME OVER", canvas.width / 2, canvas.height / 2 - 50);
-  context.font = "24px sans-serif";
-  // context.fillText("Press RESTART to play again", canvas.width / 2, canvas.height / 2 + 50);
-}
+// function drawGameOverScreen(context: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
+//   context.fillStyle = "rgba(0, 0, 0, 0.8)";
+//   context.fillRect(0, 0, canvas.width, canvas.height);
+//   context.fillStyle = "#fff";
+//   context.font = "48px sans-serif";
+//   context.textAlign = "center";
+//   const winner = (window as any).lastWinner;
+//   context.fillText(winner ? `${winner} WINS!` : "GAME OVER", canvas.width / 2, canvas.height / 2 - 50);
+//   context.font = "24px sans-serif";
+//   // context.fillText("Press RESTART to play again", canvas.width / 2, canvas.height / 2 + 50);
+// }
 
 /* -------------------------- Rendering Loop -------------------------- */
 
@@ -236,8 +236,8 @@ function setupInputListeners() {
     if (!playerRole) return;
 
     const isLeft = playerRole === "left";
-    const upKey = isLeft ? "w" : "ArrowUp";
-    const downKey = isLeft ? "s" : "ArrowDown";
+    const upKey = isLeft ? "ArrowUp" : "w";
+    const downKey = isLeft ? "ArrowDown" : "s";
 
     if (e.key === upKey || e.key === upKey.toUpperCase()) {
       sendGameInput("up");
@@ -253,8 +253,8 @@ function setupInputListeners() {
     if (!playerRole) return;
 
     const isLeft = playerRole === "left";
-    const upKey = isLeft ? "w" : "ArrowUp";
-    const downKey = isLeft ? "s" : "ArrowDown";
+    const upKey = isLeft ? "ArrowUp" : "w";
+    const downKey = isLeft ? "ArrowDown" : "s";
 
     if (e.key === upKey || e.key === upKey.toUpperCase() || 
         e.key === downKey || e.key === downKey.toUpperCase()) {
@@ -330,7 +330,7 @@ function handleMatchFound(matchData: any) {
 
     // Show match found overlay
     showOverlay(
-      `Match found! Opponent: ${matchData.opponent}\nYou are ${String(matchData.role).toUpperCase()} player`,
+      `Match found! Opponent: ${matchData.opponent}\n`,
       [
         {
           text: "Start Game",
@@ -398,7 +398,7 @@ function handleRejoined(data: any) {
   (window as any).playerRole = data.role;
   (window as any).opponent = data.opponent;
   gameSettings.multiplayer = true;
-  
+
   setupInputListeners();
   startRenderLoop();
   

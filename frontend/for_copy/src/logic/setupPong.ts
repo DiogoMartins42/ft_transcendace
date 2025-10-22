@@ -1,8 +1,9 @@
 import { setPong } from "./pong";
 import { initClientPong } from "./pong_client";
 import { GameState } from "./pong_types";
+import { setupGameSettings } from './gameSettings'
 
-function showOverlay(btn_type: number, buttons: { text: string; onClick: () => void }[], message?: string) {
+function showOverlay(buttons: { text: string; onClick: () => void }[], message?: string) {
   const overlay = document.getElementById("game-overlay") as HTMLDivElement | null;
   const msg = document.getElementById("game-message") as HTMLParagraphElement | null;
   const btns = document.getElementById("overlay-buttons") as HTMLDivElement | null;
@@ -16,8 +17,8 @@ function showOverlay(btn_type: number, buttons: { text: string; onClick: () => v
     btn.textContent = b.text;
     btn.className =
       "px-8 py-2 text-white font-lucky text-lg rounded-full shadow-lg transition-transform " +
-      "transform bg-[#00091D] border-2 border-white hover:scale-105 hover:border-green-600 " +
-      "hover:shadow-green-500/50 hover:shadow-2xl focus:outline-none hover:text-green-600";
+      "transform bg-[#00091D] border-2 border-white hover:scale-105 hover:border-blue-600 " +
+      "hover:shadow-blue-500/50 hover:shadow-2xl focus:outline-none hover:text-blue-600";
     btn.onclick = b.onClick;
     btns.appendChild(btn);
   });
@@ -31,10 +32,11 @@ function hideOverlay() {
 }
 
 export function setupPong() {
-  showOverlay(1, [
-    { text: "🎮 Single Player", onClick: () => { hideOverlay(); startSinglePlayer(); } },
-    { text: "🌐 Multiplayer", onClick: () => { hideOverlay(); startMultiplayer(); } }
-  ], "Select Game Mode");
+  showOverlay([
+    { text: "🎮 Local Gaming", onClick: () => { hideOverlay(); startSinglePlayer(); } },
+    { text: "🌐 Online Multiplayer", onClick: () => { hideOverlay(); startMultiplayer(); } },
+    { text: "⚙️ Settings", onClick: () => { hideOverlay(); startSinglePlayer(); setupGameSettings(); } },
+  ], "Main Menu");
 }
 
 function startSinglePlayer() {
@@ -52,7 +54,7 @@ function startMultiplayer() {
   const canvas = document.getElementById("pong") as HTMLCanvasElement;
   if (!canvas) {
     console.error("❌ Canvas #pong not found in DOM!");
-    showOverlay(2, [
+    showOverlay([
       { text: "Back", onClick: () => { hideOverlay(); setupPong(); } }
     ], "Error: Game canvas not found. Please refresh the page.");
     return;
@@ -63,7 +65,7 @@ function startMultiplayer() {
 
   matchmakingTimeout = window.setTimeout(() => {
     stopSearchingOverlay();
-    showOverlay(2, [
+    showOverlay([
       { text: "Retry", onClick: () => { hideOverlay(); startMultiplayer(); } },
       { text: "Back", onClick: () => { hideOverlay(); setupPong(); } }
     ], "⏰ No opponents found.");
@@ -104,7 +106,7 @@ function createDirectWebSocketConnection() {
   multiplayerSocket.addEventListener("error", (err) => {
     console.error("❌ WebSocket error:", err);
     stopSearchingOverlay();
-    showOverlay(2, [
+    showOverlay([
       { text: "Retry", onClick: () => { hideOverlay(); startMultiplayer(); } },
       { text: "Back", onClick: () => { hideOverlay(); setupPong(); } }
     ], "Connection error. Please try again.");
@@ -137,7 +139,7 @@ function handleWebSocketMessage(msg: any) {
 
     case "error":
       stopSearchingOverlay();
-      showOverlay(2, [
+      showOverlay([
         { text: "Retry", onClick: () => { hideOverlay(); startMultiplayer(); } },
         { text: "Back", onClick: () => { hideOverlay(); setupPong(); } }
       ], msg.message || "An error occurred");

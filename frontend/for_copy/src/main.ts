@@ -11,6 +11,7 @@ import loginModalHtml from './components/login-modal.html?raw'
 import signupModalHtml from './components/signup-modal.html?raw'
 import sidebarHtml from './components/sidebar.html?raw'
 import controlPanelHtml from './components/controlPanel-modal.html?raw'
+import gameSettingsHtml from './components/gameSettings.html?raw'
 import friendsHtml from './pages/friend_list.html?raw'
 
 // import { setupModalEvents } from './logic/simulatedModals'
@@ -26,6 +27,7 @@ import { verifyStoredSession } from './logic/session'
 import { setupChat, handleIncomingMessage } from './logic/chat'
 import { setPong } from './logic/pong'
 import { setupControlPanel } from './logic/controlPanel'
+// import { setupGameSettings } from './logic/gameSettings'
 import { initFriendsPage } from './logic/friend_list';
 import { setupStatsPage } from './logic/stats'
 import { setupLoginForm } from './logic/login_handler'
@@ -152,6 +154,7 @@ async function renderPage(pageHtml: string) {
     ${signupModalHtml}
     ${sidebarHtml}
     ${controlPanelHtml}
+    ${gameSettingsHtml}
   `
 
   setupUserSection()
@@ -159,6 +162,7 @@ async function renderPage(pageHtml: string) {
   setupChat()
   setPong()
   setupControlPanel()
+  // setupGameSettings()
   setupStatsPage()
   setupLoginForm()   
   setupSignupForm()
@@ -210,14 +214,14 @@ window.addEventListener('unhandledrejection', (event) => {
 window.addEventListener('DOMContentLoaded', async () => {
   console.log('🚀 App initializing...')
 
-  // process OAuth return (if any) BEFORE checking stored session
+  // Process OAuth return (if any) BEFORE checking stored session
   try {
     await handleOAuthCallback()
   } catch (err) {
     console.error('OAuth callback handling failed:', err)
   }
 
-  // init OAuth UI (show/hide Google button) early
+  // Init OAuth UI (show/hide Google button) early
   try {
     await initOAuthUI()
   } catch (err) {
@@ -238,7 +242,10 @@ window.addEventListener('DOMContentLoaded', async () => {
     console.log('🚫 No valid session, skipping WebSocket initialization')
   }
   
-  // 3. Render initial page
+  // 3. Always expose WebSocket functions globally for other modules
+  exposeWebSocketFunctions();
+  
+  // 4. Render initial page
   await handleRoute()
 })
 

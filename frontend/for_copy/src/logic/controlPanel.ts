@@ -1,28 +1,18 @@
-export let gameSettings: {difficulty: number, resetSpeed: boolean, 
-	multiplayer: boolean, mouse: boolean, paddleSpeed: number, ballSpeed: number, 
-	scoreLimit: number, bgColor: string, itemsColor: string, default: boolean} =
-{
-	//Defalut settings
-
-	//Single player settings (should be disabled when multiplayer is true)
-	difficulty: 0.05, //input: 3 radio for easy(0.05), normal(0.1), hard(0.3) 
-	mouse: true, //input: radio with two options, mouse for true and keyboard for false
-
-	//modes
-	multiplayer: false, //input: radio with two options, multiplayer for true and sigle player for false
-
-	//general settings
-	resetSpeed: true, //input: checkbox
-	paddleSpeed: 5, // input: range from 1 to 10
-	ballSpeed: 3,  // input: range from 1 to 10 
-	scoreLimit: 5, //input: number, must be > 0
-	bgColor: '#1C39BB', //input: color
-	itemsColor: '#F5CB5C', //input: color
-	default: false, //input: button that if clicked will reset all settings except modes to their default state
-}
+import { gameSettings } from './gameSettings';
 
 export function setupControlPanel() {
-    const openBtnSettings = document.getElementById('openSettings');
+
+    // Object.assign(gameSettings, {
+    //     difficulty: gameSettings.difficulty,
+    //     mouse: gameSettings.mouse,
+    //     resetSpeed: gameSettings.resetSpeed,
+    //     paddleSpeed: gameSettings.paddleSpeed,
+    //     ballSpeed: gameSettings.ballSpeed,
+    //     scoreLimit: gameSettings.scoreLimit,
+    //     default: true
+    // });
+
+    //const openBtnSettings = document.getElementById('openSettings');
     const closeBtnSettings = document.getElementById('closeSettings');
     const controlPanel = document.getElementById('controlPanel');
 
@@ -33,8 +23,8 @@ export function setupControlPanel() {
     const ballSpeedValue = document.getElementById('ballSpeedValue') as HTMLElement;
 
     const scoreLimitInput = document.getElementById('scoreLimit') as HTMLInputElement;
-    const bgColorInput = document.getElementById('bgColor') as HTMLInputElement;
-    const itemsColorInput = document.getElementById('itemsColor') as HTMLInputElement;
+    // const bgColorInput = document.getElementById('bgColor') as HTMLInputElement;
+    // const itemsColorInput = document.getElementById('itemsColor') as HTMLInputElement;
 
     const resetSpeedInput = document.getElementById('resetSpeed') as HTMLInputElement;
     const resetDefaultsBtn = document.getElementById('resetDefaults') as HTMLButtonElement;
@@ -75,9 +65,9 @@ export function setupControlPanel() {
         // Number
         scoreLimitInput.value = gameSettings.scoreLimit.toString();
 
-        // Colors
-        bgColorInput.value = gameSettings.bgColor;
-        itemsColorInput.value = gameSettings.itemsColor;
+        // Remove color inputs as they're handled in gameSettings.ts
+        // bgColorInput.value = gameSettings.bgColor;
+        // itemsColorInput.value = gameSettings.itemsColor;
     }
 
     function attachChangeListeners() {
@@ -121,47 +111,54 @@ export function setupControlPanel() {
             }
         });
 
-        bgColorInput.addEventListener('input', () => {
-            gameSettings.bgColor = bgColorInput.value;
-        });
+        // bgColorInput.addEventListener('input', () => {
+        //     gameSettings.bgColor = bgColorInput.value;
+        // });
 
-        itemsColorInput.addEventListener('input', () => {
-            gameSettings.itemsColor = itemsColorInput.value;
-        });
+        // itemsColorInput.addEventListener('input', () => {
+        //     gameSettings.itemsColor = itemsColorInput.value;
+        // });
 
         resetDefaultsBtn.addEventListener('click', () => {
-            gameSettings = {
-                ...gameSettings,
+            // Modify properties instead of reassignment
+            Object.assign(gameSettings, {
                 difficulty: 0.05,
-                mouse: false,
                 resetSpeed: true,
+                multiplayer: false,
+                mouse: true,
                 paddleSpeed: 5,
                 ballSpeed: 3,
                 scoreLimit: 5,
-                bgColor: '#1C39BB',
-                itemsColor: '#F5CB5C',
-                default: true
-            };
+                default: true,
+            });
             loadSettingsIntoForm();
         });
     }
 
     // --- OPEN / CLOSE ---
 
-    openBtnSettings?.addEventListener('click', () => {
-        loadSettingsIntoForm();
-        controlPanel?.classList.toggle('hidden');
-    });
+    // openBtnSettings?.addEventListener('click', () => {
+    //     loadSettingsIntoForm();
+    //     controlPanel?.classList.toggle('hidden');
+    // });
     
     closeBtnSettings?.addEventListener('click', () => {
         controlPanel?.classList.add('hidden');
     });
 
-    // controlPanel?.addEventListener('click', (e) => {
-    //     if (e.target === controlPanel) {
-    //         controlPanel.classList.add('hidden');
-    //     }
-    // });
+    // controlPanel?.classList.toggle('hidden');
+    // Populate form once now (so default values show) and whenever the modal is opened.
+    loadSettingsIntoForm();
+
+    // Observe class changes so we reload inputs when other code toggles the modal visibility
+    if (controlPanel) {
+        const observer = new MutationObserver(() => {
+            if (!controlPanel.classList.contains('hidden')) {
+                loadSettingsIntoForm();
+            }
+        });
+        observer.observe(controlPanel, { attributes: true, attributeFilter: ['class'] });
+    }
 
     attachChangeListeners();
 }

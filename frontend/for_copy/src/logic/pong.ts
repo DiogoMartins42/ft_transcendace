@@ -1,5 +1,8 @@
-import { gameSettings } from './controlPanel';
+
 import { save_match } from './stats';
+import { gameSettings } from './gameSettings';
+import { setupPong } from './setupPong';
+// import { setupControlPanel } from './controlPanel';
 
 let verifyStart: boolean = false;
 let verifyFirstCollision: boolean = false;
@@ -148,17 +151,45 @@ export function setPong()
 	ball.velocityY = 0;
 
 	const pauseBtn = document.getElementById("pause-btn") as HTMLButtonElement | null;
-	const settingsBtn = document.getElementById("openSettings") as HTMLButtonElement | null;
+	const controlPanel = document.getElementById('controlPanel');
+	// const settingsBtn = document.getElementById("openSettings") as HTMLButtonElement | null;
 	
 	// Mouse control for single-player if enabled
-	const movePaddleListener = (evt: any) => {
-		movePaddleMouse(evt, canvas, player1)
+	function movePaddleListener(evt: MouseEvent, canvas: HTMLCanvasElement, player1: Player) {
+		const rect = canvas.getBoundingClientRect();
+		let newY = evt.clientY - rect.top - player1.height / 2;
+		if (newY < 0) newY = 0;
+		if (newY + player1.height > canvas.height) newY = canvas.height - player1.height;
+		player1.y = newY;
 	}
-	if (gameSettings.mouse && !gameSettings.multiplayer) canvas.addEventListener("mousemove", movePaddleListener);
+
+	// Create wrapper function to maintain correct 'this' binding
+	const handleMouseMove = (evt: MouseEvent) => {
+		movePaddleListener(evt, canvas, player1);
+	};
+
+	function updateControlMethod() {
+		if (gameSettings.mouse && !gameSettings.multiplayer) {
+			canvas!.addEventListener("mousemove", handleMouseMove);
+		} else {
+			canvas!.removeEventListener("mousemove", handleMouseMove);
+		}
+	}
+
+	// Initial control setup
+	updateControlMethod();
+
+	// Watch for changes to gameSettings
+	const controlPanelCloseBtn = document.getElementById('closeSettings');
+	controlPanelCloseBtn?.addEventListener('click', () => {
+		updateControlMethod(); // Re-check control method when settings are closed
+	});
 
 	// START overlay
 	showOverlay(1, [
 		{ text: "Start", onClick: () => { gameState = GameState.PLAYING; hideOverlay(); launchBall(ball); } },
+		{ text: "Settings", onClick: () => { controlPanel?.classList.toggle('hidden'); } },
+		{ text: "Menu", onClick: () => { gameState = GameState.GAME_OVER; setupPong(); } },
 	]);
 
 	// Pause button
@@ -169,22 +200,25 @@ export function setPong()
 				showOverlay(2, [
 					{ text: "Resume", onClick: () => { gameState = GameState.PLAYING; hideOverlay(); } },
 					{ text: "Restart", onClick: () => { restartGame(canvas, player1, player2, ball); } },
+					{ text: "Settings", onClick: () => { controlPanel?.classList.toggle('hidden'); } },
+					{ text: "Menu", onClick: () => { gameState = GameState.GAME_OVER; setupPong(); } },
 				]);
 			}
 		});
 	}
 
-	if (settingsBtn) {
-		settingsBtn.addEventListener("click", () => {
-			if (gameState === GameState.PLAYING) {
-				gameState = GameState.PAUSED;
-				showOverlay(2, [
-					{ text: "Resume", onClick: () => { gameState = GameState.PLAYING; hideOverlay(); } },
-					{ text: "Restart", onClick: () => { restartGame(canvas, player1, player2, ball); } },
-				]);
-			}
-		});
-	}
+	// if (settingsBtn) {
+	// 	settingsBtn.addEventListener("click", () => {
+	// 		if (gameState === GameState.PLAYING) {
+	// 			gameState = GameState.PAUSED;
+	// 			showOverlay(2, [
+	// 				{ text: "Resume", onClick: () => { gameState = GameState.PLAYING; hideOverlay(); } },
+	// 				{ text: "Restart", onClick: () => { restartGame(canvas, player1, player2, ball); } },
+	// 				{ text: "Menu", onClick: () => { gameState = GameState.GAME_OVER; setupPong(); } },
+	// 			]);
+	// 		}
+	// 	});
+	// }
 
   // Space to pause/resume & start
 	window.addEventListener("keydown", (e) => {
@@ -194,6 +228,8 @@ export function setPong()
 				showOverlay(2, [
 					{ text: "Resume", onClick: () => { gameState = GameState.PLAYING; hideOverlay(); } },
 					{ text: "Restart", onClick: () => { restartGame(canvas, player1, player2, ball); } },
+					{ text: "Settings", onClick: () => { controlPanel?.classList.toggle('hidden'); } },
+					{ text: "Menu", onClick: () => { gameState = GameState.GAME_OVER; setupPong(); } },
 				]);
 			} else if (gameState === GameState.PAUSED) {
 				gameState = GameState.PLAYING;
@@ -219,8 +255,8 @@ export function setPong()
 	}
 
 	function gameLoop() {
-		//disable mouse
-		if (!gameSettings.mouse || gameSettings.multiplayer) canvas!.removeEventListener("mousemove", movePaddleListener);
+		// Check control method each frame
+		updateControlMethod();
 		game();
 		animationFrameId = requestAnimationFrame(gameLoop);
 	}
@@ -229,13 +265,13 @@ export function setPong()
 
 // ---- Helpers ----
 
-function movePaddleMouse(evt: MouseEvent, canvas: HTMLCanvasElement, player1: Player) {
-	const rect = canvas!.getBoundingClientRect();
-	let newY = evt.clientY - rect.top - player1.height / 2;
-	if (newY < 0) newY = 0;
-	if (newY + player1.height > canvas!.height) newY = canvas!.height - player1.height;
-	player1.y = newY;
-}
+// function movePaddleMouse(evt: MouseEvent, canvas: HTMLCanvasElement, player1: Player) {
+// 	const rect = canvas!.getBoundingClientRect();
+// 	let newY = evt.clientY - rect.top - player1.height / 2;
+// 	if (newY < 0) newY = 0;
+// 	if (newY + player1.height > canvas!.height) newY = canvas!.height - player1.height;
+// 	player1.y = newY;
+// }
 
 function restartGame(cvs: HTMLCanvasElement, p1: Player, p2: Player, b: Ball)
 {
@@ -417,7 +453,9 @@ function update(cvs: HTMLCanvasElement, player1: Player, player2: Player, ball: 
 		else message = "PLAYER 1 LOSES!!!";
 		showOverlay(1, [
 			{ text: "Restart", onClick: () => { restartGame(cvs, player1, player2, ball); } },
+			{ text: "Menu", onClick: () => { gameState = GameState.GAME_OVER; setupPong(); } },
 		]);
+
 		showOverlay_message(message);
 		setTimeout(() => {
 		  save_match(player1.score, player2.score, gameSettings.multiplayer);
