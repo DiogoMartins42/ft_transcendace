@@ -1,128 +1,67 @@
-export let gameSettings: {difficulty: number, resetSpeed: boolean, 
-	multiplayer: boolean, mouse: boolean, paddleSpeed: number, ballSpeed: number, 
-	scoreLimit: number, bgColor: string, itemsColor: string, default: boolean, 
-	canvasWidth: number, canvasHeight: number} = {
-	//Defalut settings
+import { setupPong } from "./setupPong";
 
-	//Single player settings (should be disabled when multiplayer is true)
-	difficulty: 0.05, //input: 3 radio for easy(0.05), normal(0.1), hard(0.3) 
-	mouse: true, //input: radio with two options, mouse for true and keyboard for false
-
-	//modes
-	multiplayer: false, //input: radio with two options, multiplayer for true and sigle player for false
-
-	//general settings
-	resetSpeed: true, //input: checkbox
-	paddleSpeed: 5, // input: range from 1 to 10
-	ballSpeed: 3,  // input: range from 1 to 10 
-	scoreLimit: 5, //input: number, must be > 0
-	bgColor: '#1C39BB', //input: color
-	itemsColor: '#F5CB5C', //input: color
-	default: false, //input: button that if clicked will reset all settings except modes to their default state
-    canvasWidth: 800,
-    canvasHeight: 600,
+export interface VisualSettings {
+    bgColor: string;
+    itemsColor: string;
 }
 
-export function setupControlPanel() {
-    const openBtnSettings = document.getElementById('openSettings');
-    const closeBtnSettings = document.getElementById('closeSettings');
-    const controlPanel = document.getElementById('controlPanel');
+export interface LocalGameSettings {
+    difficulty: number;
+    resetSpeed: boolean;
+    multiplayer: boolean;
+    mouse: boolean;
+    paddleSpeed: number;
+    ballSpeed: number;
+    scoreLimit: number;
+    default: boolean;
+}
 
-    const paddleSpeedInput = document.getElementById('paddleSpeed') as HTMLInputElement;
-    const paddleSpeedValue = document.getElementById('paddleSpeedValue') as HTMLElement;
+export interface GameSettings extends VisualSettings, LocalGameSettings {
+    canvasWidth: number;
+    canvasHeight: number;
+}
 
-    const ballSpeedInput = document.getElementById('ballSpeed') as HTMLInputElement;
-    const ballSpeedValue = document.getElementById('ballSpeedValue') as HTMLElement;
+export const gameSettings: GameSettings = {
+    // Visual settings (shared between local and multiplayer)
+    bgColor: '#1C39BB',
+    itemsColor: '#F5CB5C',
 
-    const scoreLimitInput = document.getElementById('scoreLimit') as HTMLInputElement;
+    // Local game settings
+    difficulty: 0.05,
+    resetSpeed: true,
+    multiplayer: false,
+    mouse: true,
+    paddleSpeed: 5,
+    ballSpeed: 3,
+    scoreLimit: 5,
+    default: false,
+
+    // Canvas dimensions
+    canvasWidth: 1000,
+    canvasHeight: 600,
+};
+
+export const visualSettings: VisualSettings = {
+    get bgColor() { return gameSettings.bgColor; },
+    get itemsColor() { return gameSettings.itemsColor; }
+};
+
+export function setupGameSettings() {
+    const closeBtnSettings = document.getElementById('closeGeneralSettings');
+    const settingsModal = document.getElementById('gameSettingsModal');
+
     const bgColorInput = document.getElementById('bgColor') as HTMLInputElement;
     const itemsColorInput = document.getElementById('itemsColor') as HTMLInputElement;
 
-    const resetSpeedInput = document.getElementById('resetSpeed') as HTMLInputElement;
-    const resetDefaultsBtn = document.getElementById('resetDefaults') as HTMLButtonElement;
-
-    // Radios
-    const difficultyRadios = document.querySelectorAll<HTMLInputElement>('input[name="difficulty"]');
-    const mouseRadios = document.querySelectorAll<HTMLInputElement>('input[name="mouse"]');
-    const multiplayerRadios = document.querySelectorAll<HTMLInputElement>('input[name="multiplayer"]');
-
-    // --- FUNCTIONS ---
+    const resetDefaultsBtn = document.getElementById('resetDefaultColor') as HTMLButtonElement;
 
     function loadSettingsIntoForm() {
-        // Difficulty
-        difficultyRadios.forEach(r => {
-            r.checked = Number(r.value) === gameSettings.difficulty;
-        });
-
-        // Mouse / Keyboard
-        mouseRadios.forEach(r => {
-            r.checked = (r.value === "true") === gameSettings.mouse;
-        });
-
-        // Multiplayer
-        multiplayerRadios.forEach(r => {
-            r.checked = (r.value === "true") === gameSettings.multiplayer;
-        });
-
-        // Checkbox
-        resetSpeedInput.checked = gameSettings.resetSpeed;
-
-        // Range
-        paddleSpeedInput.value = gameSettings.paddleSpeed.toString();
-        paddleSpeedValue.textContent = paddleSpeedInput.value;
-
-        ballSpeedInput.value = gameSettings.ballSpeed.toString();
-        ballSpeedValue.textContent = ballSpeedInput.value;
-
-        // Number
-        scoreLimitInput.value = gameSettings.scoreLimit.toString();
-
         // Colors
         bgColorInput.value = gameSettings.bgColor;
         itemsColorInput.value = gameSettings.itemsColor;
     }
 
     function attachChangeListeners() {
-        difficultyRadios.forEach(r => {
-            r.addEventListener('change', () => {
-                gameSettings.difficulty = Number(r.value);
-            });
-        });
-
-        mouseRadios.forEach(r => {
-            r.addEventListener('change', () => {
-               if (gameSettings.multiplayer === false) gameSettings.mouse = (r.value === "true");
-            });
-        });
-
-        multiplayerRadios.forEach(r => {
-            r.addEventListener('change', () => {
-                gameSettings.multiplayer = (r.value === "true");
-				gameSettings.mouse = false;
-            });
-        });
-
-        resetSpeedInput.addEventListener('change', () => {
-            gameSettings.resetSpeed = resetSpeedInput.checked;
-        });
-
-        paddleSpeedInput.addEventListener('input', () => {
-            gameSettings.paddleSpeed = Number(paddleSpeedInput.value);
-            paddleSpeedValue.textContent = paddleSpeedInput.value;
-        });
-
-        ballSpeedInput.addEventListener('input', () => {
-            gameSettings.ballSpeed = Number(ballSpeedInput.value);
-            ballSpeedValue.textContent = ballSpeedInput.value;
-        });
-
-        scoreLimitInput.addEventListener('input', () => {
-            const val = Number(scoreLimitInput.value);
-            if (val > 0) {
-                gameSettings.scoreLimit = val;
-            }
-        });
-
         bgColorInput.addEventListener('input', () => {
             gameSettings.bgColor = bgColorInput.value;
         });
@@ -132,38 +71,18 @@ export function setupControlPanel() {
         });
 
         resetDefaultsBtn.addEventListener('click', () => {
-            gameSettings = {
-                ...gameSettings,
-                difficulty: 0.05,
-                mouse: false,
-                resetSpeed: true,
-                paddleSpeed: 5,
-                ballSpeed: 3,
-                scoreLimit: 5,
-                bgColor: '#1C39BB',
-                itemsColor: '#F5CB5C',
-                default: true
-            };
+            gameSettings.bgColor = '#1C39BB';
+            gameSettings.itemsColor = '#F5CB5C';
+            gameSettings.default = true;
             loadSettingsIntoForm();
         });
     }
 
-    // --- OPEN / CLOSE ---
-
-    openBtnSettings?.addEventListener('click', () => {
-        loadSettingsIntoForm();
-        controlPanel?.classList.toggle('hidden');
-    });
-    
     closeBtnSettings?.addEventListener('click', () => {
-        controlPanel?.classList.add('hidden');
+        settingsModal?.classList.add('hidden');
+        setupPong();
     });
 
-    // controlPanel?.addEventListener('click', (e) => {
-    //     if (e.target === controlPanel) {
-    //         controlPanel.classList.add('hidden');
-    //     }
-    // });
-
+    settingsModal?.classList.toggle('hidden');
     attachChangeListeners();
 }
