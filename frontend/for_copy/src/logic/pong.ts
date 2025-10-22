@@ -18,6 +18,7 @@ interface Player {
 	height: number;
 	score: number;
 }
+
 interface Ball {
 	x: number;
 	y: number;
