@@ -11,6 +11,7 @@ import loginModalHtml from './components/login-modal.html?raw'
 import signupModalHtml from './components/signup-modal.html?raw'
 import sidebarHtml from './components/sidebar.html?raw'
 import controlPanelHtml from './components/controlPanel-modal.html?raw'
+import gameSettingsHtml from './components/gameSettings.html?raw'
 import friendsHtml from './pages/friend_list.html?raw'
 
 import { setupUserSection } from './logic/userSection'
@@ -20,6 +21,7 @@ import { verifyStoredSession } from './logic/session'
 import { setupPong } from "./logic/setupPong";
 import { setupChat, handleIncomingMessage } from './logic/chat'
 import { setupControlPanel } from './logic/controlPanel'
+// import { setupGameSettings } from './logic/gameSettings'
 import { initFriendsPage } from './logic/friend_list';
 import { setupStatsPage } from './logic/stats'
 import { setupLoginForm } from './logic/login_handler'
@@ -83,9 +85,11 @@ class SharedState {
 // --- Auth State Management ---
 export function handleAuthStateChange(isLoggedIn: boolean) {
   if (isLoggedIn) {
-    console.log('🔌 User logged in - WebSocket already initialized')
-    // WebSocket is already initialized in DOMContentLoaded
-    // No need to initialize again here
+    console.log('🔌 Initializing WebSocket for logged-in user...')
+    initWebSocket((msg: any) => {
+      console.log('📥 WebSocket message received in main:', msg)
+      handleIncomingMessage(msg)
+    })
   } else {
     console.log('🔌 Disconnecting WebSocket - user logged out')
     disconnectWebSocket()
@@ -115,34 +119,6 @@ export function saveSession(token: string, userData: any) {
   localStorage.setItem('userSession', JSON.stringify(stored))
 }
 
-export function checkExistingAuth() {
-    const token = localStorage.getItem('auth_token');
-    
-    if (token) {
-        try {
-            // Verify token is valid and not expired
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            const isExpired = payload.exp && payload.exp < Date.now() / 1000;
-            
-            if (!isExpired) {
-                // Restore user session
-                setSharedState({
-                    isLoggedIn: true,
-                    username: payload.username,
-                    avatarUrl: payload.avatarUrl || "/default-avatar.png"
-                });
-                return true;
-            } else {
-                // Token expired, remove it
-                localStorage.removeItem('auth_token');
-            }
-        } catch (err) {
-            console.error('Invalid token:', err);
-            localStorage.removeItem('auth_token');
-        }
-    }
-    return false;
-}
 // Login/Logout functions for use in other modules
 export async function handleLogin(token: string, userData: any) {
   saveSession(token, userData)
@@ -155,7 +131,6 @@ export async function handleLogin(token: string, userData: any) {
 
 export function handleLogout() {
   localStorage.removeItem("userSession")
-  sessionStorage.removeItem('preOAuthHash');
   setSharedState({
     isLoggedIn: false,
     username: undefined,
@@ -181,6 +156,7 @@ async function renderPage(pageHtml: string) {
     ${signupModalHtml}
     ${sidebarHtml}
     ${controlPanelHtml}
+    ${gameSettingsHtml}
   `
 
   // Always expose WebSocket functions, even if user is not logged in
@@ -191,6 +167,7 @@ async function renderPage(pageHtml: string) {
   setupChat()
   setupPong()
   setupControlPanel()
+  // setupGameSettings()
   setupStatsPage()
   setupLoginForm()   
   setupSignupForm()
@@ -242,43 +219,39 @@ window.addEventListener('unhandledrejection', (event) => {
 window.addEventListener('DOMContentLoaded', async () => {
   console.log('🚀 App initializing...')
 
-  // 1. Process OAuth return FIRST (before anything else)
-  let oauthProcessed = false;
+  // Process OAuth return (if any) BEFORE checking stored session
   try {
-    await handleOAuthCallback();
-    oauthProcessed = true;
-    console.log('OAuth callback processed:', oauthProcessed);
+    await handleOAuthCallback()
   } catch (err) {
-    console.error('OAuth callback handling failed:', err);
+    console.error('OAuth callback handling failed:', err)
   }
 
-  // 2. Verify session (will be set by OAuth if it succeeded)
-  const hasValidSession = await verifyStoredSession();
-  console.log('Valid session:', hasValidSession);
+  // Init OAuth UI (show/hide Google button) early
+  try {
+    await initOAuthUI()
+  } catch (err) {
+    console.warn('initOAuthUI failed:', err)
+  }
 
-  // 3. Initialize WebSocket only if user is logged in
+  // 1. Verify session after possible OAuth login
+  const hasValidSession = await verifyStoredSession()
+
+  // 2. Initialize WebSocket only if user is logged in
   if (hasValidSession) {
-    console.log('🔌 Initializing WebSocket for authenticated user...');
+    console.log('🔌 Initializing WebSocket for authenticated user...')
     initWebSocket((msg: any) => {
-      console.log('📥 WebSocket message received in main:', msg);
-      handleIncomingMessage(msg);
-    });
+      console.log('📥 WebSocket message received in main:', msg)
+      handleIncomingMessage(msg)
+    })
   } else {
-    console.log('🚫 No valid session, skipping WebSocket initialization');
+    console.log('🚫 No valid session, skipping WebSocket initialization')
   }
   
-  // 4. Always expose WebSocket functions globally for other modules
+  // 3. Always expose WebSocket functions globally for other modules
   exposeWebSocketFunctions();
   
-  // 5. Render initial page
-  await handleRoute();
-  
-  // 6. Initialize OAuth UI AFTER page is rendered
-  try {
-    await initOAuthUI();
-  } catch (err) {
-    console.warn('initOAuthUI failed:', err);
-  }
-});
+  // 4. Render initial page
+  await handleRoute()
+})
 
 window.addEventListener('hashchange', handleRoute)
