@@ -18,7 +18,7 @@ export function setupModalEvents()
 	const signupPasswordInput = document.getElementById('signup-password') as HTMLInputElement;
 	const signupEmailInput = document.getElementById('signup-email') as HTMLInputElement;
 
-	const API_BASE = 'https://localhost:3000'; // change if you deploy elsewhere
+	const API_BASE = 'http://localhost:3000'; // change if you deploy elsewhere
 
 	
 	// -------- LOGIN --------
@@ -49,7 +49,9 @@ export function setupModalEvents()
         	}
 
 			localStorage.setItem('token', data.token);
-			sharedState.isLoggedIn = true;
+			(sharedState as any).isLoggedIn = true;
+			(sharedState as any).username = data.username;
+			(sharedState as any).avatarUrl = data.avatarUrl || '';
 			loginModal?.classList.add('hidden');
 			loginForm.reset();
 			await setupUserSection();

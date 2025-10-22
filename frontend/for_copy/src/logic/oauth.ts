@@ -74,6 +74,9 @@ export function handleOAuthCallback() {
         try {
             const payload = JSON.parse(atob(token.split('.')[1]));
             
+            // ✅ Store token in localStorage for persistence
+            localStorage.setItem('auth_token', token);
+
             // Call the handleLogin function with token and user data
             handleLogin(token, {
                 username: payload.username,
@@ -102,6 +105,7 @@ export function handleOAuthCallback() {
         } catch (err) {
             console.error('❌ Failed to process OAuth token:', err);
             showOAuthError('Login failed. Invalid token received.');
+            localStorage.removeItem('auth_token'); // Clean up
             window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
         }
     }
