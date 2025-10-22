@@ -1,14 +1,6 @@
 import { loadSession } from "./session";
 import { sharedState } from "../main";
 
-function getLoggedInUsername(){
-  //First, try to get username from stored session
-  const session = loadSession();
-  if (session?.user?.username){
-    return session?.user.username;
-  }
-}
-
 export function setupStatsPage() {
     const statsContainer = document.getElementById('stats-container');
 	if (!statsContainer) return; // not on stats page → do nothing
@@ -107,131 +99,16 @@ export function setupStatsPage() {
       errorMessage.style.display = 'block';
     }
   });
+
+  const savedUser = sessionStorage.getItem("selectedUserForStats");
+    if (savedUser && savedUser.trim() !== "") {
+      usernameInput.value = savedUser;
+      fetchUserData(savedUser);
+      sessionStorage.removeItem("selectedUserForStats");
+    }
 }
 
-// Save match if the user is logged in
-/* export async function save_match(p1_score: number, p2_score: number, multiplayer: boolean) {
-  const username = getLoggedInUsername();
-
-  var winner : string;
-  var loser : string;
-  var winner_points : number;
-  var loser_points : number;
-
-  //if player isn't logged in, ignore saving the match (wait for the function)
-
-  //Change winner = "<logged in user name>"
-  if(p1_score > p2_score){
-    winner_points = p1_score;
-    loser_points = p2_score;
-  
-    winner = "nome";
-    //winner = username;
-    if(multiplayer) {loser = "guest_multiplayer";}
-    else {loser = "bot";}
-  }
-  //Change loser = "<logged in user name>"
-  else{
-    winner_points = p2_score;
-    loser_points = p1_score;
-  
-    loser = "nome";
-    //loser = username;
-    if(multiplayer) {winner = "guest_multiplayer";}
-    else {winner = "bot";}
-  }
-
-  try {
-    const res = await fetch("/stats/api/match", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        winner,
-        loser,
-        winner_points,
-        loser_points,
-      }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json();
-      console.error("Failed to save match:", err);
-      return;
-    }
-
-    const data = await res.json();
-    //console.log("Match saved:", data);
-    return data;
-  }
-  catch (err){
-    console.error("Error saving match:", err);
-  }
-} */
-
-/* export async function save_match(p1_score: number, p2_score: number, multiplayer: boolean) {
-  const username = sharedState.username;
-
-  var winner : string;
-  var loser : string;
-  var winner_points : number;
-  var loser_points : number;
-
-  if(p1_score > p2_score){
-    winner_points = p1_score;
-    loser_points = p2_score;
-  
-    winner = username || "nome"; // change to actual username
-    if(multiplayer) {loser = "guest_multiplayer";}
-    else {loser = "bot";}
-  }
-  else{
-    winner_points = p2_score;
-    loser_points = p1_score;
-  
-    loser = username || "nome"; // change to actual username
-    if(multiplayer) {winner = "guest_multiplayer";}
-    else {winner = "bot";}
-  }
-
-  // Don't save if user isn't logged in (both players are bots/guests)
-  if ((winner === "bot" || winner === "guest_multiplayer") && 
-      (loser === "bot" || loser === "guest_multiplayer")) {
-    console.log("Match not saved: No logged-in user");
-    return;
-  }
-
-  try {
-    const res = await fetch("/stats/api/match", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        winner,
-        loser,
-        winner_points,
-        loser_points,
-      }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json();
-      console.error("Failed to save match:", err);
-      return;
-    }
-
-    const data = await res.json();
-    console.log("Match saved with timestamp:", data);
-    return data;
-  }
-  catch (err){
-    console.error("Error saving match:", err);
-  }
-} */
-
-  export async function save_match(p1_score: number, p2_score: number, multiplayer: boolean) {
+export async function save_match(p1_score: number, p2_score: number, multiplayer: boolean) {
   // Get the current logged-in username directly from session
   const session = loadSession();
   if (!session) {

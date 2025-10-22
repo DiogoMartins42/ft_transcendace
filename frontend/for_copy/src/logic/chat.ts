@@ -183,7 +183,9 @@ export function setupChat() {
         profileBtn.className = 'p-2 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg transition-colors duration-200'
         profileBtn.onclick = (e) => {
           e.stopPropagation()
-          window.location.hash = `userSettings?user=${encodeURIComponent(u.username)}`
+          window.location.hash = `stats`
+          sessionStorage.setItem("selectedUserForStats", u.username);
+          //window.location.hash = `userSettings?user=${encodeURIComponent(u.username)}`
         }
 
         actions.append(msgBtn, inviteBtn, blockBtn, profileBtn)
