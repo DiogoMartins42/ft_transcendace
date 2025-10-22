@@ -311,13 +311,26 @@ export function handleIncomingMessage(data: any) {
 
   switch (msgType) {
     case 'direct':
-      // Only show messages intended for current user
-      if (data.to && data.to.toLowerCase() === currentUser.username.toLowerCase()) {
+      // Show messages where current user is the recipient (incoming messages)
+      // If 'to' field exists, check if we're the recipient
+      // If 'to' field is missing, show the message if it's from someone else
+      const isRecipient = data.to 
+        ? data.to.toLowerCase() === currentUser.username.toLowerCase()
+        : data.from && data.from.toLowerCase() !== currentUser.username.toLowerCase()
+      
+      if (isRecipient) {
+        console.log('📨 Displaying incoming message from', data.from)
         addChatMessage({
           from: data.from || 'Anonymous',
           text: data.text || '',
           timestamp: data.timestamp || new Date().toISOString(),
-        }, false)
+        }, false) // false = incoming message
+      } else {
+        console.log('📨 Message not for current user:', { 
+          to: data.to, 
+          currentUser: currentUser.username,
+          from: data.from 
+        })
       }
       break
 

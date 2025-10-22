@@ -83,11 +83,9 @@ class SharedState {
 // --- Auth State Management ---
 export function handleAuthStateChange(isLoggedIn: boolean) {
   if (isLoggedIn) {
-    console.log('🔌 Initializing WebSocket for logged-in user...')
-    initWebSocket((msg: any) => {
-      console.log('📥 WebSocket message received in main:', msg)
-      handleIncomingMessage(msg)
-    })
+    console.log('🔌 User logged in - WebSocket already initialized')
+    // WebSocket is already initialized in DOMContentLoaded
+    // No need to initialize again here
   } else {
     console.log('🔌 Disconnecting WebSocket - user logged out')
     disconnectWebSocket()
@@ -117,6 +115,34 @@ export function saveSession(token: string, userData: any) {
   localStorage.setItem('userSession', JSON.stringify(stored))
 }
 
+export function checkExistingAuth() {
+    const token = localStorage.getItem('auth_token');
+    
+    if (token) {
+        try {
+            // Verify token is valid and not expired
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const isExpired = payload.exp && payload.exp < Date.now() / 1000;
+            
+            if (!isExpired) {
+                // Restore user session
+                setSharedState({
+                    isLoggedIn: true,
+                    username: payload.username,
+                    avatarUrl: payload.avatarUrl || "/default-avatar.png"
+                });
+                return true;
+            } else {
+                // Token expired, remove it
+                localStorage.removeItem('auth_token');
+            }
+        } catch (err) {
+            console.error('Invalid token:', err);
+            localStorage.removeItem('auth_token');
+        }
+    }
+    return false;
+}
 // Login/Logout functions for use in other modules
 export async function handleLogin(token: string, userData: any) {
   saveSession(token, userData)
@@ -129,6 +155,7 @@ export async function handleLogin(token: string, userData: any) {
 
 export function handleLogout() {
   localStorage.removeItem("userSession")
+  sessionStorage.removeItem('preOAuthHash');
   setSharedState({
     isLoggedIn: false,
     username: undefined,
@@ -218,7 +245,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   // 1. Process OAuth return FIRST (before anything else)
   let oauthProcessed = false;
   try {
-    oauthProcessed = await handleOAuthCallback();
+    await handleOAuthCallback();
+    oauthProcessed = true;
     console.log('OAuth callback processed:', oauthProcessed);
   } catch (err) {
     console.error('OAuth callback handling failed:', err);
@@ -252,4 +280,5 @@ window.addEventListener('DOMContentLoaded', async () => {
     console.warn('initOAuthUI failed:', err);
   }
 });
+
 window.addEventListener('hashchange', handleRoute)

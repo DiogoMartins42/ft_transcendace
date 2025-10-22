@@ -1,21 +1,8 @@
-import { setSharedState } from '../main'
-import loading from '../components/loading.html?raw'
+import { setSharedState, sharedState } from "../main";
+import { saveSession } from "./session";
+import loading from "../components/loading.html?raw";
 
 const BACKEND_LOGIN_URL = `${import.meta.env.VITE_API_URL}/auth/login`;
-
-/**
- * Simple user-visible message helper.
- * Replace this with your app's notification/toast API if available.
- */
-function showMessage(message: string): void {
-  // Prefer a non-blocking UI notification if you have one; fallback to alert().
-  try {
-    alert(message);
-  } catch (err) {
-    // If alert is unavailable, log to console as a fallback.
-    console.warn("showMessage fallback:", message, err);
-  }
-}
 
 export function setupLoginForm() {
   console.log("🔄 setupLoginForm() called");
@@ -26,7 +13,7 @@ export function setupLoginForm() {
   const emailInput = document.getElementById("login-email") as HTMLInputElement;
   const passwordInput = document.getElementById("login-password") as HTMLInputElement;
   const loginSubmit = document.getElementById("login-submit") as HTMLButtonElement;
-  
+  const loginMessage = document.getElementById("login-message");
   
   // 🔹 SIGNUP ELEMENTS
   const openBtnSignup = document.getElementById("open-signup");
@@ -43,26 +30,11 @@ export function setupLoginForm() {
   });
 
   if (!loginModal || !openBtnLogin || !loginForm || !emailInput || !passwordInput || !loginSubmit) {
-    console.warn("Login modal setup failed: missing elements.")
-    return
+    console.warn("Login modal setup failed: missing elements.");
+    return;
   }
 
-  // open / close modal
-  openBtnLogin.addEventListener('click', () => {
-    loginModal.classList.toggle('hidden')
-  })
-
-  loginModal.addEventListener('click', (e) => {
-    if (e.target === loginModal) loginModal.classList.add('hidden')
-  })
-
-  if (openBtnSignup && signupModal) {
-    openBtnSignup.addEventListener('click', () => {
-      loginModal.classList.add('hidden')
-      signupModal.classList.remove('hidden')
-    })
-  }
-
+  // 🔹 Enable/disable button based on input fields
   function validateInputs() {
     const isValid = emailInput.value.trim() && passwordInput.value.trim();
     loginSubmit.disabled = !isValid;
@@ -129,12 +101,11 @@ export function setupLoginForm() {
     e.preventDefault();
     if (!emailInput.value || !passwordInput.value) return;
 
-    const originalText = loginSubmit.innerHTML
-    loginSubmit.innerHTML = loading
-    loginSubmit.disabled = true
+    if (loginMessage) loginMessage.textContent = "";
 
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 15000)
+    const originalText = loginSubmit.innerHTML;
+    loginSubmit.innerHTML = loading;
+    loginSubmit.disabled = true;
 
     try {
       const response = await fetch(BACKEND_LOGIN_URL, {
@@ -142,45 +113,47 @@ export function setupLoginForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: emailInput.value,
-          password: passwordInput.value
+          password: passwordInput.value,
         }),
-        signal: controller.signal
-      })
-
-      clearTimeout(timeoutId)
+      });
 
       if (!response.ok) {
-        showMessage("Invalid email or password")
-        passwordInput.value = ""
-        validateInputs()
-        loginSubmit.innerHTML = originalText
-        loginSubmit.disabled = false
-        return
+        if (loginMessage) loginMessage.textContent = "Invalid email or password";
+        loginSubmit.innerHTML = originalText;
+        loginSubmit.disabled = false;
+        return;
       }
 
-      const data = await response.json()
+      const data = await response.json();
 
-      // ✅ Update reactive shared state
-      setSharedState({
-        isLoggedIn: true,
-        username: data.username,
-        avatarUrl: data.avatarUrl
-      })
+      if (data.token && data.user) {
+        saveSession(data.token, {
+          username: data.user.username,
+          avatarUrl: "/default-avatar.png",
+        });
 
-      loginModal.classList.add('hidden')
-      emailInput.value = ""
-      passwordInput.value = ""
-      loginSubmit.innerHTML = originalText
-      loginSubmit.disabled = true
+        setSharedState({
+          isLoggedIn: true,
+          username: data.user.username,
+          avatarUrl: "/default-avatar.png",
+        });
+      }
+      await fetch("/stats/api/friends/online", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: data.user.username}),
+      });
 
+      loginModal.classList.add("hidden");
+      emailInput.value = "";
+      passwordInput.value = "";
+      validateInputs();
     } catch (err) {
-      if (controller.signal.aborted) {
-        showMessage("Login request timed out. Please try again.")
-      } else {
-        showMessage("An error occurred. Please try again.")
-      }
-      loginSubmit.innerHTML = originalText
-      loginSubmit.disabled = true
+      console.error("Login error:", err);
+      if (loginMessage) loginMessage.textContent = "An error occurred. Please try again.";
+    } finally {
+      loginSubmit.innerHTML = originalText;
+      validateInputs();
     }
   });
 

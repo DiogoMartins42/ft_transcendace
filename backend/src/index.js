@@ -1,12 +1,3 @@
-// index.js (final corrected, full version)
-import dotenv from 'dotenv';
-dotenv.config();
-
-console.log('🔐 OAuth Environment Check:');
-console.log('GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? '✓ Set' : '✗ Missing');
-console.log('GOOGLE_CLIENT_SECRET:', process.env.GOOGLE_CLIENT_SECRET ? '✓ Set' : '✗ Missing');
-console.log('NODE_ENV:', process.env.NODE_ENV);
-
 import Fastify from "fastify";
 import FastifyStatic from "@fastify/static";
 import env from "./config/env.js";
@@ -32,30 +23,29 @@ import blockRoutes from "./routes/block.js";
 import oauthRoutes from "./routes/oauth.js";
 import uploadsRoutes from "./uploads/uploads.js";
 import statsRoutes from "./database/stats.js";
-import { initDB } from "./database/init.js"; // optional init helper
+import { initDB } from "./database/init.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// --- HTTPS setup (only enable in production if certs exist) ---
+// --- HTTPS setup ---
 let httpsOptions = undefined;
-
-  try {
-    const certDir = "/app/certs";
-    const keyPath = path.join(certDir, "key.pem");
-    const certPath = path.join(certDir, "cert.pem");
-    if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
-      httpsOptions = {
-        key: fs.readFileSync(keyPath),
-        cert: fs.readFileSync(certPath),
-      };
-      console.log("✅ HTTPS certificates loaded successfully");
-    } else {
-      console.warn("⚠️ HTTPS certs not found. Running in HTTP mode.");
-    }
-  } catch (err) {
-    console.warn("⚠️ HTTPS setup failed:", err);
+try {
+  const certDir = "/app/certs";
+  const keyPath = path.join(certDir, "key.pem");
+  const certPath = path.join(certDir, "cert.pem");
+  if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+    httpsOptions = {
+      key: fs.readFileSync(keyPath),
+      cert: fs.readFileSync(certPath),
+    };
+    console.log("✅ HTTPS certificates loaded successfully");
+  } else {
+    console.warn("⚠️ HTTPS certs not found. Running in HTTP mode.");
   }
+} catch (err) {
+  console.warn("⚠️ HTTPS setup failed:", err);
+}
 
 // --- Create Fastify instance ---
 const fastify = Fastify({
@@ -68,45 +58,16 @@ const fastify = Fastify({
 
 // --- CORS ---
 fastify.register(fastifyCors, {
-  origin: (origin, cb) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return cb(null, true);
-    
-    const allowedOrigins = [
-      "https://pongpong.duckdns.org",
-      "https://pongpong.duckdns.org:3000",
-      "https://localhost:3000",
-      "http://localhost:5173",
-      "http://localhost:3000"
-    ];
-    
-    if (allowedOrigins.includes(origin)) {
-      return cb(null, true);
-    }
-    
-    // Log blocked origins for debugging
-    console.log('🚫 CORS blocked origin:', origin);
-    return cb(new Error('Not allowed by CORS'), false);
-  },
+  origin: [
+    "https://pongpong.duckdns.org",
+    "https://localhost:3000",
+    "http://localhost:5173",
+  ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 });
 
 // --- SQLite setup ---
 const db = new Database(env.dbFile);
-
-
-db.prepare(`
-  CREATE TABLE IF NOT EXISTS notifications (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    type TEXT,
-    message TEXT,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`).run();
-
 db.prepare(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -139,6 +100,16 @@ db.prepare(`
     PRIMARY KEY (user_id, blocked_user_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (blocked_user_id) REFERENCES users(id) ON DELETE CASCADE
+  )
+`).run();
+
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    type TEXT,
+    message TEXT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `).run();
 
@@ -196,7 +167,7 @@ fastify.register(fastifyWebsocket, {
   options: {
     maxPayload: 1048576,
     verifyClient: (info, next) => {
-      fastify.log.info("🔍 WebSocket upgrade attempt:", {
+      console.log("🔍 WebSocket upgrade attempt:", {
         origin: info.origin,
         secure: info.secure,
         url: info.req.url,
@@ -206,55 +177,79 @@ fastify.register(fastifyWebsocket, {
   },
 });
 
-// --- OAuth Debug Middleware ---
-fastify.addHook('onRequest', async (request, reply) => {
-  // Log all OAuth-related requests
-  if (request.url.includes('/oauth')) {
-    console.log('🔐 OAuth Request:', {
-      method: request.method,
-      url: request.url,
-      query: request.query,
-      headers: {
-        origin: request.headers.origin,
-        referer: request.headers.referer,
-        'user-agent': request.headers['user-agent']
-      }
-    });
-  }
-});
-
-// Add response logging for OAuth routes
-fastify.addHook('onSend', async (request, reply, payload) => {
-  if (request.url.includes('/oauth')) {
-    console.log('🔐 OAuth Response:', {
-      statusCode: reply.statusCode,
-      url: request.url,
-      payload: payload ? JSON.parse(payload) : 'No payload'
-    });
-  }
-});
-
-// --- Manual OAuth Test Endpoint ---
-fastify.get("/oauth/test-flow", async (request, reply) => {
-  // This simulates what should happen when you click the Google login button
-  const authUrl = `https://pongpong.duckdns.org:3000/oauth/google`;
-  
-  return {
-    message: "Test OAuth flow manually by visiting this URL in your browser:",
-    oauthUrl: authUrl,
-    directLink: `<a href="${authUrl}">Click here to test OAuth</a>`
-  };
-});
-
 const wsClients = new Set();
 
-/* -------------------- Game helper functions -------------------- */
+// ========== HELPER FUNCTIONS FOR GAME CONTROL ==========
 
-// NOTE: these functions are intentionally similar to the "after" version you provided.
-// They use matchmaking data structures (matchmaking.matches, matchmaking.players, etc.)
+function handleGameControl(player, msg, matchmaking) {
+  const match = matchmaking.matches.get(player.gameId);
+  if (!match) {
+    console.log(`❌ No match found for player ${player.username}, ignoring control`);
+    return;
+  }
 
-function mkId(prefix = "p") {
-  return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
+  const game = match.game;
+  console.log(`🎮 Control from ${player.username}: ${msg.action}, current state: ${game.gameState}`);
+
+  switch (msg.action) {
+    case "start":
+      // Only allow starting from "start" state
+      if (game.gameState === "start") {
+        game.gameState = "playing";
+        game.launchBall();
+        console.log(`🚀 Game STARTED for match ${player.gameId} by ${player.username}`);
+        broadcastGameState(match);
+        
+        // Notify both players that game started
+        [match.player1, match.player2].forEach(p => {
+          if (p?.socket?.readyState === 1) {
+            p.socket.send(JSON.stringify({
+              type: "gameStarted",
+              message: "Game is now playing!",
+              startedBy: player.username
+            }));
+          }
+        });
+      } else {
+        console.log(`⚠️ Cannot start game: current state is ${game.gameState}`);
+      }
+      break;
+
+    case "pause":
+      if (game.gameState === "playing") {
+        game.gameState = "paused";
+        console.log(`⏸️ Game PAUSED for match ${player.gameId}`);
+        broadcastGameState(match);
+      }
+      break;
+
+    case "resume":
+      if (game.gameState === "paused") {
+        game.gameState = "playing";
+        console.log(`▶️ Game RESUMED for match ${player.gameId}`);
+        broadcastGameState(match);
+      }
+      break;
+
+    case "restart":
+      game.restart(game.canvasWidth, game.canvasHeight);
+      console.log(`🔄 Game RESTARTED for match ${player.gameId}`);
+      broadcastGameState(match);
+      break;
+  }
+}
+
+function handlePlayerInput(player, msg, matchmaking) {
+  const match = matchmaking.matches.get(player.gameId);
+  if (!match) return;
+
+  // Store input for game update loop
+  if (!match.inputs) match.inputs = {};
+  
+  const isPlayer1 = match.player1.id === player.id;
+  const playerKey = isPlayer1 ? "player1" : "player2";
+  
+  match.inputs[playerKey] = msg.direction; // "up", "down", or "stop"
 }
 
 function broadcastGameState(match) {
@@ -262,13 +257,19 @@ function broadcastGameState(match) {
     type: "state",
     gameState: match.game.gameState,
     ball: match.game.ball,
-    paddles: { left: match.game.player1, right: match.game.player2 },
-    score: { left: match.game.player1.score, right: match.game.player2.score },
+    paddles: {
+      left: match.game.player1,
+      right: match.game.player2
+    },
+    score: {
+      left: match.game.player1.score,
+      right: match.game.player2.score
+    }
   };
 
   const payload = JSON.stringify(state);
 
-  [match.player1, match.player2].forEach((player) => {
+  [match.player1, match.player2].forEach(player => {
     if (player?.socket?.readyState === 1) {
       try {
         player.socket.send(payload);
@@ -279,63 +280,7 @@ function broadcastGameState(match) {
   });
 }
 
-function handleGameControl(player, msg) {
-  const match = matchmaking.matches.get(player.gameId);
-  if (!match) {
-    fastify.log.warn(`No match found for ${player.username} when handling control`);
-    return;
-  }
-
-  const game = match.game;
-  fastify.log.info(`🎮 Control from ${player.username}: ${msg.action}, state: ${game.gameState}`);
-
-  switch (msg.action) {
-    case "start":
-      if (game.gameState === "start") {
-        game.gameState = "playing";
-        game.launchBall();
-        broadcastGameState(match);
-        [match.player1, match.player2].forEach((p) => {
-          if (p?.socket?.readyState === 1) {
-            p.socket.send(JSON.stringify({ type: "gameStarted", message: "Game is now playing!", startedBy: player.username }));
-          }
-        });
-      }
-      break;
-
-    case "pause":
-      if (game.gameState === "playing") {
-        game.gameState = "paused";
-        broadcastGameState(match);
-      }
-      break;
-
-    case "resume":
-      if (game.gameState === "paused") {
-        game.gameState = "playing";
-        broadcastGameState(match);
-      }
-      break;
-
-    case "restart":
-      game.restart(game.canvasWidth, game.canvasHeight);
-      match.paddleVelocities = { left: 0, right: 0 };
-      broadcastGameState(match);
-      break;
-  }
-}
-
-function handlePlayerInput(player, msg) {
-  const match = matchmaking.matches.get(player.gameId);
-  if (!match) return;
-
-  if (!match.inputs) match.inputs = {};
-  const isP1 = match.player1.id === player.id;
-  const key = isP1 ? "player1" : "player2";
-  match.inputs[key] = msg.direction; // "up", "down", "stop"
-}
-
-/* -------------------- WebSocket Route -------------------- */
+// ========== WEBSOCKET HANDLERS ==========
 
 fastify.register(async function (fastify) {
   fastify.get("/ws", { websocket: true }, (connection, req) => {
@@ -344,18 +289,18 @@ fastify.register(async function (fastify) {
     wsClients.add(client);
     fastify.log.info("➕ WS client connected, total:", wsClients.size);
 
-    // initial greeting/message
-    try {
-      socket.send(JSON.stringify({ type: "system", text: "Connected to WebSocket server" }));
-    } catch (e) {
-      /* ignore send errors */
-    }
+    socket.send(
+      JSON.stringify({
+        type: "system",
+        text: "Connected to WebSocket server",
+      })
+    );
 
     socket.on("message", (raw) => {
       let data;
       try {
         data = JSON.parse(raw.toString());
-      } catch (e) {
+      } catch {
         fastify.log.warn("⚠️ Invalid WS JSON:", raw.toString());
         return;
       }
@@ -363,25 +308,16 @@ fastify.register(async function (fastify) {
       // --- Username setup ---
       if (data.type === "setUsername" && typeof data.username === "string") {
         client.username = data.username.trim();
-        // attempt to rejoin if possible
-        if (!matchmaking.rejoinPlayer) {
-          // fallback: addPlayer and store id on client
-          const created = matchmaking.addPlayer(socket, client.username);
-          client.id = created.id;
-        } else {
-          const rejoined = matchmaking.rejoinPlayer(socket, client.username);
-          if (!rejoined) {
-            const created = matchmaking.addPlayer(socket, client.username);
-            client.id = created.id;
-          } else {
-            // rejoinPlayer may return a player object
-            client.id = rejoined.id || client.id;
-          }
+        if (!matchmaking.rejoinPlayer(socket, client.username)) {
+          const player = matchmaking.addPlayer(socket, client.username);
+          client.id = player.id;
         }
-
-        try {
-          socket.send(JSON.stringify({ type: "system", text: `Username set to ${client.username}` }));
-        } catch {}
+        socket.send(
+          JSON.stringify({
+            type: "system",
+            text: `Username set to ${client.username}`,
+          })
+        );
         return;
       }
 
@@ -392,55 +328,75 @@ fastify.register(async function (fastify) {
           client.id = player.id;
         }
         const player = matchmaking.players.get(client.id);
-        if (player) matchmaking.findMatch(player);
+        matchmaking.findMatch(player);
         return;
       }
 
-      // --- GAME CONTROL ---
+      // --- GAME CONTROL (NEW!) ---
       if (data.type === "control") {
         if (!client.id) {
-          fastify.log.warn("Control message from client without ID");
+          console.warn("Control message from client without ID");
           return;
         }
         const player = matchmaking.players.get(client.id);
-        if (player) handleGameControl(player, data);
+        if (player) {
+          handleGameControl(player, data, matchmaking);
+        }
         return;
       }
 
-      // --- PLAYER INPUT ---
+      // --- PLAYER INPUT (NEW!) ---
       if (data.type === "input") {
         if (!client.id) {
-          fastify.log.warn("Input message from client without ID");
+          console.warn("Input message from client without ID");
           return;
         }
         const player = matchmaking.players.get(client.id);
-        if (player) handlePlayerInput(player, data);
+        if (player) {
+          handlePlayerInput(player, data, matchmaking);
+        }
         return;
       }
 
-      // --- Invite ---
+      // --- Invitation ---
       if (data.type === "invite") {
         const success = matchmaking.createInvite(client.id, data.to);
         if (!success) {
-          socket.send(JSON.stringify({ type: "error", message: "Invite failed: user not found" }));
+          socket.send(
+            JSON.stringify({
+              type: "error",
+              message: "Invite failed: user not found",
+            })
+          );
         }
         return;
       }
 
-      // --- Accept invite ---
+      // --- Accept invitation ---
       if (data.type === "acceptInvite") {
         const success = matchmaking.acceptInvite(client.id, data.from);
         if (!success) {
-          socket.send(JSON.stringify({ type: "error", message: "Failed to accept invite" }));
+          socket.send(
+            JSON.stringify({
+              type: "error",
+              message: "Failed to accept invite",
+            })
+          );
         }
         return;
       }
 
-      // --- Direct message fallback (optional) ---
+      // --- Fallback: direct messaging (optional) ---
       if (data.type === "direct" && data.to && data.text) {
         for (const c of wsClients) {
           if (c.username === data.to && c.socket.readyState === 1) {
-            c.socket.send(JSON.stringify({ type: "direct", from: client.username, text: data.text }));
+            c.socket.send(
+              JSON.stringify({
+                type: "direct",
+                from: client.username,
+                text: data.text,
+              })
+            );
           }
         }
       }
@@ -449,72 +405,76 @@ fastify.register(async function (fastify) {
     socket.on("close", () => {
       if (client.id) matchmaking.removePlayer(client.id);
       wsClients.delete(client);
-      fastify.log.info("➖ WS client disconnected", { username: client.username, total: wsClients.size });
+      fastify.log.info("➖ WS client disconnected", {
+        username: client.username,
+        total: wsClients.size,
+      });
     });
 
-    socket.on("error", (err) => fastify.log.error("❌ WS error:", err.message));
+    socket.on("error", (err) =>
+      fastify.log.error("❌ WS error:", err.message)
+    );
   });
 });
 
-/* -------------------- GAME UPDATE LOOP -------------------- */
-/*
-  The matchmaking instance is expected to hold:
-    - matchmaking.matches (Map of matchId -> matchInfo)
-    - each matchInfo contains .game (GameEngine), .player1/.player2, .paddleVelocities, .inputs, etc.
-  This loop updates only active "playing" games, applies inputs, ticks physics, broadcasts state,
-  and detects game over to end matches (keeping behavior close to your previous "after" file).
-*/
-
+// ========== GAME UPDATE LOOP (NEW!) ==========
 setInterval(() => {
   for (const [matchId, match] of matchmaking.matches.entries()) {
     const game = match.game;
+    
+    // Only update if game is playing
+    if (game.gameState !== "playing") {
+      continue;
+    }
 
-    // Ensure paddles stay within bounds if inputs present
+    // Apply player inputs
     if (match.inputs) {
-      // Apply inputs to paddle positions using server-side paddle speed
+      // Player 1 (left paddle)
       if (match.inputs.player1 === "up") {
         game.player1.y -= gameSettings.paddleSpeed;
       } else if (match.inputs.player1 === "down") {
         game.player1.y += gameSettings.paddleSpeed;
       }
 
+      // Player 2 (right paddle)  
       if (match.inputs.player2 === "up") {
         game.player2.y -= gameSettings.paddleSpeed;
       } else if (match.inputs.player2 === "down") {
         game.player2.y += gameSettings.paddleSpeed;
       }
 
-      // clamp
+      // Keep paddles in bounds
       game.player1.y = Math.max(0, Math.min(game.canvasHeight - game.player1.height, game.player1.y));
       game.player2.y = Math.max(0, Math.min(game.canvasHeight - game.player2.height, game.player2.y));
     }
 
-    // Update physics (GameEngine should use canvasWidth/canvasHeight internally)
+    // Update game state
     game.update(game.canvasWidth, game.canvasHeight);
 
-    // Broadcast state to both players
+    // Broadcast updated state
     broadcastGameState(match);
 
-    // Check game over (engine sets game.gameState to "game_over" or GameState.GAME_OVER)
-    if (game.gameState === "game_over" || game.gameState === "GAME_OVER" || game.gameState === "game_over") {
-      const winner =
-        game.player1.score >= gameSettings.scoreLimit ? match.player1.username : match.player2.username;
-
-      [match.player1, match.player2].forEach((player) => {
+    // Check for game over
+    if (game.gameState === "game_over") {
+      const winner = game.player1.score >= gameSettings.scoreLimit ? match.player1.username : match.player2.username;
+      
+      [match.player1, match.player2].forEach(player => {
         if (player?.socket?.readyState === 1) {
           player.socket.send(JSON.stringify({
             type: "gameOver",
-            winner,
-            score: { left: game.player1.score, right: game.player2.score }
+            winner: winner,
+            score: {
+              left: game.player1.score,
+              right: game.player2.score
+            }
           }));
         }
       });
 
-      // End match (give a short delay so clients can see final state)
+      // End match after game over
       setTimeout(() => {
         matchmaking.endMatch(matchId);
-        fastify.log.info(`🏁 Match ${matchId} ended`);
-      }, 3000);
+      }, 5000);
     }
   }
 }, 1000 / 60); // 60 FPS
@@ -524,10 +484,18 @@ fastify.get("/ws-test", async (request, reply) => {
   return {
     activeConnections: wsClients.size,
     matchmaking: {
-      waiting: (matchmaking.waiting && matchmaking.waiting.map((p) => p.username)) || [],
-      matches: Array.from(matchmaking.matches ? matchmaking.matches.keys() : []),
+      waiting: matchmaking.waiting.map((p) => p.username),
+      matches: Array.from(matchmaking.matches.keys()),
     },
   };
+});
+
+fastify.get("/api/users", { preHandler: [fastify.authenticate] }, async (req, reply) => {
+  const users = fastify.db.prepare(`
+    SELECT id, username, email FROM users
+    ORDER BY username ASC
+  `).all();
+  reply.send(users);
 });
 
 // --- Static frontend ---
@@ -546,31 +514,17 @@ fastify.setNotFoundHandler((req, reply) => {
 // --- Start server ---
 const start = async () => {
   try {
-    const port = process.env.PORT || 3000;
-    const host = "0.0.0.0";
-    
-    console.log(`🚀 Attempting to start server on ${host}:${port}`);
-    await fastify.listen({ 
-      port: parseInt(port), 
-      host: host,
-      listenTextResolver: (address) => {
-        return `Server listening on ${address}`;
-      }
-    });
-
+    await fastify.listen({ port: 3000, host: "0.0.0.0" });
     const address = fastify.server.address();
-    console.log('✅ Server address info:', address);
-    
     const protocol = httpsOptions ? "https" : "http";
     const wsProtocol = httpsOptions ? "wss" : "ws";
-    const domain = (process.env.NODE_ENV === "development") ? "pongpong.duckdns.org" : "localhost";
 
     console.log("🚀 SERVER STARTED SUCCESSFULLY");
-    console.log(`🌐 ${protocol}://${domain}:${address.port}`);
-    console.log(`📡 WebSocket URL: ${wsProtocol}://${domain}:${address.port}/ws`);
-    console.log(`👥 Connected clients: ${wsClients.size}`);
+    console.log(`🌐 ${protocol}://pongpong.duckdns.org:${address.port}`);
+    console.log(`📡 WebSocket URL: ${wsProtocol}://pongpong.duckdns.org:3000/ws`);
+    const userCount = fastify.db.prepare('SELECT COUNT(*) as count FROM users').get();
+    console.log(`👥 Users in database: ${userCount.count}`);
     console.log(`🎮 Game update loop running at 60 FPS`);
-    console.log(`📍 Server bound to: ${address.address}:${address.port}`);
   } catch (err) {
     console.error("❌ SERVER STARTUP FAILED:", err);
     process.exit(1);

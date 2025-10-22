@@ -1,7 +1,7 @@
 // logic/oauth.ts - OAuth 2.0 Google Login for SPA (Redirect Flow)
 import { handleLogin } from '../main';
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://pongpong.duckdns.org:3000';
+const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://10.19.250.99:3000';
 
 /**
  * Setup OAuth login buttons
@@ -44,9 +44,8 @@ async function handleGoogleLogin(e: Event) {
 /**
  * Check if we're returning from OAuth callback with a token
  * This should be called on app initialization
- * Returns a promise that resolves to true if OAuth was processed
  */
-export async function handleOAuthCallback(): Promise<boolean> {
+export function handleOAuthCallback() {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     const error = urlParams.get('error');
@@ -65,7 +64,7 @@ export async function handleOAuthCallback(): Promise<boolean> {
         
         // Clean up URL
         window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
-        return false;
+        return;
     }
     
     if (token) {
@@ -75,42 +74,41 @@ export async function handleOAuthCallback(): Promise<boolean> {
         try {
             const payload = JSON.parse(atob(token.split('.')[1]));
             
+            // ✅ Store token in localStorage for persistence
+            localStorage.setItem('auth_token', token);
+
             // Call the handleLogin function with token and user data
-            await handleLogin(token, {
+            handleLogin(token, {
                 username: payload.username,
                 email: payload.email,
                 avatarUrl: payload.avatarUrl || payload.avatar_url
+            }).then(() => {
+                console.log('✅ OAuth login successful');
+                
+                // Clean up URL (remove token from address bar)
+                window.history.replaceState({}, document.title, window.location.pathname);
+                
+                // Restore previous hash or go to home
+                const preOAuthHash = sessionStorage.getItem('preOAuthHash');
+                sessionStorage.removeItem('preOAuthHash');
+                window.location.hash = preOAuthHash || '#home';
+                
+                // Close login modal if it's open
+                const loginModal = document.getElementById('login-modal');
+                if (loginModal) {
+                    loginModal.classList.add('hidden');
+                }
+                
+                // Show success message
+                showOAuthSuccess('Successfully logged in with Google!');
             });
-            
-            console.log('✅ OAuth login successful');
-            
-            // Clean up URL (remove token from address bar)
-            window.history.replaceState({}, document.title, window.location.pathname);
-            
-            // Restore previous hash or go to home
-            const preOAuthHash = sessionStorage.getItem('preOAuthHash');
-            sessionStorage.removeItem('preOAuthHash');
-            window.location.hash = preOAuthHash || '#home';
-            
-            // Close login modal if it's open
-            const loginModal = document.getElementById('login-modal');
-            if (loginModal) {
-                loginModal.classList.add('hidden');
-            }
-            
-            // Show success message
-            showOAuthSuccess('Successfully logged in with Google!');
-            
-            return true;
         } catch (err) {
             console.error('❌ Failed to process OAuth token:', err);
             showOAuthError('Login failed. Invalid token received.');
+            localStorage.removeItem('auth_token'); // Clean up
             window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
-            return false;
         }
     }
-    
-    return false;
 }
 
 /**
@@ -129,8 +127,8 @@ function showOAuthError(message: string) {
             loginMessage.classList.add('hidden');
         }, 5000);
     } else {
-        // Fallback to console for now
-        console.error('OAuth Error:', message);
+        // Fallback to alert
+        alert(message);
     }
 }
 
@@ -148,8 +146,6 @@ function showOAuthSuccess(message: string) {
         setTimeout(() => {
             loginMessage.classList.add('hidden');
         }, 3000);
-    } else {
-        console.log('OAuth Success:', message);
     }
 }
 
@@ -158,18 +154,7 @@ function showOAuthSuccess(message: string) {
  */
 export async function checkOAuthAvailability(): Promise<boolean> {
     try {
-        const response = await fetch(`${BACKEND_URL}/oauth/config`, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json'
-            }
-        });
-        
-        if (!response.ok) {
-            console.warn('OAuth config endpoint returned non-OK status:', response.status);
-            return false;
-        }
-        
+        const response = await fetch(`${BACKEND_URL}/oauth/config`);
         const config = await response.json();
         return config.googleEnabled === true;
     } catch (error) {
@@ -180,36 +165,19 @@ export async function checkOAuthAvailability(): Promise<boolean> {
 
 /**
  * Initialize OAuth button visibility based on backend configuration
- * Should be called after DOM is rendered
  */
 export async function initOAuthUI() {
-    try {
-        const isOAuthAvailable = await checkOAuthAvailability();
-        
-        console.log('OAuth availability:', isOAuthAvailable);
-        
-        // Handle main Google login button
-        const googleLoginBtn = document.getElementById('google-login-btn');
-        if (googleLoginBtn) {
-            googleLoginBtn.style.display = isOAuthAvailable ? 'flex' : 'none';
-        }
-        
-        // Handle modal Google login buttons
-        const modalGoogleBtns = document.querySelectorAll('.google-login-modal');
-        modalGoogleBtns.forEach(btn => {
-            (btn as HTMLElement).style.display = isOAuthAvailable ? 'flex' : 'none';
-        });
-    } catch (error) {
-        console.error('Error initializing OAuth UI:', error);
-        // Hide buttons on error
-        const googleLoginBtn = document.getElementById('google-login-btn');
-        if (googleLoginBtn) {
-            googleLoginBtn.style.display = 'none';
-        }
-        
-        const modalGoogleBtns = document.querySelectorAll('.google-login-modal');
-        modalGoogleBtns.forEach(btn => {
-            (btn as HTMLElement).style.display = 'none';
-        });
+    const isOAuthAvailable = await checkOAuthAvailability();
+    
+    // Handle main Google login button
+    const googleLoginBtn = document.getElementById('google-login-btn');
+    if (googleLoginBtn) {
+        googleLoginBtn.style.display = isOAuthAvailable ? 'flex' : 'none';
     }
+    
+    // Handle modal Google login buttons
+    const modalGoogleBtns = document.querySelectorAll('.google-login-modal');
+    modalGoogleBtns.forEach(btn => {
+        (btn as HTMLElement).style.display = isOAuthAvailable ? 'flex' : 'none';
+    });
 }

@@ -1,4 +1,5 @@
-import { setSharedState } from '../main'
+import { setSharedState} from '../main'
+import { saveSession } from './session'
 import loading from '../components/loading.html?raw'
 
 const BACKEND_SIGNUP_URL = `${import.meta.env.VITE_API_URL}/auth/register`;
@@ -20,39 +21,16 @@ export function setupSignupForm() {
 		return;
 	}
 
-	// Create error spans dynamically
-	function createErrorSpan(input: HTMLElement): HTMLElement {
-		let span = input.nextElementSibling as HTMLElement | null;
-		if (!span || !span.classList.contains("error-msg")) {
-			span = document.createElement("span");
-			span.className = "error-msg text-red-500 text-sm block hidden";
-			input.insertAdjacentElement("afterend", span);
-		}
-		return span;
-	}
-
-	const usernameError = createErrorSpan(usernameInput);
-	const emailError = createErrorSpan(emailInput);
-	const confirmEmailError = createErrorSpan(confirmEmailInput);
-	const passwordError = createErrorSpan(passwordInput);
-	const confirmPasswordError = createErrorSpan(confirmPasswordInput);
-
-	// Initially disable button
-	signupSubmit.disabled = true;
-
-	// Helpers
+	// Validation helpers
 	function isPasswordValid(pw: string): boolean {
-		const minLength = pw.length >= 8;
-		const hasUpper = /[A-Z]/.test(pw);
-		const hasNumber = /[0-9]/.test(pw);
-		return minLength && hasUpper && hasNumber;
+		return pw.length >= 8 && /[A-Z]/.test(pw) && /[0-9]/.test(pw);
 	}
 
 	function setInputState(input: HTMLInputElement, isValid: boolean, errorMsg?: string, errorSpan?: HTMLElement) {
 		if (isValid) {
 			input.classList.remove("border-red-500", "focus:ring-red-500");
 			input.classList.add("border-green-500", "focus:ring-green-500");
-			if (errorSpan) errorSpan.classList.add("hidden");
+			errorSpan?.classList.add("hidden");
 		} else {
 			input.classList.remove("border-green-500", "focus:ring-green-500");
 			input.classList.add("border-red-500", "focus:ring-red-500");
@@ -63,74 +41,32 @@ export function setupSignupForm() {
 		}
 	}
 
-	// Validate inputs
 	function validateInputs() {
 		let valid = true;
 
-		// Username
-		if (usernameInput!.value.trim().length === 0) {
-			setInputState(usernameInput!, false, "Username is required.", usernameError);
-			valid = false;
-		} else {
-			setInputState(usernameInput!, true, "", usernameError);
-		}
+		if (!usernameInput!.value.trim()) { valid = false; setInputState(usernameInput!, false, "Username is required."); }
+		else setInputState(usernameInput!, true);
 
-		// Email
-		if (emailInput!.value.trim().length === 0) {
-			setInputState(emailInput!, false, "Email is required.", emailError);
-			valid = false;
-		} else {
-			setInputState(emailInput!, true, "", emailError);
-		}
+		if (!emailInput!.value.trim()) { valid = false; setInputState(emailInput!, false, "Email is required."); }
+		else setInputState(emailInput!, true);
 
-		// Confirm email
-		if (confirmEmailInput!.value.trim() !== emailInput!.value.trim() || confirmEmailInput!.value.trim() === "") {
-			setInputState(confirmEmailInput!, false, "Emails do not match.", confirmEmailError);
-			valid = false;
-		} else {
-			setInputState(confirmEmailInput!, true, "", confirmEmailError);
-		}
+		if (confirmEmailInput!.value.trim() !== emailInput!.value.trim()) { valid = false; setInputState(confirmEmailInput!, false, "Emails do not match."); }
+		else setInputState(confirmEmailInput!, true);
 
-		// Password
-		if (!isPasswordValid(passwordInput!.value)) {
-			setInputState(passwordInput!, false, "Password must be ≥ 8 chars, 1 uppercase & 1 number.", passwordError);
-			valid = false;
-		} else {
-			setInputState(passwordInput!, true, "", passwordError);
-		}
+		if (!isPasswordValid(passwordInput!.value)) { valid = false; setInputState(passwordInput!, false, "Password must be ≥ 8 chars, 1 uppercase & 1 number."); }
+		else setInputState(passwordInput!, true);
 
-		// Confirm password
-		if (confirmPasswordInput!.value !== passwordInput!.value || confirmPasswordInput!.value === "") {
-			setInputState(confirmPasswordInput!, false, "Passwords do not match.", confirmPasswordError);
-			valid = false;
-		} else {
-			setInputState(confirmPasswordInput!, true, "", confirmPasswordError);
-		}
+		if (confirmPasswordInput!.value !== passwordInput!.value) { valid = false; setInputState(confirmPasswordInput!, false, "Passwords do not match."); }
+		else setInputState(confirmPasswordInput!, true);
 
-    	signupSubmit!.disabled = !valid;
+		signupSubmit!.disabled = !valid;
 	}
 
-	// Attach validation on input events
-	usernameInput.addEventListener('input', validateInputs);
-	emailInput.addEventListener('input', validateInputs);
-	confirmEmailInput.addEventListener('input', validateInputs);
-	passwordInput.addEventListener('input', validateInputs);
-	confirmPasswordInput.addEventListener('input', validateInputs);
+	[usernameInput, emailInput, confirmEmailInput, passwordInput, confirmPasswordInput].forEach(input => input?.addEventListener('input', validateInputs));
 
-	// Modal open/close
-	if (openBtnLogin) {
-		openBtnLogin.addEventListener('click', () => {
-			signupModal.classList.add('hidden');
-		});
-	}
+	if (openBtnLogin) openBtnLogin.addEventListener('click', () => signupModal.classList.add('hidden'));
+	signupModal.addEventListener('click', (e) => { if (e.target === signupModal) signupModal.classList.add('hidden'); });
 
-	signupModal.addEventListener('click', (e) => {
-		if (e.target === signupModal) {
-			signupModal.classList.add('hidden');
-		}
-	});
-
-	// --- Submit handling ---
 	signupForm.addEventListener('submit', async (e) => {
 		e.preventDefault();
 
@@ -138,14 +74,13 @@ export function setupSignupForm() {
 		const email = emailInput!.value.trim();
 		const password = passwordInput!.value.trim();
 
-		// Replace button text with loading animation
 		const originalButtonHTML = signupSubmit!.innerHTML;
 		signupSubmit!.innerHTML = loading;
 		signupSubmit!.disabled = true;
 
 		try {
 			const controller = new AbortController();
-			const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+			const timeoutId = setTimeout(() => controller.abort(), 15000);
 
 			const response = await fetch(BACKEND_SIGNUP_URL, {
 				method: "POST",
@@ -156,33 +91,43 @@ export function setupSignupForm() {
 
 			clearTimeout(timeoutId);
 
-			if (response.ok) {
-				const data = await response.json();
-				console.log("Signup response:", data);
-
-				setSharedState({
-				  username,
-				  avatarUrl: data.avatarUrl || "/default-avatar.png",
-				  isLoggedIn: true
-				});
-
-				signupModal.classList.add("hidden");
-				console.log("Signup successful!");
-			} else {
+			if (!response.ok) {
 				alert("Signup failed. Please try again.");
 				passwordInput!.value = "";
 				confirmPasswordInput!.value = "";
+				return;
 			}
+
+			const data = await response.json();
+
+			// ✅ Save JWT + session
+			if (data.token) {
+				saveSession(data.token, {
+					username: data.username || username,
+					avatarUrl: data.avatarUrl || "/default-avatar.png"
+				});
+			}
+
+			// ✅ Update reactive shared state
+			setSharedState({
+				isLoggedIn: true,
+				username: data.username || username,
+				avatarUrl: data.avatarUrl || "/default-avatar.png"
+			});
+			await fetch("/stats/api/friends/online", {
+      		  method: "POST",
+      		  headers: { "Content-Type": "application/json" },
+      		  body: JSON.stringify({ username: data.user.username}),
+      		});
+
+			signupModal.classList.add("hidden");
+			console.log("Signup successful!");
 		} catch (err) {
 			console.error("Signup error:", err);
 			alert("Network error or request timeout.");
-			passwordInput!.value = "";
-			confirmPasswordInput!.value = "";
 		} finally {
 			signupSubmit!.innerHTML = originalButtonHTML;
 			signupSubmit!.disabled = false;
 		}
 	});
 }
-
-
