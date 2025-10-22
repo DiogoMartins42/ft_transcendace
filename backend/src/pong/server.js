@@ -11,7 +11,7 @@ const matchmaking = new Matchmaking();
 
 // WebSocket route
 fastify.get("/ws", { websocket: true }, (connection, req) => {
-  const url = new URL(req.url || "", `http://${req.headers.host}`);
+  const url = new URL(req.url || "", `https://${req.headers.host}`);
   const username = url.searchParams.get("username") || undefined;
 
   console.log(`🔗 New connection from ${username || 'anonymous'}`);

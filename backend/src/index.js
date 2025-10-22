@@ -1,4 +1,11 @@
 // index.js (final corrected, full version)
+import dotenv from 'dotenv';
+dotenv.config();
+
+console.log('🔐 OAuth Environment Check:');
+console.log('GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? '✓ Set' : '✗ Missing');
+console.log('GOOGLE_CLIENT_SECRET:', process.env.GOOGLE_CLIENT_SECRET ? '✓ Set' : '✗ Missing');
+console.log('NODE_ENV:', process.env.NODE_ENV);
 
 import Fastify from "fastify";
 import FastifyStatic from "@fastify/static";
@@ -32,7 +39,7 @@ const __dirname = path.dirname(__filename);
 
 // --- HTTPS setup (only enable in production if certs exist) ---
 let httpsOptions = undefined;
-if (process.env.NODE_ENV === "production") {
+
   try {
     const certDir = "/app/certs";
     const keyPath = path.join(certDir, "key.pem");
@@ -49,9 +56,6 @@ if (process.env.NODE_ENV === "production") {
   } catch (err) {
     console.warn("⚠️ HTTPS setup failed:", err);
   }
-} else {
-  console.log("💻 Development mode: HTTPS disabled (use HTTP / localhost).");
-}
 
 // --- Create Fastify instance ---
 const fastify = Fastify({
@@ -63,38 +67,45 @@ const fastify = Fastify({
 });
 
 // --- CORS ---
-// Accept local dev origins & your DuckDNS production domain
 fastify.register(fastifyCors, {
   origin: (origin, cb) => {
-    // allow requests with no origin (like curl, server-to-server)
+    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return cb(null, true);
-
-    const allowed = new Set([
+    
+    const allowedOrigins = [
       "https://pongpong.duckdns.org",
-      "https://www.pongpong.duckdns.org",
-      "http://pongpong.duckdns.org",
+      "https://pongpong.duckdns.org:3000",
+      "https://localhost:3000",
       "http://localhost:5173",
-      "http://localhost:3000",
-      "http://127.0.0.1:5173",
-      "http://127.0.0.1:3000",
-      // Add other dev origins you use
-    ]);
-
-    if (allowed.has(origin)) return cb(null, true);
-    // allow if origin host matches localhost or 127.0.0.1 (flexible)
-    try {
-      const u = new URL(origin);
-      if (u.hostname === "localhost" || u.hostname === "127.0.0.1") return cb(null, true);
-    } catch (e) {
-      // ignore parse errors
+      "http://localhost:3000"
+    ];
+    
+    if (allowedOrigins.includes(origin)) {
+      return cb(null, true);
     }
-    cb(new Error("Not allowed by CORS"), false);
+    
+    // Log blocked origins for debugging
+    console.log('🚫 CORS blocked origin:', origin);
+    return cb(new Error('Not allowed by CORS'), false);
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 });
 
 // --- SQLite setup ---
 const db = new Database(env.dbFile);
+
+
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    type TEXT,
+    message TEXT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`).run();
 
 db.prepare(`
   CREATE TABLE IF NOT EXISTS users (
@@ -193,6 +204,46 @@ fastify.register(fastifyWebsocket, {
       next(true);
     },
   },
+});
+
+// --- OAuth Debug Middleware ---
+fastify.addHook('onRequest', async (request, reply) => {
+  // Log all OAuth-related requests
+  if (request.url.includes('/oauth')) {
+    console.log('🔐 OAuth Request:', {
+      method: request.method,
+      url: request.url,
+      query: request.query,
+      headers: {
+        origin: request.headers.origin,
+        referer: request.headers.referer,
+        'user-agent': request.headers['user-agent']
+      }
+    });
+  }
+});
+
+// Add response logging for OAuth routes
+fastify.addHook('onSend', async (request, reply, payload) => {
+  if (request.url.includes('/oauth')) {
+    console.log('🔐 OAuth Response:', {
+      statusCode: reply.statusCode,
+      url: request.url,
+      payload: payload ? JSON.parse(payload) : 'No payload'
+    });
+  }
+});
+
+// --- Manual OAuth Test Endpoint ---
+fastify.get("/oauth/test-flow", async (request, reply) => {
+  // This simulates what should happen when you click the Google login button
+  const authUrl = `https://pongpong.duckdns.org:3000/oauth/google`;
+  
+  return {
+    message: "Test OAuth flow manually by visiting this URL in your browser:",
+    oauthUrl: authUrl,
+    directLink: `<a href="${authUrl}">Click here to test OAuth</a>`
+  };
 });
 
 const wsClients = new Set();
@@ -497,18 +548,29 @@ const start = async () => {
   try {
     const port = process.env.PORT || 3000;
     const host = "0.0.0.0";
-    await fastify.listen({ port, host });
+    
+    console.log(`🚀 Attempting to start server on ${host}:${port}`);
+    await fastify.listen({ 
+      port: parseInt(port), 
+      host: host,
+      listenTextResolver: (address) => {
+        return `Server listening on ${address}`;
+      }
+    });
 
     const address = fastify.server.address();
+    console.log('✅ Server address info:', address);
+    
     const protocol = httpsOptions ? "https" : "http";
     const wsProtocol = httpsOptions ? "wss" : "ws";
-    const domain = (process.env.NODE_ENV === "production") ? "pongpong.duckdns.org" : "localhost";
+    const domain = (process.env.NODE_ENV === "development") ? "pongpong.duckdns.org" : "localhost";
 
     console.log("🚀 SERVER STARTED SUCCESSFULLY");
     console.log(`🌐 ${protocol}://${domain}:${address.port}`);
     console.log(`📡 WebSocket URL: ${wsProtocol}://${domain}:${address.port}/ws`);
     console.log(`👥 Connected clients: ${wsClients.size}`);
     console.log(`🎮 Game update loop running at 60 FPS`);
+    console.log(`📍 Server bound to: ${address.address}:${address.port}`);
   } catch (err) {
     console.error("❌ SERVER STARTUP FAILED:", err);
     process.exit(1);

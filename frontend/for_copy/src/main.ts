@@ -215,39 +215,41 @@ window.addEventListener('unhandledrejection', (event) => {
 window.addEventListener('DOMContentLoaded', async () => {
   console.log('🚀 App initializing...')
 
-  // Process OAuth return (if any) BEFORE checking stored session
+  // 1. Process OAuth return FIRST (before anything else)
+  let oauthProcessed = false;
   try {
-    await handleOAuthCallback()
+    oauthProcessed = await handleOAuthCallback();
+    console.log('OAuth callback processed:', oauthProcessed);
   } catch (err) {
-    console.error('OAuth callback handling failed:', err)
+    console.error('OAuth callback handling failed:', err);
   }
 
-  // Init OAuth UI (show/hide Google button) early
-  try {
-    await initOAuthUI()
-  } catch (err) {
-    console.warn('initOAuthUI failed:', err)
-  }
+  // 2. Verify session (will be set by OAuth if it succeeded)
+  const hasValidSession = await verifyStoredSession();
+  console.log('Valid session:', hasValidSession);
 
-  // 1. Verify session after possible OAuth login
-  const hasValidSession = await verifyStoredSession()
-
-  // 2. Initialize WebSocket only if user is logged in
+  // 3. Initialize WebSocket only if user is logged in
   if (hasValidSession) {
-    console.log('🔌 Initializing WebSocket for authenticated user...')
+    console.log('🔌 Initializing WebSocket for authenticated user...');
     initWebSocket((msg: any) => {
-      console.log('📥 WebSocket message received in main:', msg)
-      handleIncomingMessage(msg)
-    })
+      console.log('📥 WebSocket message received in main:', msg);
+      handleIncomingMessage(msg);
+    });
   } else {
-    console.log('🚫 No valid session, skipping WebSocket initialization')
+    console.log('🚫 No valid session, skipping WebSocket initialization');
   }
   
-  // 3. Always expose WebSocket functions globally for other modules
+  // 4. Always expose WebSocket functions globally for other modules
   exposeWebSocketFunctions();
   
-  // 4. Render initial page
-  await handleRoute()
-})
-
+  // 5. Render initial page
+  await handleRoute();
+  
+  // 6. Initialize OAuth UI AFTER page is rendered
+  try {
+    await initOAuthUI();
+  } catch (err) {
+    console.warn('initOAuthUI failed:', err);
+  }
+});
 window.addEventListener('hashchange', handleRoute)
