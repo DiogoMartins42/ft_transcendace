@@ -143,7 +143,7 @@ function drawGameOverScreen(context: CanvasRenderingContext2D, canvas: HTMLCanva
   const winner = (window as any).lastWinner;
   context.fillText(winner ? `${winner} WINS!` : "GAME OVER", canvas.width / 2, canvas.height / 2 - 50);
   context.font = "24px sans-serif";
-  context.fillText("Press RESTART to play again", canvas.width / 2, canvas.height / 2 + 50);
+  // context.fillText("Press RESTART to play again", canvas.width / 2, canvas.height / 2 + 50);
 }
 
 /* -------------------------- Rendering Loop -------------------------- */
@@ -382,7 +382,7 @@ function handleGameOver(data: any) {
   showOverlay(
     `Game Over! ${data.winner} wins!\nScore: ${data.score?.left} - ${data.score?.right}`,
     [
-      { text: "Play Again", onClick: () => { hideOverlay(); sendGameControl("restart"); } },
+      // { text: "Play Again", onClick: () => { hideOverlay(); sendGameControl("restart"); } },
       { text: "Main Menu", onClick: () => { 
         hideOverlay(); 
         stopRenderLoop();
